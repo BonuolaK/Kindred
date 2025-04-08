@@ -96,6 +96,81 @@ export function setupAuth(app: Express) {
         password: await hashPassword(password),
       });
 
+      // Create at least one match for the new user
+      try {
+        // Import the matching algorithm
+        const { MatchingAlgorithm } = require('./matching-algorithm');
+        
+        // Get all users except current user
+        const allUsers = [];
+        let currentId = 1;
+        let potentialUser = null;
+        
+        // Simple approach to get all users
+        while ((potentialUser = await storage.getUser(currentId))) {
+          if (potentialUser.id !== user.id) {
+            allUsers.push(potentialUser);
+          }
+          currentId++;
+        }
+        
+        // Use matching algorithm to find compatible users
+        const algorithm = new MatchingAlgorithm();
+        const matchResults = algorithm.findMatches(user, allUsers);
+        
+        // Get the top matches (limit to 3 for example)
+        const topMatches = matchResults
+          .filter(match => match.matchScore >= 40) // Lower threshold to ensure at least one match
+          .slice(0, 3);
+        
+        // Create matches in database for each top match
+        if (topMatches.length > 0) {
+          await Promise.all(
+            topMatches.map(match => 
+              storage.createMatch({
+                userId1: user.id,
+                userId2: match.id,
+                compatibility: match.matchScore,
+                callScheduled: false
+              })
+            )
+          );
+          console.log(`Created ${topMatches.length} matches for new user ${user.username}`);
+        } else {
+          // If no matches found by algorithm, create at least one random match
+          if (allUsers.length > 0) {
+            // Find a user with compatible gender preferences if possible
+            const compatibleUsers = allUsers.filter(candidate => {
+              if (!user.interestedGenders || !candidate.interestedGenders) return true;
+              
+              // Check mutual gender interest
+              const candidateInterestedInUser = candidate.interestedGenders.includes(user.gender || "");
+              const userInterestedInCandidate = user.interestedGenders.includes(candidate.gender || "");
+              
+              return candidateInterestedInUser && userInterestedInCandidate;
+            });
+            
+            const matchUser = compatibleUsers.length > 0 
+              ? compatibleUsers[Math.floor(Math.random() * compatibleUsers.length)]
+              : allUsers[Math.floor(Math.random() * allUsers.length)];
+            
+            const randomCompatibility = 70 + Math.floor(Math.random() * 20); // 70-90%
+            
+            await storage.createMatch({
+              userId1: user.id,
+              userId2: matchUser.id,
+              compatibility: randomCompatibility,
+              callScheduled: false
+            });
+            
+            console.log(`Created a random match for new user ${user.username} with ${matchUser.username}`);
+          }
+        }
+      } catch (error) {
+        console.error("Error creating initial matches for new user:", error);
+        // Continue with login even if match creation fails
+      }
+
       // Log the user in
       req.login(user, (err) => {
         if (err) return next(err);

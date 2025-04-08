@@ -28,7 +28,7 @@ export default function ConversationPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const [match, params] = useRoute<{ id: string }>("/conversation/:id");
-  const matchId = match ? parseInt(params.id) : 0;
+  const matchId = match && params ? parseInt(params.id) : 0;
   
   const messageEndRef = useRef<HTMLDivElement>(null);
   const [messageText, setMessageText] = useState("");
@@ -38,6 +38,7 @@ export default function ConversationPage() {
   const { data: matchData, isLoading: isLoadingMatch } = useQuery<Match & { otherUser: any }>({
     queryKey: [`/api/matches/${matchId}`],
     enabled: !!matchId,
+    retry: 1, // Only retry once to avoid excessive requests
   });
   
   // Fetch messages
