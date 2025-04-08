@@ -281,7 +281,11 @@ export default function ProfilePage() {
                             <Textarea 
                               placeholder="Tell potential matches about yourself"
                               className="resize-none min-h-[120px]"
-                              {...field} 
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
                             />
                           </FormControl>
                           <FormDescription>
@@ -323,12 +327,12 @@ export default function ProfilePage() {
                                     >
                                       <FormControl>
                                         <Checkbox
-                                          checked={field.value?.includes(activity)}
+                                          checked={(field.value || []).includes(activity)}
                                           onCheckedChange={(checked) => {
                                             return checked
-                                              ? field.onChange([...field.value, activity])
+                                              ? field.onChange([...(field.value || []), activity])
                                               : field.onChange(
-                                                  field.value?.filter(
+                                                  (field.value || []).filter(
                                                     (value) => value !== activity
                                                   )
                                                 )
@@ -358,7 +362,7 @@ export default function ProfilePage() {
                           <FormControl>
                             <RadioGroup
                               onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              value={field.value || ''}
                               className="flex flex-col space-y-1"
                             >
                               {[
@@ -415,12 +419,12 @@ export default function ProfilePage() {
                                     >
                                       <FormControl>
                                         <Checkbox
-                                          checked={field.value?.includes(dealbreaker)}
+                                          checked={(field.value || []).includes(dealbreaker)}
                                           onCheckedChange={(checked) => {
                                             return checked
-                                              ? field.onChange([...field.value, dealbreaker])
+                                              ? field.onChange([...(field.value || []), dealbreaker])
                                               : field.onChange(
-                                                  field.value?.filter(
+                                                  (field.value || []).filter(
                                                     (value) => value !== dealbreaker
                                                   )
                                                 )
@@ -454,7 +458,7 @@ export default function ProfilePage() {
                           <FormControl>
                             <RadioGroup
                               onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              value={field.value || ''}
                               className="flex flex-col space-y-1"
                             >
                               {[
@@ -488,7 +492,7 @@ export default function ProfilePage() {
                           <FormControl>
                             <RadioGroup
                               onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              value={field.value || ''}
                               className="flex flex-col space-y-1"
                             >
                               {[
@@ -522,7 +526,7 @@ export default function ProfilePage() {
                           <FormControl>
                             <RadioGroup
                               onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              value={field.value || ''}
                               className="flex flex-col space-y-1"
                             >
                               {[
@@ -557,7 +561,7 @@ export default function ProfilePage() {
                           <FormControl>
                             <RadioGroup
                               onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              value={field.value || ''}
                               className="flex flex-col space-y-1"
                             >
                               {[
@@ -591,7 +595,11 @@ export default function ProfilePage() {
                           <FormControl>
                             <Input 
                               placeholder="Enter URL to your profile photo" 
-                              {...field} 
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
                             />
                           </FormControl>
                           <FormDescription>

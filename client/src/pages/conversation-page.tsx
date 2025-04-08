@@ -21,14 +21,14 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Match, Message, Note } from "@shared/schema";
-import { PhoneCall, ChevronLeft, Send, Clock, PenSquare, Lock } from "lucide-react";
+import { PhoneCall, ChevronLeft, Send, Clock, PenSquare, Lock, MessageCircle } from "lucide-react";
 import { formatTime, formatRelativeTime } from "@/lib/utils";
 
 export default function ConversationPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [match] = useRoute<{ id: string }>("/conversation/:id");
-  const matchId = match ? parseInt(match.params.id) : 0;
+  const [match, params] = useRoute<{ id: string }>("/conversation/:id");
+  const matchId = match ? parseInt(params.id) : 0;
   
   const messageEndRef = useRef<HTMLDivElement>(null);
   const [messageText, setMessageText] = useState("");
@@ -129,8 +129,19 @@ export default function ConversationPage() {
             Back to Matches
           </Button>
           <div className="bg-white rounded-lg p-8 text-center">
-            <p className="text-gray-500 mb-4">Match not found or no longer available.</p>
-            <Button onClick={() => navigate("/matches")}>View All Matches</Button>
+            <div className="flex justify-center mb-6">
+              <div className="w-24 h-24 bg-primary-light/10 rounded-full flex items-center justify-center">
+                <MessageCircle className="h-12 w-12 text-primary/70" />
+              </div>
+            </div>
+            <h3 className="font-heading font-semibold text-xl mb-3">No Conversation Selected</h3>
+            <p className="text-gray-500 mb-6 max-w-md mx-auto">
+              Oops! It seems you haven't found your perfect conversation partner yet. 
+              Head over to your matches to find someone whose personality might click with yours!
+            </p>
+            <Button onClick={() => navigate("/matches")} className="mx-auto">
+              Discover Matches
+            </Button>
           </div>
         </main>
         <MobileNav />
@@ -158,7 +169,7 @@ export default function ConversationPage() {
             <div className="flex items-center flex-1">
               <AvatarPlaceholder 
                 user={otherUser} 
-                showPhoto={arePhotosRevealed} 
+                showPhoto={arePhotosRevealed || false} 
                 size="sm"
               />
               <div className="ml-3">

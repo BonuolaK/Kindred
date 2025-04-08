@@ -666,11 +666,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               </FormDescription>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                 {[
-                                  "Socializing with friends/family",
-                                  "Enjoying solo activities",
-                                  "Outdoor adventures",
-                                  "Creative pursuits",
-                                  "Learning new skills"
+                                  "Reading and writing",
+                                  "Watching movies/TV",
+                                  "Outdoor activities",
+                                  "Cooking and dining",
+                                  "Music and arts",
+                                  "Sports and fitness",
+                                  "Travel and exploration",
+                                  "Gaming and technology"
                                 ].map((activity) => (
                                   <FormItem
                                     key={activity}
@@ -724,7 +727,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                   {[
                                     "Trust and honesty",
                                     "Growth and ambition",
-                                    "Stability and security",
+                                    "Stability and security", 
                                     "Independence and freedom",
                                     "Shared experiences and adventure"
                                   ].map((value) => (
