@@ -40,7 +40,7 @@ export interface IStorage {
   updateNote(id: number, note: Partial<Note>): Promise<Note | undefined>;
   
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: any;
 }
 
 export class MemStorage implements IStorage {
@@ -55,7 +55,7 @@ export class MemStorage implements IStorage {
   currentMessageId: number;
   currentCallLogId: number;
   currentNoteId: number;
-  sessionStore: session.SessionStore;
+  sessionStore: any;
 
   constructor() {
     this.users = new Map();
@@ -95,9 +95,20 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const now = new Date();
+    // Ensure nullable fields are properly handled
     const user: User = { 
       ...insertUser, 
       id, 
+      job: insertUser.job || null,
+      bio: insertUser.bio || null,
+      photoUrl: insertUser.photoUrl || null,
+      communicationStyle: insertUser.communicationStyle || null,
+      freeTimeActivities: insertUser.freeTimeActivities || [],
+      values: insertUser.values || null,
+      conflictResolution: insertUser.conflictResolution || null,
+      loveLanguage: insertUser.loveLanguage || null,
+      relationshipPace: insertUser.relationshipPace || null,
+      dealbreakers: insertUser.dealbreakers || [],
       isPhotoRevealed: false,
       isPremium: false,
       createdAt: now
@@ -134,6 +145,9 @@ export class MemStorage implements IStorage {
       id,
       matchDate: now,
       callCount: 0,
+      lastCallDate: null,
+      callScheduled: false,
+      scheduledCallTime: null,
       isChatUnlocked: false,
       arePhotosRevealed: false,
       status: 'active'
@@ -194,8 +208,8 @@ export class MemStorage implements IStorage {
       ...callLogData,
       id,
       startTime: now,
-      endTime: undefined,
-      duration: undefined
+      endTime: null,
+      duration: null
     };
     this.callLogs.set(id, callLog);
     return callLog;
@@ -241,4 +255,7 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+import { DatabaseStorage } from "./database-storage";
+
+// Use DatabaseStorage instead of MemStorage
+export const storage = new DatabaseStorage();
