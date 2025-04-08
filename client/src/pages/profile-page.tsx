@@ -5,6 +5,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { profileSchema } from "@shared/schema";
+import { ukCities } from "@/lib/uk-cities";
 import {
   Form,
   FormControl,
@@ -66,7 +67,6 @@ export default function ProfilePage() {
       gender: user?.gender || "",
       interestedGenders: user?.interestedGenders || [],
       location: user?.location || "",
-      job: user?.job || "",
       bio: user?.bio || "",
       photoUrl: user?.photoUrl || "",
       communicationStyle: user?.communicationStyle || "",
@@ -247,23 +247,21 @@ export default function ProfilePage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Location</FormLabel>
-                          <FormControl>
-                            <Input placeholder="City, State/Province" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="job"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Occupation</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Your job title" {...field} />
-                          </FormControl>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value || ""}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select your city" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {ukCities.map((city) => (
+                                <SelectItem key={city} value={city}>{city}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,13 +33,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Logo from "@/components/logo";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, Check } from "lucide-react";
+import { ukCities } from "@/lib/uk-cities";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 // Steps for the onboarding process
 type Step = {
   id: number;
   title: string;
   description: string;
+  question?: string;
+  fieldName?: string;
 };
 
 const steps: Step[] = [
@@ -51,17 +56,98 @@ const steps: Step[] = [
   {
     id: 2,
     title: "Basic Information",
-    description: "Tell us about yourself and who you're looking to meet",
+    description: "Tell us about yourself",
+    question: "What's your name?",
+    fieldName: "name",
   },
   {
     id: 3,
-    title: "Your Preferences",
-    description: "Help us understand your relationship preferences",
+    title: "Basic Information",
+    description: "Tell us about yourself",
+    question: "How old are you?",
+    fieldName: "age",
   },
   {
     id: 4,
-    title: "Almost Done!",
-    description: "Just a few more questions about your communication style",
+    title: "Basic Information",
+    description: "Tell us about yourself",
+    question: "What's your gender?",
+    fieldName: "gender",
+  },
+  {
+    id: 5,
+    title: "Basic Information",
+    description: "Tell us about yourself",
+    question: "Who are you interested in meeting?",
+    fieldName: "interestedGenders",
+  },
+  {
+    id: 6,
+    title: "Location",
+    description: "Where are you based?",
+    question: "Which city do you live in?",
+    fieldName: "location",
+  },
+  {
+    id: 7,
+    title: "About You",
+    description: "Let others know a bit more about you",
+    question: "Write a short bio about yourself",
+    fieldName: "bio",
+  },
+  {
+    id: 8,
+    title: "Communication",
+    description: "Help us understand your communication style",
+    question: "How would you describe your communication style?",
+    fieldName: "communicationStyle",
+  },
+  {
+    id: 9,
+    title: "Interests",
+    description: "What do you enjoy doing in your free time?",
+    question: "Select activities you enjoy",
+    fieldName: "freeTimeActivities",
+  },
+  {
+    id: 10,
+    title: "Values",
+    description: "What's important to you in relationships?",
+    question: "What values are most important to you?",
+    fieldName: "values",
+  },
+  {
+    id: 11,
+    title: "Conflict Resolution",
+    description: "How do you handle disagreements?",
+    question: "How do you typically resolve conflicts?",
+    fieldName: "conflictResolution",
+  },
+  {
+    id: 12,
+    title: "Love Language",
+    description: "How do you express and receive love?",
+    question: "What's your primary love language?",
+    fieldName: "loveLanguage",
+  },
+  {
+    id: 13,
+    title: "Relationship Pace",
+    description: "Everyone moves at their own pace",
+    question: "How would you describe your ideal relationship pace?",
+    fieldName: "relationshipPace",
+  },
+  {
+    id: 14,
+    title: "Deal Breakers",
+    description: "What's absolutely non-negotiable for you?",
+    question: "Select your deal breakers",
+    fieldName: "dealbreakers",
+  },
+  {
+    id: 15,
+    title: "All Done!",
+    description: "Your profile is ready to go",
   },
 ];
 
@@ -71,8 +157,7 @@ const onboardingSchema = z.object({
   age: z.number().min(18, "You must be at least 18 years old").max(120),
   gender: z.string().min(1, "Please select your gender"),
   interestedGenders: z.array(z.string()).min(1, "Please select at least one gender"),
-  location: z.string().min(2, "Please enter your location"),
-  job: z.string().optional(),
+  location: z.string().min(1, "Please select your location"),
   bio: z.string().optional(),
   communicationStyle: z.string().optional(),
   freeTimeActivities: z.array(z.string()).optional(),
@@ -92,6 +177,7 @@ type OnboardingProps = {
 export default function Onboarding({ onComplete }: OnboardingProps) {
   const { user, updateProfileMutation } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [direction, setDirection] = useState<"forward" | "backward">("forward");
   
   // Form with defaults from user if available
   const form = useForm<OnboardingFormValues>({
@@ -102,7 +188,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       gender: user?.gender || "",
       interestedGenders: user?.interestedGenders || [],
       location: user?.location || "",
-      job: user?.job || "",
       bio: user?.bio || "",
       communicationStyle: user?.communicationStyle || "",
       freeTimeActivities: user?.freeTimeActivities || [],
@@ -115,22 +200,28 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   });
   
   const handleNext = async () => {
-    // Validate the current step
-    const currentStepFields = getFieldsForStep(currentStep);
-    const result = await form.trigger(currentStepFields as any);
+    // Validate the current field if applicable
+    const currentStepData = steps[currentStep - 1];
+    const fieldName = currentStepData.fieldName;
     
-    if (result) {
-      if (currentStep < steps.length) {
-        setCurrentStep(currentStep + 1);
-      } else {
-        // Submit the form on the last step
-        onSubmit(form.getValues());
-      }
+    // If this step has a field to validate
+    if (fieldName) {
+      const result = await form.trigger(fieldName as any);
+      if (!result) return;
+    }
+    
+    if (currentStep < steps.length) {
+      setDirection("forward");
+      setCurrentStep(currentStep + 1);
+    } else {
+      // Submit the form on the last step
+      onSubmit(form.getValues());
     }
   };
   
   const handlePrevious = () => {
     if (currentStep > 1) {
+      setDirection("backward");
       setCurrentStep(currentStep - 1);
     }
   };
@@ -141,22 +232,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         onComplete();
       }
     });
-  };
-  
-  // Determine which fields to show for each step
-  const getFieldsForStep = (step: number) => {
-    switch (step) {
-      case 1:
-        return [];
-      case 2:
-        return ["name", "age", "gender", "interestedGenders"];
-      case 3:
-        return ["location", "job", "bio", "freeTimeActivities", "values"];
-      case 4:
-        return ["communicationStyle", "conflictResolution", "loveLanguage", "relationshipPace", "dealbreakers"];
-      default:
-        return [];
-    }
   };
   
   const currentStepData = steps[currentStep - 1];
@@ -178,369 +253,635 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             
             {/* Progress bar */}
             <div className="w-full bg-gray-200 h-2 rounded-full mt-4">
-              <div 
-                className="bg-primary h-full rounded-full transition-all" 
-                style={{ width: `${(currentStep / steps.length) * 100}%` }}
-              ></div>
+              <motion.div 
+                className="bg-primary h-full rounded-full" 
+                initial={{ width: 0 }}
+                animate={{ width: `${(currentStep / steps.length) * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
             </div>
           </CardHeader>
           
           <CardContent>
             <Form {...form}>
               <form className="space-y-6">
-                {currentStep === 1 && (
-                  <div className="text-center py-8">
-                    <h3 className="text-2xl font-heading font-semibold mb-4">Welcome to Kindred!</h3>
-                    <p className="text-gray-600 mb-6">We're excited to help you find meaningful connections based on conversation first, appearance second.</p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left mb-8">
-                      <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-                        <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
-                            <path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"></path>
-                          </svg>
-                        </div>
-                        <h4 className="font-heading font-semibold text-lg mb-2">Create Your Profile</h4>
-                        <p className="text-gray-600 text-sm">Answer thoughtful questions to help our algorithm find your perfect matches.</p>
-                      </div>
-                      
-                      <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-                        <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
-                            <path d="M2 13l10 10L22 13"></path>
-                            <path d="M12 2v21"></path>
-                          </svg>
-                        </div>
-                        <h4 className="font-heading font-semibold text-lg mb-2">Get Matched</h4>
-                        <p className="text-gray-600 text-sm">Our algorithm pairs you with compatible matches. No photos until you've connected through conversation.</p>
-                      </div>
-                      
-                      <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-                        <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
-                            <path d="M2 3a1 1 0 0 1 1-1h2.153a1 1 0 0 1 .986.836l.74 4.435a1 1 0 0 1-.54 1.06l-1.548.773a11.037 11.037 0 0 0 6.105 6.105l.774-1.548a1 1 0 0 1 1.059-.54l4.435.74a1 1 0 0 1 .836.986V17a1 1 0 0 1-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
-                          </svg>
-                        </div>
-                        <h4 className="font-heading font-semibold text-lg mb-2">Connect Through Calls</h4>
-                        <p className="text-gray-600 text-sm">Scheduled audio calls help you build a genuine connection before revealing photos.</p>
-                      </div>
-                    </div>
-                    
-                    <p className="text-gray-600 mb-4">Let's get started by setting up your profile!</p>
-                  </div>
-                )}
-                
-                {currentStep === 2 && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Full Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Your full name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="age"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Age</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="Your age"
-                              min={18}
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
-                              value={field.value || ""}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="gender"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Gender</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select your gender" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="male">Male</SelectItem>
-                              <SelectItem value="female">Female</SelectItem>
-                              <SelectItem value="non-binary">Non-binary</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="interestedGenders"
-                      render={() => (
-                        <FormItem>
-                          <div className="mb-4">
-                            <FormLabel>Interested In (select all that apply)</FormLabel>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={currentStep}
+                    initial={{ 
+                      x: direction === "forward" ? 20 : -20, 
+                      opacity: 0 
+                    }}
+                    animate={{ 
+                      x: 0, 
+                      opacity: 1 
+                    }}
+                    exit={{ 
+                      x: direction === "forward" ? -20 : 20, 
+                      opacity: 0 
+                    }}
+                    transition={{ duration: 0.3 }}
+                    className="min-h-[300px] flex flex-col"
+                  >
+                    {currentStep === 1 && (
+                      <div className="text-center py-8">
+                        <h3 className="text-2xl font-heading font-semibold mb-4">Welcome to Kindred!</h3>
+                        <p className="text-gray-600 mb-6">We're excited to help you find meaningful connections based on conversation first, appearance second.</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left mb-8">
+                          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
+                            <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                                <path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"></path>
+                              </svg>
+                            </div>
+                            <h4 className="font-heading font-semibold text-lg mb-2">Create Your Profile</h4>
+                            <p className="text-gray-600 text-sm">Answer thoughtful questions to help our algorithm find your perfect matches.</p>
                           </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            {["male", "female", "non-binary", "other"].map((gender) => (
-                              <FormField
-                                key={gender}
-                                control={form.control}
-                                name="interestedGenders"
-                                render={({ field }) => {
-                                  return (
-                                    <FormItem
-                                      key={gender}
-                                      className="flex flex-row items-start space-x-3 space-y-0"
-                                    >
-                                      <FormControl>
-                                        <Checkbox
-                                          checked={field.value?.includes(gender)}
-                                          onCheckedChange={(checked) => {
-                                            return checked
-                                              ? field.onChange([...field.value, gender])
-                                              : field.onChange(
-                                                  field.value?.filter(
-                                                    (value) => value !== gender
-                                                  )
+                          
+                          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
+                            <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                                <path d="M2 13l10 10L22 13"></path>
+                                <path d="M12 2v21"></path>
+                              </svg>
+                            </div>
+                            <h4 className="font-heading font-semibold text-lg mb-2">Get Matched</h4>
+                            <p className="text-gray-600 text-sm">Our algorithm pairs you with compatible matches. No photos until you've connected through conversation.</p>
+                          </div>
+                          
+                          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
+                            <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                                <path d="M2 3a1 1 0 0 1 1-1h2.153a1 1 0 0 1 .986.836l.74 4.435a1 1 0 0 1-.54 1.06l-1.548.773a11.037 11.037 0 0 0 6.105 6.105l.774-1.548a1 1 0 0 1 1.059-.54l4.435.74a1 1 0 0 1 .836.986V17a1 1 0 0 1-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
+                              </svg>
+                            </div>
+                            <h4 className="font-heading font-semibold text-lg mb-2">Connect Through Calls</h4>
+                            <p className="text-gray-600 text-sm">Scheduled audio calls help you build a genuine connection before revealing photos.</p>
+                          </div>
+                        </div>
+                        
+                        <p className="text-gray-600 mb-4">Let's get started by setting up your profile!</p>
+                      </div>
+                    )}
+                    
+                    {currentStep === 2 && (
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Your full name" 
+                                  {...field} 
+                                  className="text-lg mt-4"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 3 && (
+                      <FormField
+                        control={form.control}
+                        name="age"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  placeholder="Your age"
+                                  min={18}
+                                  {...field}
+                                  onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                                  value={field.value || ""}
+                                  className="text-lg mt-4"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                You must be at least 18 years old to use Kindred
+                              </FormDescription>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 4 && (
+                      <FormField
+                        control={form.control}
+                        name="gender"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                defaultValue={field.value}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="mt-4">
+                                    <SelectValue placeholder="Select your gender" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="male">Male</SelectItem>
+                                  <SelectItem value="female">Female</SelectItem>
+                                  <SelectItem value="non-binary">Non-binary</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 5 && (
+                      <FormField
+                        control={form.control}
+                        name="interestedGenders"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormDescription className="mb-4">
+                                Select all that apply
+                              </FormDescription>
+                              <div className="grid grid-cols-2 gap-4 mt-4">
+                                {["male", "female", "non-binary", "other"].map((gender) => (
+                                  <FormItem
+                                    key={gender}
+                                    className="flex flex-row items-start space-x-3 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={(field.value || []).includes(gender)}
+                                        onCheckedChange={(checked) => {
+                                          return checked
+                                            ? field.onChange([...(field.value || []), gender])
+                                            : field.onChange(
+                                                (field.value || []).filter(
+                                                  (value) => value !== gender
                                                 )
-                                          }}
-                                        />
+                                              )
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="capitalize font-normal">
+                                      {gender}
+                                    </FormLabel>
+                                  </FormItem>
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 6 && (
+                      <FormField
+                        control={form.control}
+                        name="location"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormDescription className="mb-2">
+                                Your location helps us find matches nearby
+                              </FormDescription>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                defaultValue={field.value}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="mt-4">
+                                    <SelectValue placeholder="Select your city" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {ukCities.map((city) => (
+                                    <SelectItem key={city} value={city}>{city}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 7 && (
+                      <FormField
+                        control={form.control}
+                        name="bio"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormDescription className="mb-2">
+                                Share your interests, hobbies, and what makes you unique
+                              </FormDescription>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Tell potential matches about yourself"
+                                  className="resize-none min-h-[150px] mt-4"
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 8 && (
+                      <FormField
+                        control={form.control}
+                        name="communicationStyle"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormControl>
+                                <RadioGroup
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                  className="flex flex-col space-y-3 mt-4"
+                                >
+                                  {[
+                                    "Direct and straightforward",
+                                    "Diplomatic and gentle",
+                                    "Actions more than words",
+                                    "Expressive and open"
+                                  ].map((style) => (
+                                    <FormItem key={style} className="flex items-center space-x-3 space-y-0">
+                                      <FormControl>
+                                        <RadioGroupItem value={style} />
                                       </FormControl>
-                                      <FormLabel className="capitalize">
-                                        {gender}
+                                      <FormLabel className="font-normal">
+                                        {style}
                                       </FormLabel>
                                     </FormItem>
-                                  )
-                                }}
-                              />
-                            ))}
+                                  ))}
+                                </RadioGroup>
+                              </FormControl>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 9 && (
+                      <FormField
+                        control={form.control}
+                        name="freeTimeActivities"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormDescription className="mb-4">
+                                Select all that apply
+                              </FormDescription>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                {[
+                                  "Socializing with friends/family",
+                                  "Enjoying solo activities",
+                                  "Outdoor adventures",
+                                  "Creative pursuits",
+                                  "Learning new skills"
+                                ].map((activity) => (
+                                  <FormItem
+                                    key={activity}
+                                    className="flex flex-row items-start space-x-3 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={(field.value || []).includes(activity)}
+                                        onCheckedChange={(checked) => {
+                                          return checked
+                                            ? field.onChange([...(field.value || []), activity])
+                                            : field.onChange(
+                                                (field.value || []).filter(
+                                                  (value) => value !== activity
+                                                )
+                                              )
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                      {activity}
+                                    </FormLabel>
+                                  </FormItem>
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 10 && (
+                      <FormField
+                        control={form.control}
+                        name="values"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormControl>
+                                <RadioGroup
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                  className="flex flex-col space-y-3 mt-4"
+                                >
+                                  {[
+                                    "Trust and honesty",
+                                    "Growth and ambition",
+                                    "Stability and security",
+                                    "Independence and freedom",
+                                    "Shared experiences and adventure"
+                                  ].map((value) => (
+                                    <FormItem key={value} className="flex items-center space-x-3 space-y-0">
+                                      <FormControl>
+                                        <RadioGroupItem value={value} />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">
+                                        {value}
+                                      </FormLabel>
+                                    </FormItem>
+                                  ))}
+                                </RadioGroup>
+                              </FormControl>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 11 && (
+                      <FormField
+                        control={form.control}
+                        name="conflictResolution"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormControl>
+                                <RadioGroup
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                  className="flex flex-col space-y-3 mt-4"
+                                >
+                                  {[
+                                    "Address issues immediately and directly",
+                                    "Take time to process before discussing",
+                                    "Prefer to compromise and find middle ground",
+                                    "Focus on understanding the other person's perspective first"
+                                  ].map((style) => (
+                                    <FormItem key={style} className="flex items-center space-x-3 space-y-0">
+                                      <FormControl>
+                                        <RadioGroupItem value={style} />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">
+                                        {style}
+                                      </FormLabel>
+                                    </FormItem>
+                                  ))}
+                                </RadioGroup>
+                              </FormControl>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 12 && (
+                      <FormField
+                        control={form.control}
+                        name="loveLanguage"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormControl>
+                                <RadioGroup
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                  className="flex flex-col space-y-3 mt-4"
+                                >
+                                  {[
+                                    "Quality time together",
+                                    "Acts of service",
+                                    "Physical touch",
+                                    "Verbal affirmation and compliments",
+                                    "Thoughtful gifts"
+                                  ].map((language) => (
+                                    <FormItem key={language} className="flex items-center space-x-3 space-y-0">
+                                      <FormControl>
+                                        <RadioGroupItem value={language} />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">
+                                        {language}
+                                      </FormLabel>
+                                    </FormItem>
+                                  ))}
+                                </RadioGroup>
+                              </FormControl>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 13 && (
+                      <FormField
+                        control={form.control}
+                        name="relationshipPace"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormControl>
+                                <RadioGroup
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                  className="flex flex-col space-y-3 mt-4"
+                                >
+                                  {[
+                                    "Taking things slowly and building friendship first",
+                                    "Moderate pace with regular communication",
+                                    "Diving deep quickly to establish emotional connection",
+                                    "Following intuition rather than a set timeline"
+                                  ].map((pace) => (
+                                    <FormItem key={pace} className="flex items-center space-x-3 space-y-0">
+                                      <FormControl>
+                                        <RadioGroupItem value={pace} />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">
+                                        {pace}
+                                      </FormLabel>
+                                    </FormItem>
+                                  ))}
+                                </RadioGroup>
+                              </FormControl>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 14 && (
+                      <FormField
+                        control={form.control}
+                        name="dealbreakers"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormDescription className="mb-4">
+                                Select all that apply
+                              </FormDescription>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                {[
+                                  "Different lifestyle habits",
+                                  "Misaligned future goals",
+                                  "Incompatible financial attitudes",
+                                  "Different social needs",
+                                  "Conflicting values or beliefs"
+                                ].map((dealbreaker) => (
+                                  <FormItem
+                                    key={dealbreaker}
+                                    className="flex flex-row items-start space-x-3 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={(field.value || []).includes(dealbreaker)}
+                                        onCheckedChange={(checked) => {
+                                          return checked
+                                            ? field.onChange([...(field.value || []), dealbreaker])
+                                            : field.onChange(
+                                                (field.value || []).filter(
+                                                  (value) => value !== dealbreaker
+                                                )
+                                              )
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                      {dealbreaker}
+                                    </FormLabel>
+                                  </FormItem>
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 15 && (
+                      <div className="flex-1 flex flex-col justify-center items-center text-center py-8">
+                        <motion.div 
+                          initial={{ scale: 0.8, opacity: 0 }} 
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: 0.1 }}
+                          className="mb-6"
+                        >
+                          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                            <Check className="h-12 w-12 text-green-600" />
                           </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
-                
-                {currentStep === 3 && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="location"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location</FormLabel>
-                          <FormControl>
-                            <Input placeholder="City, State/Province" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            Your location helps us find matches nearby
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="job"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Occupation</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Your job title" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="bio"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>About Me</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Tell potential matches about yourself"
-                              className="resize-none min-h-[120px]"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Share your interests, hobbies, and what makes you unique
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="values"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Which of these values is most important to you in a relationship?</FormLabel>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="flex flex-col space-y-1"
-                            >
-                              {[
-                                "Trust and honesty",
-                                "Growth and ambition",
-                                "Stability and security",
-                                "Independence and freedom",
-                                "Shared experiences and adventure"
-                              ].map((value) => (
-                                <FormItem key={value} className="flex items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <RadioGroupItem value={value} />
-                                  </FormControl>
-                                  <FormLabel className="font-normal">
-                                    {value}
-                                  </FormLabel>
-                                </FormItem>
-                              ))}
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
-                
-                {currentStep === 4 && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="communicationStyle"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>How would you describe your communication style in relationships?</FormLabel>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="flex flex-col space-y-1"
-                            >
-                              {[
-                                "Direct and straightforward",
-                                "Diplomatic and gentle",
-                                "Actions more than words",
-                                "Expressive and open"
-                              ].map((style) => (
-                                <FormItem key={style} className="flex items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <RadioGroupItem value={style} />
-                                  </FormControl>
-                                  <FormLabel className="font-normal">
-                                    {style}
-                                  </FormLabel>
-                                </FormItem>
-                              ))}
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="loveLanguage"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>How do you primarily express affection in relationships?</FormLabel>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="flex flex-col space-y-1"
-                            >
-                              {[
-                                "Quality time together",
-                                "Acts of service",
-                                "Physical touch",
-                                "Verbal affirmation and compliments",
-                                "Thoughtful gifts"
-                              ].map((language) => (
-                                <FormItem key={language} className="flex items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <RadioGroupItem value={language} />
-                                  </FormControl>
-                                  <FormLabel className="font-normal">
-                                    {language}
-                                  </FormLabel>
-                                </FormItem>
-                              ))}
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="relationshipPace"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>What's your preferred pace when developing a new relationship?</FormLabel>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="flex flex-col space-y-1"
-                            >
-                              {[
-                                "Taking things slowly and building friendship first",
-                                "Moderate pace with regular communication",
-                                "Diving deep quickly to establish emotional connection",
-                                "Following intuition rather than a set timeline"
-                              ].map((pace) => (
-                                <FormItem key={pace} className="flex items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <RadioGroupItem value={pace} />
-                                  </FormControl>
-                                  <FormLabel className="font-normal">
-                                    {pace}
-                                  </FormLabel>
-                                </FormItem>
-                              ))}
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
+                        </motion.div>
+                        
+                        <motion.div
+                          initial={{ y: 20, opacity: 0 }} 
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.2 }}
+                        >
+                          <h3 className="text-2xl font-heading font-semibold mb-4">Profile Complete!</h3>
+                          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                            Thank you for setting up your profile. You're all set to start finding meaningful connections through conversation.
+                          </p>
+                        </motion.div>
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               </form>
             </Form>
           </CardContent>
@@ -551,7 +892,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               variant="outline"
               onClick={handlePrevious}
               disabled={currentStep === 1}
+              className="flex items-center"
             >
+              {currentStep > 1 && <ArrowLeft className="mr-2 h-4 w-4" />}
               {currentStep === 1 ? 'Skip' : 'Previous'}
             </Button>
             
@@ -559,7 +902,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               type="button"
               onClick={handleNext}
               disabled={updateProfileMutation.isPending}
-              className="ml-auto"
+              className="ml-auto flex items-center"
             >
               {updateProfileMutation.isPending ? (
                 <>
