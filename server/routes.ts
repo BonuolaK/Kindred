@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
+import { MatchingAlgorithm } from "./matching-algorithm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
@@ -36,6 +37,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   
   // Match endpoints
+  app.post("/api/generate-matches", async (req, res, next) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Get all users except current user
+      // In a production app, you would implement pagination and filtering
+      const allUsers = [];
+      let currentId = 1;
+      let potentialUser = null;
+      
+      // Simple approach to get all users
+      while ((potentialUser = await storage.getUser(currentId))) {
+        if (potentialUser.id !== userId) {
+          allUsers.push(potentialUser);
+        }
+        currentId++;
+      }
+      
+      // Use matching algorithm to find compatible users
+      const algorithm = new MatchingAlgorithm();
+      const matchResults = algorithm.findMatches(user, allUsers);
+      
+      // Get the top matches (limit to 10 for example)
+      const topMatches = matchResults
+        .filter(match => match.matchScore >= 50) // Only consider 50%+ compatible
+        .slice(0, 10);
+      
+      // Create matches in database for each top match
+      const createdMatches = await Promise.all(
+        topMatches.map(match => 
+          storage.createMatch({
+            userId1: userId,
+            userId2: match.id,
+            compatibility: match.matchScore,
+            callScheduled: false
+          })
+        )
+      );
+      
+      res.status(201).json({
+        matchesCreated: createdMatches.length,
+        matches: createdMatches
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   app.get("/api/matches", async (req, res, next) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     

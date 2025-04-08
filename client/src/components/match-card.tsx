@@ -1,10 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatDate, getAvatarShape } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { Match, User } from "@shared/schema";
 import { Lock, Phone, MessageCircle, CalendarClock, Eye } from "lucide-react";
-import AvatarPlaceholder from "./avatar-placeholder";
+import UserAvatar from "./user-avatar";
 import { Link } from "wouter";
 
 type MatchCardProps = {
@@ -36,7 +36,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
       
       <CardContent className="p-4 flex flex-col items-center">
         <div className="relative mb-4 w-32 h-32">
-          <AvatarPlaceholder 
+          <UserAvatar 
             user={otherUser} 
             size="xl" 
             showPhoto={isPhotoRevealed}

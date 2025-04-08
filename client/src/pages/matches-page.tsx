@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Match, User } from "@shared/schema";
 import MatchCard from "@/components/match-card";
-import AvatarPlaceholder from "@/components/avatar-placeholder";
+import UserAvatar from "@/components/user-avatar";
 import Header from "@/components/header";
 import MobileNav from "@/components/mobile-nav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -64,6 +64,21 @@ export default function MatchesPage() {
       setSelectedMatch(null);
       setDate(undefined);
       setTime(undefined);
+      queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
+    }
+  });
+  
+  const generateMatchesMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/generate-matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!res.ok) throw new Error('Failed to generate matches');
+      return res.json();
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
     }
   });
@@ -170,11 +185,20 @@ export default function MatchesPage() {
               ) : (
                 <div className="text-center py-12">
                   <h3 className="text-lg font-medium mb-2">No matches found</h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground mb-6">
                     {filterValue === "all"
                       ? "You don't have any matches yet. Complete your profile to increase your chances of matching."
                       : "No matches found with the selected filter. Try a different filter."}
                   </p>
+                  {filterValue === "all" && (
+                    <Button
+                      onClick={() => generateMatchesMutation.mutate()}
+                      disabled={generateMatchesMutation.isPending}
+                      className="mx-auto"
+                    >
+                      {generateMatchesMutation.isPending ? "Finding Matches..." : "Find Matches"}
+                    </Button>
+                  )}
                 </div>
               )}
             </TabsContent>
@@ -193,7 +217,7 @@ export default function MatchesPage() {
                       <div className="flex items-center space-x-4">
                         <div className="relative w-16 h-16">
                           <div className="absolute inset-0">
-                            <AvatarPlaceholder user={match.otherUser} showPhoto={match.arePhotosRevealed || false} size="md" />
+                            <UserAvatar user={match.otherUser} showPhoto={match.arePhotosRevealed || false} size="md" />
                           </div>
                         </div>
                         <div>
@@ -219,11 +243,20 @@ export default function MatchesPage() {
               ) : (
                 <div className="text-center py-12">
                   <h3 className="text-lg font-medium mb-2">No matches found</h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground mb-6">
                     {filterValue === "all"
                       ? "You don't have any matches yet. Complete your profile to increase your chances of matching."
                       : "No matches found with the selected filter. Try a different filter."}
                   </p>
+                  {filterValue === "all" && (
+                    <Button
+                      onClick={() => generateMatchesMutation.mutate()}
+                      disabled={generateMatchesMutation.isPending}
+                      className="mx-auto"
+                    >
+                      {generateMatchesMutation.isPending ? "Finding Matches..." : "Find Matches"}
+                    </Button>
+                  )}
                 </div>
               )}
             </TabsContent>

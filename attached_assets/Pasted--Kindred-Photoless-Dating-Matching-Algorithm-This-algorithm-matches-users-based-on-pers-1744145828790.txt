@@ -1,0 +1,312 @@
+/**
+ * Kindred - Photoless Dating Matching Algorithm
+ * This algorithm matches users based on personality compatibility (60%), 
+ * location proximity (20%), and age compatibility (20%)
+ */
+
+class MatchingAlgorithm {
+  constructor() {
+    // Define weights for each matching component
+    this.weights = {
+      personality: 0.6,
+      location: 0.2,
+      age: 0.2
+    };
+    
+    // Define maximum distances (in km) for location scoring
+    this.distanceThresholds = {
+      sameCity: 5,
+      nearby: 20,
+      sameRegion: 100
+    };
+  }
+  
+  /**
+   * Main matching function - returns array of potential matches with scores
+   * @param {Object} user - Current user profile
+   * @param {Array} candidates - Array of potential match candidates
+   * @returns {Array} - Sorted array of matches with scores
+   */
+  findMatches(user, candidates) {
+    // Filter candidates by gender preference first (critical requirement)
+    const genderFilteredCandidates = this.filterByGenderPreference(user, candidates);
+    
+    // Calculate match scores for remaining candidates
+    const scoredCandidates = genderFilteredCandidates.map(candidate => {
+      const personalityScore = this.calculatePersonalityScore(user, candidate);
+      const locationScore = this.calculateLocationScore(user, candidate);
+      const ageScore = this.calculateAgeScore(user, candidate);
+      
+      // Apply weights to each component
+      const weightedScore = (
+        personalityScore * this.weights.personality +
+        locationScore * this.weights.location +
+        ageScore * this.weights.age
+      );
+      
+      return {
+        ...candidate,
+        matchScore: Math.round(weightedScore * 100), // Convert to percentage
+        compatibilityBreakdown: {
+          personality: Math.round(personalityScore * 100),
+          location: Math.round(locationScore * 100),
+          age: Math.round(ageScore * 100)
+        }
+      };
+    });
+    
+    // Sort by match score (highest first)
+    return scoredCandidates.sort((a, b) => b.matchScore - a.matchScore);
+  }
+  
+  /**
+   * Filter candidates by gender preference - this is a critical requirement
+   * @param {Object} user - Current user profile
+   * @param {Array} candidates - All potential candidates
+   * @returns {Array} - Filtered candidates matching gender preference
+   */
+  filterByGenderPreference(user, candidates) {
+    return candidates.filter(candidate => {
+      // Check if user's gender is in candidate's interested genders
+      const candidateInterestedInUser = candidate.interestedGenders.includes(user.gender);
+      
+      // Check if candidate's gender is in user's interested genders
+      const userInterestedInCandidate = user.interestedGenders.includes(candidate.gender);
+      
+      // Must be mutual interest
+      return candidateInterestedInUser && userInterestedInCandidate;
+    });
+  }
+  
+  /**
+   * Calculate personality compatibility score (0-1)
+   * @param {Object} user - Current user profile
+   * @param {Object} candidate - Potential match candidate
+   * @returns {number} - Compatibility score between 0-1
+   */
+  calculatePersonalityScore(user, candidate) {
+    const questionnaireResponses = [
+      this.compareResponses(user.communicationStyle, candidate.communicationStyle),
+      this.compareResponses(user.freeTimeActivities, candidate.freeTimeActivities),
+      this.compareResponses(user.values, candidate.values),
+      this.compareResponses(user.conflictResolution, candidate.conflictResolution),
+      this.compareResponses(user.loveLanguage, candidate.loveLanguage),
+      this.compareResponses(user.relationshipPace, candidate.relationshipPace),
+      this.compareDealbreakers(user.dealbreakers, candidate.dealbreakers)
+    ];
+    
+    // Average the scores from all questions
+    return questionnaireResponses.reduce((sum, score) => sum + score, 0) / questionnaireResponses.length;
+  }
+  
+  /**
+   * Compare responses between two users for a single question
+   * @param {string|Array} userResponse - Current user's response
+   * @param {string|Array} candidateResponse - Candidate's response
+   * @returns {number} - Similarity score between 0-1
+   */
+  compareResponses(userResponse, candidateResponse) {
+    // Handle array responses (multiple selections)
+    if (Array.isArray(userResponse) && Array.isArray(candidateResponse)) {
+      // Calculate Jaccard similarity (intersection over union)
+      const intersection = userResponse.filter(item => candidateResponse.includes(item));
+      const union = [...new Set([...userResponse, ...candidateResponse])];
+      return intersection.length / union.length;
+    }
+    
+    // Handle single response (exact match)
+    return userResponse === candidateResponse ? 1 : 0;
+  }
+  
+  /**
+   * Special handling for dealbreakers - these should heavily impact compatibility
+   * @param {Array} userDealbreakers - User's dealbreakers
+   * @param {Object} candidateProfile - Candidate's full profile
+   * @returns {number} - Compatibility score (0 if dealbreaker present)
+   */
+  compareDealbreakers(userDealbreakers, candidateProfile) {
+    // Check if any of user's dealbreakers match candidate's traits
+    const dealbreakersPresent = userDealbreakers.some(dealbreaker => {
+      return this.isDealbreaker(dealbreaker, candidateProfile);
+    });
+    
+    return dealbreakersPresent ? 0 : 1;
+  }
+  
+  /**
+   * Check if a specific dealbreaker applies to candidate
+   * @param {string} dealbreaker - Dealbreaker category
+   * @param {Object} candidateProfile - Candidate's profile
+   * @returns {boolean} - Whether dealbreaker applies
+   */
+  isDealbreaker(dealbreaker, candidateProfile) {
+    // Implementation would need to check specific dealbreaker against candidate profile
+    // Simplified example:
+    switch (dealbreaker) {
+      case 'lifestyle_habits':
+        return this.checkLifestyleConflicts(candidateProfile);
+      case 'future_goals':
+        return this.checkFutureGoalConflicts(candidateProfile);
+      case 'financial_attitudes':
+        return this.checkFinancialConflicts(candidateProfile);
+      case 'social_needs':
+        return this.checkSocialNeedsConflicts(candidateProfile);
+      case 'values_beliefs':
+        return this.checkValueConflicts(candidateProfile);
+      default:
+        return false;
+    }
+  }
+  
+  /**
+   * Calculate location compatibility score (0-1)
+   * @param {Object} user - Current user with location data
+   * @param {Object} candidate - Potential match with location data
+   * @returns {number} - Proximity score between 0-1
+   */
+  calculateLocationScore(user, candidate) {
+    const distance = this.calculateDistance(
+      user.location.latitude, 
+      user.location.longitude,
+      candidate.location.latitude,
+      candidate.location.longitude
+    );
+    
+    // Score based on distance thresholds
+    if (distance <= this.distanceThresholds.sameCity) {
+      return 1.0; // Same city (highest score)
+    } else if (distance <= this.distanceThresholds.nearby) {
+      return 0.8; // Nearby
+    } else if (distance <= this.distanceThresholds.sameRegion) {
+      return 0.5; // Same region
+    } else {
+      // Linear decrease in score as distance increases beyond region threshold
+      return Math.max(0, 0.5 - (distance - this.distanceThresholds.sameRegion) / 1000);
+    }
+  }
+  
+  /**
+   * Calculate distance between two points using Haversine formula
+   * @param {number} lat1 - User latitude
+   * @param {number} lon1 - User longitude
+   * @param {number} lat2 - Candidate latitude
+   * @param {number} lon2 - Candidate longitude
+   * @returns {number} - Distance in kilometers
+   */
+  calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth's radius in km
+    const dLat = this.deg2rad(lat2 - lat1);
+    const dLon = this.deg2rad(lon2 - lon1);
+    
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    
+    return distance;
+  }
+  
+  /**
+   * Convert degrees to radians
+   * @param {number} deg - Degrees
+   * @returns {number} - Radians
+   */
+  deg2rad(deg) {
+    return deg * (Math.PI/180);
+  }
+  
+  /**
+   * Calculate age compatibility score (0-1)
+   * @param {Object} user - Current user with age/preferences
+   * @param {Object} candidate - Potential match with age
+   * @returns {number} - Age compatibility score between 0-1
+   */
+  calculateAgeScore(user, candidate) {
+    // Return 0 if candidate's age is outside user's preferred range or vice versa
+    if (
+      candidate.age < user.agePreference.min || 
+      candidate.age > user.agePreference.max ||
+      user.age < candidate.agePreference.min ||
+      user.age > candidate.agePreference.max
+    ) {
+      return 0;
+    }
+    
+    // If within range, calculate how centered they are in each other's preferences
+    const userCenteredness = this.calculateAgeCenteredness(
+      candidate.age, 
+      user.agePreference.min, 
+      user.agePreference.max
+    );
+    
+    const candidateCenteredness = this.calculateAgeCenteredness(
+      user.age, 
+      candidate.agePreference.min, 
+      candidate.agePreference.max
+    );
+    
+    // Average the two values
+    return (userCenteredness + candidateCenteredness) / 2;
+  }
+  
+  /**
+   * Calculate how centered an age is within a preferred range (higher if closer to center)
+   * @param {number} age - Age to check
+   * @param {number} minPreferred - Minimum preferred age
+   * @param {number} maxPreferred - Maximum preferred age
+   * @returns {number} - Centeredness score between 0-1
+   */
+  calculateAgeCenteredness(age, minPreferred, maxPreferred) {
+    const rangeSize = maxPreferred - minPreferred;
+    const center = minPreferred + (rangeSize / 2);
+    const distanceFromCenter = Math.abs(age - center);
+    const maxDistance = rangeSize / 2;
+    
+    // Convert to a 0-1 score, higher when closer to center
+    return 1 - (distanceFromCenter / maxDistance);
+  }
+  
+  /**
+   * Additional helper methods for specific dealbreaker checks
+   * These would be filled out based on how your data is structured
+   */
+  checkLifestyleConflicts(candidateProfile) {
+    // Implementation depends on how lifestyle data is structured
+    return false; // Placeholder
+  }
+  
+  checkFutureGoalConflicts(candidateProfile) {
+    // Implementation depends on how goals data is structured
+    return false; // Placeholder
+  }
+  
+  checkFinancialConflicts(candidateProfile) {
+    // Implementation depends on how financial data is structured
+    return false; // Placeholder
+  }
+  
+  checkSocialNeedsConflicts(candidateProfile) {
+    // Implementation depends on how social needs data is structured
+    return false; // Placeholder
+  }
+  
+  checkValueConflicts(candidateProfile) {
+    // Implementation depends on how values data is structured
+    return false; // Placeholder
+  }
+}
+
+/**
+ * Example usage:
+ * 
+ * // Initialize the matching algorithm
+ * const matcher = new MatchingAlgorithm();
+ * 
+ * // Get potential matches for a user
+ * const matches = matcher.findMatches(currentUser, candidateUsers);
+ * 
+ * // Display top 5 matches
+ * console.log(matches.slice(0, 5));
+ */
