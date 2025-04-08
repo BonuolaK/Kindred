@@ -8,10 +8,10 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
-  age: integer("age").notNull(),
-  gender: text("gender").notNull(),
-  interestedGenders: text("interested_genders").array().notNull(),
-  location: text("location").notNull(),
+  age: integer("age"),
+  gender: text("gender"),
+  interestedGenders: text("interested_genders").array(),
+  location: text("location"),
   job: text("job"),
   bio: text("bio"),
   photoUrl: text("photo_url"),
@@ -112,11 +112,25 @@ export const loginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-export const registrationSchema = insertUserSchema.pick({
-  username: true,
-  password: true,
-  email: true,
-  name: true,
+export const registrationSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Invalid email format"),
+  name: z.string().optional(),
+  age: z.number().optional(),
+  gender: z.string().optional(),
+  interestedGenders: z.array(z.string()).optional(),
+  location: z.string().optional(),
+  job: z.string().optional(),
+  bio: z.string().optional(),
+  photoUrl: z.string().optional(),
+  communicationStyle: z.string().optional(),
+  freeTimeActivities: z.array(z.string()).optional(),
+  values: z.string().optional(),
+  conflictResolution: z.string().optional(),
+  loveLanguage: z.string().optional(),
+  relationshipPace: z.string().optional(),
+  dealbreakers: z.array(z.string()).optional(),
 });
 
 export const profileSchema = insertUserSchema.omit({
