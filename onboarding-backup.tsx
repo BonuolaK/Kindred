@@ -407,24 +407,23 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               transition={{ delay: 0.1 }}
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormControl>
-                                <RadioGroup
-                                  onValueChange={field.onChange}
-                                  value={field.value || ''}
-                                  className="flex flex-col space-y-3 mt-4"
-                                >
-                                  {["Woman", "Man", "Non-binary", "Other"].map((gender) => (
-                                    <FormItem key={gender} className="flex items-center space-x-3 space-y-0">
-                                      <FormControl>
-                                        <RadioGroupItem value={gender} />
-                                      </FormControl>
-                                      <FormLabel className="font-normal">
-                                        {gender}
-                                      </FormLabel>
-                                    </FormItem>
-                                  ))}
-                                </RadioGroup>
-                              </FormControl>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                defaultValue={field.value}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="mt-4">
+                                    <SelectValue placeholder="Select your gender" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="male">Male</SelectItem>
+                                  <SelectItem value="female">Female</SelectItem>
+                                  <SelectItem value="non-binary">Non-binary</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
                               <FormMessage />
                             </motion.div>
                           </FormItem>
@@ -444,26 +443,30 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               transition={{ delay: 0.1 }}
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormDescription>Select all that apply</FormDescription>
-                              <div className="grid grid-cols-1 gap-4 mt-4">
-                                {["Women", "Men", "Non-binary", "Other"].map((gender) => (
-                                  <FormItem 
-                                    key={gender} 
-                                    className="flex items-center space-x-3 space-y-0"
+                              <FormDescription className="mb-4">
+                                Select all that apply
+                              </FormDescription>
+                              <div className="grid grid-cols-2 gap-4 mt-4">
+                                {["male", "female", "non-binary", "other"].map((gender) => (
+                                  <FormItem
+                                    key={gender}
+                                    className="flex flex-row items-start space-x-3 space-y-0"
                                   >
                                     <FormControl>
-                                      <Checkbox 
-                                        checked={field.value?.includes(gender)} 
+                                      <Checkbox
+                                        checked={(field.value || []).includes(gender)}
                                         onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            field.onChange([...(field.value || []), gender]);
-                                          } else {
-                                            field.onChange(field.value?.filter((value) => value !== gender));
-                                          }
+                                          return checked
+                                            ? field.onChange([...(field.value || []), gender])
+                                            : field.onChange(
+                                                (field.value || []).filter(
+                                                  (value) => value !== gender
+                                                )
+                                              )
                                         }}
                                       />
                                     </FormControl>
-                                    <FormLabel className="font-normal">
+                                    <FormLabel className="capitalize font-normal">
                                       {gender}
                                     </FormLabel>
                                   </FormItem>
@@ -483,8 +486,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                           animate={{ y: 0, opacity: 1 }}
                           transition={{ delay: 0.1 }}
                         >
-                          <FormLabel className="text-xl font-heading mb-4">{currentStepData.question}</FormLabel>
-                          <div className="grid grid-cols-2 gap-6 mt-4">
+                          <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                          <FormDescription className="mb-4">
+                            Select the age range you're interested in dating
+                          </FormDescription>
+                          
+                          <div className="grid grid-cols-2 gap-4 mt-6">
                             <FormField
                               control={form.control}
                               name="agePreferenceMin"
@@ -494,9 +501,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                   <FormControl>
                                     <Input
                                       type="number"
-                                      placeholder="Min age"
+                                      placeholder="Min Age"
                                       min={18}
-                                      max={100}
+                                      max={120}
                                       {...field}
                                       onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
                                       value={field.value || ""}
@@ -506,6 +513,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                 </FormItem>
                               )}
                             />
+                            
                             <FormField
                               control={form.control}
                               name="agePreferenceMax"
@@ -515,9 +523,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                   <FormControl>
                                     <Input
                                       type="number"
-                                      placeholder="Max age"
+                                      placeholder="Max Age"
                                       min={18}
-                                      max={100}
+                                      max={120}
                                       {...field}
                                       onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
                                       value={field.value || ""}
@@ -544,20 +552,25 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               transition={{ delay: 0.1 }}
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormControl>
-                                <Select onValueChange={field.onChange} value={field.value || ''}>
+                              <FormDescription className="mb-2">
+                                Your location helps us find matches nearby
+                              </FormDescription>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                defaultValue={field.value}
+                                value={field.value}
+                              >
+                                <FormControl>
                                   <SelectTrigger className="mt-4">
                                     <SelectValue placeholder="Select your city" />
                                   </SelectTrigger>
-                                  <SelectContent>
-                                    {ukCities.map((city) => (
-                                      <SelectItem key={city} value={city}>
-                                        {city}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </FormControl>
+                                </FormControl>
+                                <SelectContent>
+                                  {ukCities.map((city) => (
+                                    <SelectItem key={city} value={city}>{city}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                               <FormMessage />
                             </motion.div>
                           </FormItem>
@@ -565,7 +578,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       />
                     )}
                     
-                    {currentStep === 8 && (
+                    {currentStep === 7 && (
                       <FormField
                         control={form.control}
                         name="bio"
@@ -577,14 +590,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               transition={{ delay: 0.1 }}
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormDescription>
-                                Tell potential matches about yourself, your interests, and what you're looking for
+                              <FormDescription className="mb-2">
+                                Share your interests, hobbies, and what makes you unique
                               </FormDescription>
                               <FormControl>
                                 <Textarea 
-                                  placeholder="I'm a..." 
+                                  placeholder="Tell potential matches about yourself"
+                                  className="resize-none min-h-[150px] mt-4"
                                   {...field} 
-                                  className="mt-4 min-h-[150px]"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -594,7 +607,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       />
                     )}
                     
-                    {currentStep === 9 && (
+                    {currentStep === 8 && (
                       <FormField
                         control={form.control}
                         name="communicationStyle"
@@ -609,7 +622,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               <FormControl>
                                 <RadioGroup
                                   onValueChange={field.onChange}
-                                  value={field.value || ''}
+                                  defaultValue={field.value}
                                   className="flex flex-col space-y-3 mt-4"
                                 >
                                   {[
@@ -636,7 +649,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       />
                     )}
                     
-                    {currentStep === 10 && (
+                    {currentStep === 9 && (
                       <FormField
                         control={form.control}
                         name="freeTimeActivities"
@@ -648,35 +661,35 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               transition={{ delay: 0.1 }}
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormDescription>Select all that apply</FormDescription>
+                              <FormDescription className="mb-4">
+                                Select all that apply
+                              </FormDescription>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                 {[
-                                  "Reading and learning",
+                                  "Reading and writing",
+                                  "Watching movies/TV",
+                                  "Outdoor activities",
+                                  "Cooking and dining",
+                                  "Music and arts",
                                   "Sports and fitness",
-                                  "Outdoor adventures",
-                                  "Creative arts",
-                                  "Socializing with friends",
-                                  "Cooking and food",
-                                  "Travel and exploring",
-                                  "Movies and TV shows",
-                                  "Gaming",
-                                  "Music and concerts",
-                                  "Photography",
-                                  "Volunteering"
+                                  "Travel and exploration",
+                                  "Gaming and technology"
                                 ].map((activity) => (
-                                  <FormItem 
-                                    key={activity} 
-                                    className="flex items-center space-x-3 space-y-0"
+                                  <FormItem
+                                    key={activity}
+                                    className="flex flex-row items-start space-x-3 space-y-0"
                                   >
                                     <FormControl>
-                                      <Checkbox 
-                                        checked={(field.value || []).includes(activity)} 
+                                      <Checkbox
+                                        checked={(field.value || []).includes(activity)}
                                         onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            field.onChange([...(field.value || []), activity]);
-                                          } else {
-                                            field.onChange((field.value || []).filter((value) => value !== activity));
-                                          }
+                                          return checked
+                                            ? field.onChange([...(field.value || []), activity])
+                                            : field.onChange(
+                                                (field.value || []).filter(
+                                                  (value) => value !== activity
+                                                )
+                                              )
                                         }}
                                       />
                                     </FormControl>
@@ -693,7 +706,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       />
                     )}
                     
-                    {currentStep === 11 && (
+                    {currentStep === 10 && (
                       <FormField
                         control={form.control}
                         name="values"
@@ -708,7 +721,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               <FormControl>
                                 <RadioGroup
                                   onValueChange={field.onChange}
-                                  value={field.value || ''}
+                                  defaultValue={field.value}
                                   className="flex flex-col space-y-3 mt-4"
                                 >
                                   {[
@@ -736,7 +749,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       />
                     )}
                     
-                    {currentStep === 12 && (
+                    {currentStep === 11 && (
                       <FormField
                         control={form.control}
                         name="conflictResolution"
@@ -751,13 +764,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               <FormControl>
                                 <RadioGroup
                                   onValueChange={field.onChange}
-                                  value={field.value || ''}
+                                  defaultValue={field.value}
                                   className="flex flex-col space-y-3 mt-4"
                                 >
                                   {[
                                     "Address issues immediately and directly",
                                     "Take time to process before discussing",
-                                    "Prefer to compromise and find middle ground", 
+                                    "Prefer to compromise and find middle ground",
                                     "Focus on understanding the other person's perspective first"
                                   ].map((style) => (
                                     <FormItem key={style} className="flex items-center space-x-3 space-y-0">
@@ -778,7 +791,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       />
                     )}
                     
-                    {currentStep === 13 && (
+                    {currentStep === 12 && (
                       <FormField
                         control={form.control}
                         name="loveLanguage"
@@ -793,13 +806,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               <FormControl>
                                 <RadioGroup
                                   onValueChange={field.onChange}
-                                  value={field.value || ''}
+                                  defaultValue={field.value}
                                   className="flex flex-col space-y-3 mt-4"
                                 >
                                   {[
                                     "Quality time together",
                                     "Acts of service",
-                                    "Physical touch", 
+                                    "Physical touch",
                                     "Verbal affirmation and compliments",
                                     "Thoughtful gifts"
                                   ].map((language) => (
@@ -821,7 +834,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       />
                     )}
                     
-                    {currentStep === 14 && (
+                    {currentStep === 13 && (
                       <FormField
                         control={form.control}
                         name="relationshipPace"
@@ -836,13 +849,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               <FormControl>
                                 <RadioGroup
                                   onValueChange={field.onChange}
-                                  value={field.value || ''}
+                                  defaultValue={field.value}
                                   className="flex flex-col space-y-3 mt-4"
                                 >
                                   {[
                                     "Taking things slowly and building friendship first",
                                     "Moderate pace with regular communication",
-                                    "Diving deep quickly to establish emotional connection", 
+                                    "Diving deep quickly to establish emotional connection",
                                     "Following intuition rather than a set timeline"
                                   ].map((pace) => (
                                     <FormItem key={pace} className="flex items-center space-x-3 space-y-0">
@@ -863,7 +876,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       />
                     )}
                     
-                    {currentStep === 15 && (
+                    {currentStep === 14 && (
                       <FormField
                         control={form.control}
                         name="dealbreakers"
@@ -875,8 +888,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               transition={{ delay: 0.1 }}
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormDescription>Select all that apply</FormDescription>
-                              <div className="grid grid-cols-1 gap-4 mt-4">
+                              <FormDescription className="mb-4">
+                                Select all that apply
+                              </FormDescription>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                 {[
                                   "Different lifestyle habits",
                                   "Misaligned future goals",
@@ -884,19 +899,21 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                   "Different social needs",
                                   "Conflicting values or beliefs"
                                 ].map((dealbreaker) => (
-                                  <FormItem 
-                                    key={dealbreaker} 
-                                    className="flex items-center space-x-3 space-y-0"
+                                  <FormItem
+                                    key={dealbreaker}
+                                    className="flex flex-row items-start space-x-3 space-y-0"
                                   >
                                     <FormControl>
-                                      <Checkbox 
-                                        checked={(field.value || []).includes(dealbreaker)} 
+                                      <Checkbox
+                                        checked={(field.value || []).includes(dealbreaker)}
                                         onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            field.onChange([...(field.value || []), dealbreaker]);
-                                          } else {
-                                            field.onChange((field.value || []).filter((value) => value !== dealbreaker));
-                                          }
+                                          return checked
+                                            ? field.onChange([...(field.value || []), dealbreaker])
+                                            : field.onChange(
+                                                (field.value || []).filter(
+                                                  (value) => value !== dealbreaker
+                                                )
+                                              )
                                         }}
                                       />
                                     </FormControl>
@@ -913,62 +930,70 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       />
                     )}
                     
-                    {currentStep === 16 && (
-                      <div className="flex-1 flex flex-col items-center justify-center text-center">
+                    {currentStep === 15 && (
+                      <div className="flex-1 flex flex-col justify-center items-center text-center py-8">
                         <motion.div 
                           initial={{ scale: 0.8, opacity: 0 }} 
                           animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: 0.1, duration: 0.5 }}
-                          className="bg-primary/10 rounded-full p-4 mb-6"
+                          transition={{ delay: 0.1 }}
+                          className="mb-6"
                         >
-                          <Check className="w-12 h-12 text-primary" />
+                          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                            <Check className="h-12 w-12 text-green-600" />
+                          </div>
                         </motion.div>
-                        <h3 className="text-2xl font-heading font-semibold mb-4">Profile Complete!</h3>
-                        <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                          Thanks for taking the time to fill out your profile. We'll use this information to find your most compatible matches.
-                        </p>
+                        
+                        <motion.div
+                          initial={{ y: 20, opacity: 0 }} 
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.2 }}
+                        >
+                          <h3 className="text-2xl font-heading font-semibold mb-4">Profile Complete!</h3>
+                          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                            Thank you for setting up your profile. You're all set to start finding meaningful connections through conversation.
+                          </p>
+                        </motion.div>
                       </div>
                     )}
                   </motion.div>
                 </AnimatePresence>
-                
-                <div className="flex justify-between pt-4">
-                  {currentStep > 1 ? (
-                    <Button 
-                      type="button" 
-                      onClick={handlePrevious}
-                      variant="outline"
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Previous
-                    </Button>
-                  ) : (
-                    <div></div> // Empty div to maintain flex layout
-                  )}
-                  
-                  <Button 
-                    type="button" 
-                    onClick={handleNext}
-                    disabled={updateProfileMutation.isPending}
-                  >
-                    {updateProfileMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : currentStep < steps.length ? (
-                      <>
-                        Next
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </>
-                    ) : (
-                      "Get Started"
-                    )}
-                  </Button>
-                </div>
               </form>
             </Form>
           </CardContent>
+          
+          <CardFooter className="flex justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handlePrevious}
+              disabled={currentStep === 1}
+              className="flex items-center"
+            >
+              {currentStep > 1 && <ArrowLeft className="mr-2 h-4 w-4" />}
+              {currentStep === 1 ? 'Skip' : 'Previous'}
+            </Button>
+            
+            <Button 
+              type="button"
+              onClick={handleNext}
+              disabled={updateProfileMutation.isPending}
+              className="ml-auto flex items-center"
+            >
+              {updateProfileMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : currentStep < steps.length ? (
+                <>
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              ) : (
+                "Complete Profile"
+              )}
+            </Button>
+          </CardFooter>
         </Card>
       </div>
     </div>
