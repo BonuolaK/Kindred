@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .wave-shape {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    overflow: hidden;
+    line-height: 0;
+  }
+
+  .wave-shape svg {
+    position: relative;
+    display: block;
+    width: calc(100% + 1.3px);
+    height: 94px;
+  }
+  
+  .avatar-shape-1 {
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+  }
+  
+  .avatar-shape-2 {
+    clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%);
+  }
+  
+  .avatar-shape-3 {
+    clip-path: circle(50% at 50% 50%);
+  }
+  
+  .avatar-shape-4 {
+    clip-path: polygon(0% 15%, 15% 15%, 15% 0%, 85% 0%, 85% 15%, 100% 15%, 100% 85%, 85% 85%, 85% 100%, 15% 100%, 15% 85%, 0% 85%);
+  }
+
+  .gradient-bg {
+    background: linear-gradient(135deg, #B81D5B 0%, #552586 100%);
+  }
+
+  /* Custom fonts */
+  .font-heading {
+    font-family: 'Montserrat', sans-serif;
+  }
+  
+  .font-accent {
+    font-family: 'Playfair Display', serif;
+  }
+  
+  .font-sans {
+    font-family: 'Open Sans', sans-serif;
+  }
+}
