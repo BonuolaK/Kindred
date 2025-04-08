@@ -12,7 +12,6 @@ export const users = pgTable("users", {
   gender: text("gender"),
   interestedGenders: text("interested_genders").array(),
   location: text("location"),
-  job: text("job"),
   bio: text("bio"),
   photoUrl: text("photo_url"),
   isPhotoRevealed: boolean("is_photo_revealed").default(false).notNull(),
@@ -25,6 +24,8 @@ export const users = pgTable("users", {
   relationshipPace: text("relationship_pace"),
   dealbreakers: text("dealbreakers").array(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  onboardingCompleted: boolean("onboarding_completed").default(false),
+  questionnaireStep: integer("questionnaire_step").default(0),
 });
 
 export const matches = pgTable("matches", {
@@ -121,7 +122,6 @@ export const registrationSchema = z.object({
   gender: z.string().optional(),
   interestedGenders: z.array(z.string()).optional(),
   location: z.string().optional(),
-  job: z.string().optional(),
   bio: z.string().optional(),
   photoUrl: z.string().optional(),
   communicationStyle: z.string().optional(),

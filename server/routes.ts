@@ -8,6 +8,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
   setupAuth(app);
   
+  // User endpoints
+  app.get("/api/users/:id", async (req, res, next) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const userId = parseInt(req.params.id, 10);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Filter out sensitive information
+      const { password, ...userInfo } = user;
+      
+      res.json(userInfo);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   // HTTP server creation
   const httpServer = createServer(app);
   
@@ -40,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           otherUser: otherUser ? {
             id: otherUser.id,
             name: otherUser.name,
-            job: otherUser.job,
+            location: otherUser.location,
             photoUrl: match.arePhotosRevealed ? otherUser.photoUrl : null,
             // Include other non-sensitive properties as needed
           } : null
@@ -82,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         otherUser: {
           id: otherUser.id,
           name: otherUser.name,
-          job: otherUser.job,
+          location: otherUser.location,
           photoUrl: match.arePhotosRevealed ? otherUser.photoUrl : null,
           // Include other non-sensitive information as needed
         }
@@ -168,6 +189,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Call endpoints
+  app.post("/api/matches/:id/schedule", async (req, res, next) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const userId = req.user.id;
+      const matchId = parseInt(req.params.id, 10);
+      const { date, time } = req.body;
+      
+      if (!date || !time) {
+        return res.status(400).json({ message: "Date and time are required" });
+      }
+      
+      const match = await storage.getMatchById(matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+      
+      // Verify that the requesting user is part of the match
+      if (match.userId1 !== userId && match.userId2 !== userId) {
+        return res.status(403).json({ message: "Not authorized to schedule calls in this match" });
+      }
+      
+      // Format the scheduled time
+      const scheduledTime = new Date(`${date}T${time}`);
+      
+      // Update match with scheduled call information
+      const updatedMatch = await storage.updateMatch(matchId, {
+        callScheduled: true,
+        scheduledCallTime: scheduledTime
+      });
+      
+      res.json(updatedMatch);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   app.post("/api/matches/:id/calls", async (req, res, next) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     

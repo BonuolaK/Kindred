@@ -106,7 +106,6 @@ export class MemStorage implements IStorage {
       gender: insertUser.gender ?? null,
       interestedGenders: insertUser.interestedGenders ?? null,
       location: insertUser.location ?? null,
-      job: insertUser.job ?? null,
       bio: insertUser.bio ?? null,
       photoUrl: insertUser.photoUrl ?? null,
       communicationStyle: insertUser.communicationStyle ?? null,
@@ -118,7 +117,9 @@ export class MemStorage implements IStorage {
       dealbreakers: insertUser.dealbreakers ?? null,
       isPhotoRevealed: false,
       isPremium: false,
-      createdAt: now
+      createdAt: now,
+      onboardingCompleted: false,
+      questionnaireStep: 0
     };
     this.users.set(id, user);
     return user;

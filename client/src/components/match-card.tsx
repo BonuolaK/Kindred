@@ -1,110 +1,137 @@
-import { useLocation } from "wouter";
-import { Match } from "@shared/schema";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatDate, getAvatarShape } from "@/lib/utils";
+import { Match, User } from "@shared/schema";
+import { Lock, Phone, MessageCircle, CalendarClock, Eye } from "lucide-react";
 import AvatarPlaceholder from "./avatar-placeholder";
-import { PhoneCall, MessageCircle, Calendar } from "lucide-react";
-import { formatRelativeTime } from "@/lib/utils";
+import { Link } from "wouter";
 
 type MatchCardProps = {
-  match: Match & { otherUser?: any };
+  match: Match & { otherUser?: User };
+  currentUserId: number;
+  onScheduleCall?: (matchId: number) => void;
 };
 
-export const MatchCard = ({ match }: MatchCardProps) => {
-  const [, navigate] = useLocation();
+export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardProps) => {
+  if (!match.otherUser) return null;
   
-  if (!match.otherUser) {
-    return null;
-  }
-
-  const isPhotoRevealed = match.arePhotosRevealed;
-  const canChat = match.isChatUnlocked;
-  const isCallScheduled = match.callScheduled;
-  const callDay = match.callCount + 1;
-  const compatibility = match.compatibility;
+  const otherUser = match.otherUser;
+  const isPhotoRevealed = match.arePhotosRevealed || false;
+  const isChatUnlocked = match.isChatUnlocked || false;
   
-  // Format compatibility as percentage
-  const compatibilityPercent = `${compatibility}% Compatible`;
-  
-  // Calculate call duration based on call day
-  const getCallDuration = (day: number) => {
-    switch (day) {
-      case 1: return "5 min";
-      case 2: return "10 min";
-      case 3: return "20 min";
-      default: return "Unlimited";
-    }
-  };
-
-  const handleCallClick = () => {
-    navigate(`/call/${match.id}`);
-  };
-
-  const handleChatClick = () => {
-    navigate(`/conversation/${match.id}`);
-  };
-
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-center space-x-4">
+    <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
+      <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="text-lg font-medium">{otherUser.name}</CardTitle>
+          <CardDescription className="text-sm">
+            Matched on {formatDate(match.matchDate)}
+          </CardDescription>
+        </div>
+        <Badge variant="outline" className="bg-purple-100 text-purple-800 hover:bg-purple-200">
+          {match.compatibility}% Match
+        </Badge>
+      </CardHeader>
+      
+      <CardContent className="p-4 flex flex-col items-center">
+        <div className="relative mb-4 w-32 h-32">
           <AvatarPlaceholder 
-            user={match.otherUser} 
+            user={otherUser} 
+            size="xl" 
             showPhoto={isPhotoRevealed}
-            size="md"
           />
-          <div className="flex-1">
-            <div className="font-heading font-medium text-gray-900">
-              {match.otherUser.name}
+          {!isPhotoRevealed && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full">
+              <Lock className="text-white h-8 w-8" />
             </div>
-            <div className="text-sm text-gray-500">{compatibilityPercent}</div>
-            <div className="flex items-center text-xs text-gray-500 mt-1">
-              {isCallScheduled ? (
-                <>
-                  <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-                  <span>Call scheduled: {match.scheduledCallTime && formatRelativeTime(match.scheduledCallTime)}</span>
-                </>
-              ) : match.lastCallDate ? (
-                <>
-                  <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full mr-1"></span>
-                  <span>Call completed: {match.callCount} of 3</span>
-                </>
-              ) : (
-                <>
-                  <span className="inline-block w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
-                  <span>Day {callDay}: {getCallDuration(callDay)} call</span>
-                </>
-              )}
-            </div>
-          </div>
+          )}
         </div>
         
-        {match.otherUser.job && (
-          <div className="mt-3 text-sm text-gray-600">
-            <span className="font-medium text-gray-700">Occupation:</span> {match.otherUser.job}
+        <p className="text-sm text-center text-gray-600 line-clamp-3 mb-4">
+          {otherUser.bio || "No bio available."}
+        </p>
+        
+        <div className="w-full grid grid-cols-2 gap-2 text-xs">
+          <div className="flex items-center gap-1">
+            <span className="font-medium">Age:</span> 
+            <span>{otherUser.age || "Not specified"}</span>
           </div>
-        )}
+          <div className="flex items-center gap-1">
+            <span className="font-medium">Location:</span> 
+            <span>{otherUser.location || "Not specified"}</span>
+          </div>
+          {otherUser.communicationStyle && (
+            <div className="col-span-2 flex items-center gap-1">
+              <span className="font-medium">Communication:</span> 
+              <span className="truncate">{otherUser.communicationStyle}</span>
+            </div>
+          )}
+        </div>
       </CardContent>
       
-      <CardFooter className="bg-gray-50 p-4 flex justify-between">
-        <Button
-          variant={canChat ? "outline" : "ghost"}
-          className={!canChat ? "text-gray-400 cursor-not-allowed" : ""}
-          disabled={!canChat}
-          onClick={handleChatClick}
+      <CardFooter className="p-4 pt-0 grid grid-cols-3 gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center justify-center gap-1"
+          onClick={() => onScheduleCall && onScheduleCall(match.id)}
+          disabled={!!match.callScheduled}
         >
-          <MessageCircle className="h-5 w-5 mr-1" />
-          <span>{canChat ? "Chat" : "Locked"}</span>
+          {match.callScheduled ? <CalendarClock className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
+          {match.callScheduled ? "Scheduled" : "Call"}
         </Button>
         
-        <Button 
-          variant="primary"
-          onClick={handleCallClick}
-        >
-          <PhoneCall className="h-5 w-5 mr-1" />
-          <span>Call</span>
-        </Button>
+        {isChatUnlocked ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center justify-center gap-1"
+            asChild
+          >
+            <Link to={`/conversation/${match.id}`}>
+              <MessageCircle className="h-4 w-4" />
+              Chat
+            </Link>
+          </Button>
+        ) : (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center justify-center gap-1"
+            disabled
+          >
+            <Lock className="h-4 w-4" />
+            Chat
+          </Button>
+        )}
+        
+        {isPhotoRevealed ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center justify-center gap-1"
+            asChild
+          >
+            <Link to={`/profile/${otherUser.id}`}>
+              <Eye className="h-4 w-4" />
+              View
+            </Link>
+          </Button>
+        ) : (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center justify-center gap-1"
+            disabled
+          >
+            <Lock className="h-4 w-4" />
+            View
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
 };
+
+export default MatchCard;

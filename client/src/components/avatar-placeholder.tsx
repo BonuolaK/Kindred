@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
 import { User } from "@shared/schema";
-import { cn, getAvatarShape, generateRandomAvatarColor } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { generateRandomAvatarColor, getAvatarShape } from "@/lib/utils";
 
 type AvatarPlaceholderProps = {
   user?: Partial<User>;
@@ -10,43 +10,59 @@ type AvatarPlaceholderProps = {
   className?: string;
 };
 
+const getSizeClass = (size: string) => {
+  switch (size) {
+    case "sm":
+      return "h-8 w-8";
+    case "md":
+      return "h-12 w-12";
+    case "lg":
+      return "h-20 w-20";
+    case "xl":
+      return "h-32 w-32";
+    default:
+      return "h-12 w-12";
+  }
+};
+
 export default function AvatarPlaceholder({
   user,
   name,
   size = "md",
   showPhoto = false,
-  className,
+  className = "",
 }: AvatarPlaceholderProps) {
-  const [seed] = useState(() => Math.random().toString(36).substring(7));
+  const displayName = user?.name || name || "User";
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .substring(0, 2);
   
-  const displayName = user?.name || name || "?";
-  const initial = displayName.charAt(0).toUpperCase();
-  const userId = user?.id || 1;
+  const userId = user?.id || 0;
   const avatarShape = getAvatarShape(userId);
-  const gradientColor = generateRandomAvatarColor(user?.name || seed);
+  const bgColor = generateRandomAvatarColor(displayName);
   
-  const sizeClasses = {
-    sm: "w-10 h-10 text-md",
-    md: "w-16 h-16 text-xl",
-    lg: "w-24 h-24 text-3xl",
-    xl: "w-32 h-32 text-5xl",
-  };
-
-  const photoUrl = user?.photoUrl;
-  const canShowPhoto = showPhoto && photoUrl;
-
   return (
-    <div
-      className={cn(
-        "flex items-center justify-center font-bold text-white",
-        avatarShape,
-        `bg-gradient-to-br ${gradientColor}`,
-        sizeClasses[size],
-        className
+    <Avatar className={`${getSizeClass(size)} ${className}`}>
+      {showPhoto && user?.photoUrl ? (
+        <AvatarImage src={user.photoUrl} alt={displayName} />
+      ) : (
+        <svg
+          className="absolute inset-0 h-full w-full text-foreground"
+          fill="none"
+          viewBox="0 0 200 200"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path d={avatarShape} fill={bgColor} />
+        </svg>
       )}
-      style={canShowPhoto ? { backgroundImage: `url(${photoUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
-    >
-      {!canShowPhoto && initial}
-    </div>
+      <AvatarFallback 
+        className="text-foreground font-semibold bg-transparent flex items-center justify-center relative z-10"
+      >
+        {initials}
+      </AvatarFallback>
+    </Avatar>
   );
 }

@@ -61,10 +61,10 @@ export function formatPhoneNumber(number: string): string {
 }
 
 export const AVATAR_SHAPES = [
-  'avatar-shape-1', // pentagon
-  'avatar-shape-2', // heptagon
-  'avatar-shape-3', // circle
-  'avatar-shape-4', // plus
+  'M100,0 L200,69 L162,180 L38,180 L0,69 Z', // pentagon
+  'M100,0 L168,32 L200,100 L168,168 L100,200 L32,168 L0,100 L32,32 Z', // octagon
+  'M100,0 A100,100 0 0 1 100,200 A100,100 0 0 1 100,0 Z', // circle
+  'M100,30 A70,70 0 1 1 100,170 A70,70 0 1 1 100,30 Z M40,100 L160,100 M100,40 L100,160', // circle with plus
 ];
 
 export function getAvatarShape(userId: number): string {
