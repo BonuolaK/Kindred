@@ -83,69 +83,76 @@ const steps: Step[] = [
   },
   {
     id: 6,
+    title: "Age Preferences",
+    description: "What age range are you looking to match with?",
+    question: "Select your preferred age range:",
+    fieldName: "agePreference",
+  },
+  {
+    id: 7,
     title: "Location",
     description: "Where are you based?",
     question: "Which city do you live in?",
     fieldName: "location",
   },
   {
-    id: 7,
+    id: 8,
     title: "About You",
     description: "Let others know a bit more about you",
     question: "Write a short bio about yourself",
     fieldName: "bio",
   },
   {
-    id: 8,
+    id: 9,
     title: "Communication",
     description: "Help us understand your communication style",
     question: "How would you describe your communication style?",
     fieldName: "communicationStyle",
   },
   {
-    id: 9,
+    id: 10,
     title: "Interests",
     description: "What do you enjoy doing in your free time?",
     question: "Select activities you enjoy",
     fieldName: "freeTimeActivities",
   },
   {
-    id: 10,
+    id: 11,
     title: "Values",
     description: "What's important to you in relationships?",
     question: "What values are most important to you?",
     fieldName: "values",
   },
   {
-    id: 11,
+    id: 12,
     title: "Conflict Resolution",
     description: "How do you handle disagreements?",
     question: "How do you typically resolve conflicts?",
     fieldName: "conflictResolution",
   },
   {
-    id: 12,
+    id: 13,
     title: "Love Language",
     description: "How do you express and receive love?",
     question: "What's your primary love language?",
     fieldName: "loveLanguage",
   },
   {
-    id: 13,
+    id: 14,
     title: "Relationship Pace",
     description: "Everyone moves at their own pace",
     question: "How would you describe your ideal relationship pace?",
     fieldName: "relationshipPace",
   },
   {
-    id: 14,
+    id: 15,
     title: "Deal Breakers",
     description: "What's absolutely non-negotiable for you?",
     question: "Select your deal breakers",
     fieldName: "dealbreakers",
   },
   {
-    id: 15,
+    id: 16,
     title: "All Done!",
     description: "Your profile is ready to go",
   },
@@ -157,6 +164,8 @@ const onboardingSchema = z.object({
   age: z.number().min(18, "You must be at least 18 years old").max(120),
   gender: z.string().min(1, "Please select your gender"),
   interestedGenders: z.array(z.string()).min(1, "Please select at least one gender"),
+  agePreferenceMin: z.number().min(18, "Minimum age must be at least 18").max(120).optional(),
+  agePreferenceMax: z.number().min(18, "Maximum age must be at least 18").max(120).optional(),
   location: z.string().min(1, "Please select your location"),
   bio: z.string().optional(),
   communicationStyle: z.string().optional(),
@@ -187,6 +196,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       age: user?.age || undefined,
       gender: user?.gender || "",
       interestedGenders: user?.interestedGenders || [],
+      agePreferenceMin: user?.agePreferenceMin || undefined,
+      agePreferenceMax: user?.agePreferenceMax || undefined,
       location: user?.location || "",
       bio: user?.bio || "",
       communicationStyle: user?.communicationStyle || "",
@@ -469,6 +480,67 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     )}
                     
                     {currentStep === 6 && (
+                      <div className="flex-1 flex flex-col justify-center">
+                        <motion.div 
+                          initial={{ y: 10, opacity: 0 }} 
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.1 }}
+                        >
+                          <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                          <FormDescription className="mb-4">
+                            Select the age range you're interested in dating
+                          </FormDescription>
+                          
+                          <div className="grid grid-cols-2 gap-4 mt-6">
+                            <FormField
+                              control={form.control}
+                              name="agePreferenceMin"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Minimum Age</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      placeholder="Min Age"
+                                      min={18}
+                                      max={120}
+                                      {...field}
+                                      onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                                      value={field.value || ""}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="agePreferenceMax"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Maximum Age</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      placeholder="Max Age"
+                                      min={18}
+                                      max={120}
+                                      {...field}
+                                      onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                                      value={field.value || ""}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </motion.div>
+                      </div>
+                    )}
+                    
+                    {currentStep === 7 && (
                       <FormField
                         control={form.control}
                         name="location"
