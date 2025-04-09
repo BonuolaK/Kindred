@@ -107,7 +107,17 @@ export function AudioCallUI({
   // Initialize the call
   useEffect(() => {
     const initCall = async () => {
-      if (initialized) {
+      try {
+        console.log("Initializing audio call hook and WebRTC...");
+        
+        // Force initialization first
+        if (!initialized) {
+          // Give it time to initialize
+          console.log("Waiting for initialization...");
+          setTimeout(initCall, 1000);
+          return;
+        }
+        
         if (isIncoming) {
           // Wait for user to answer or reject
           setCallState('ringing');
@@ -115,7 +125,8 @@ export function AudioCallUI({
           // Start outgoing call
           try {
             console.log(`Attempting to start call - Match ID: ${matchId}, User ID: ${otherUserId}, Call Day: ${callDay}`);
-            await startCall(matchId, otherUserId, callDay);
+            const result = await startCall(matchId, otherUserId, callDay);
+            console.log("Call started successfully:", result);
           } catch (error) {
             console.error("Failed to start call:", error);
             setCallState('error');
@@ -126,11 +137,13 @@ export function AudioCallUI({
             }, 3000);
           }
         }
-      } else {
-        console.log("Audio service not yet initialized, waiting...");
+      } catch (err) {
+        console.error("Error in call initialization:", err);
+        setCallState('error');
       }
     };
     
+    // Start initialization
     initCall();
   }, [initialized, isIncoming, startCall, matchId, otherUserId, callDay, onClose]);
 

@@ -86,6 +86,22 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
     }
   }, [user?.id]);
 
+  // Get the local media stream (microphone/camera)
+  const getLocalStream = useCallback(async () => {
+    try {
+      const stream = await webRTCService.getLocalStream();
+      setCallState(prev => ({ ...prev, localStream: stream }));
+      return stream;
+    } catch (error) {
+      console.error('Error getting local stream:', error);
+      setCallState(prev => ({ 
+        ...prev, 
+        error: error instanceof Error ? error : new Error(String(error)) 
+      }));
+      throw error;
+    }
+  }, []);
+
   // Start a call (as initiator)
   const startCall = useCallback(async (targetMatchId: number, targetUserId: number, callDay: number, videoEnabled = false) => {
     if (!user?.id) {
@@ -93,19 +109,25 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
     }
 
     try {
+      console.log(`Starting call - Match ID: ${targetMatchId}, User ID: ${targetUserId}, Call Day: ${callDay}`);
+      
       // Initialize WebRTC if not already done
       if (callStateRef.current.isInitializing === false && callStateRef.current.localStream === null) {
+        console.log("Initializing WebRTC before starting call");
         await initialize(videoEnabled);
+        await getLocalStream();
       }
 
-      setCallState(prev => ({ 
-        ...prev, 
-        isConnecting: true, 
+      // Update the state to show connecting UI
+      setCallState(prev => ({
+        ...prev,
+        isConnecting: true,
         otherUserId: targetUserId,
         matchId: targetMatchId
       }));
 
       // Create call record in backend
+      console.log("Creating call record in backend");
       const response = await apiRequest('POST', '/api/calls', {
         matchId: targetMatchId,
         initiatorId: user.id,
@@ -114,28 +136,36 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create call record');
+        const errorText = await response.text();
+        console.error("API error creating call:", errorText);
+        throw new Error(`Failed to create call record: ${response.status} ${errorText}`);
       }
 
       const callData = await response.json();
+      console.log("Call created successfully:", callData);
       
       // Join a room with the call ID as the room ID
       const roomId = `call-${callData.id}`;
+      console.log(`Joining WebRTC room: ${roomId}`);
       await webRTCService.joinRoom(roomId, { callId: callData.id });
       
       // Send status update via WebSocket
       const socket = webRTCService.getWebSocketInstance();
       if (socket) {
+        console.log("Sending call status update via WebSocket");
         socket.send(JSON.stringify({
           type: 'call:status',
           matchId: targetMatchId,
           callId: callData.id,
           status: 'pending'
         }));
+      } else {
+        console.warn("No WebSocket instance available for status update");
       }
 
-      setCallState(prev => ({ 
-        ...prev, 
+      // Update the state with the call data
+      setCallState(prev => ({
+        ...prev,
         callData,
         isConnecting: false
       }));
@@ -143,15 +173,15 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
       return callData;
     } catch (error) {
       console.error('Failed to start call:', error);
-      setCallState(prev => ({ 
-        ...prev, 
+      setCallState(prev => ({
+        ...prev,
         isConnecting: false,
         isFailed: true,
-        error: error instanceof Error ? error : new Error(String(error)) 
+        error: error instanceof Error ? error : new Error(String(error))
       }));
       throw error;
     }
-  }, [user?.id, initialize]);
+  }, [user?.id, initialize, getLocalStream]);
 
   // Join an existing call (as receiver)
   const joinCall = useCallback(async (callId: number, targetUserId: number, targetMatchId: number, videoEnabled = false) => {
@@ -160,11 +190,16 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
     }
 
     try {
+      console.log(`Joining call - Call ID: ${callId}, User ID: ${targetUserId}, Match ID: ${targetMatchId}`);
+      
       // Initialize WebRTC if not already done
       if (callStateRef.current.isInitializing === false && callStateRef.current.localStream === null) {
+        console.log("Initializing WebRTC before joining call");
         await initialize(videoEnabled);
+        await getLocalStream();
       }
 
+      // Update state to show connecting UI
       setCallState(prev => ({ 
         ...prev, 
         isConnecting: true,
@@ -173,33 +208,47 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
       }));
 
       // Get call data from backend
+      console.log(`Fetching call data for call ID: ${callId}`);
       const response = await apiRequest('GET', `/api/calls/${callId}`);
       if (!response.ok) {
-        throw new Error('Failed to get call data');
+        const errorText = await response.text();
+        console.error("API error fetching call:", errorText);
+        throw new Error(`Failed to get call data: ${response.status} ${errorText}`);
       }
       
       const callData = await response.json();
+      console.log("Call data retrieved successfully:", callData);
       
       // Update call status to active
-      await apiRequest('PATCH', `/api/calls/${callId}`, {
+      console.log(`Updating call status to active for call ID: ${callId}`);
+      const updateResponse = await apiRequest('PATCH', `/api/calls/${callId}`, {
         status: 'active'
       });
+      
+      if (!updateResponse.ok) {
+        console.warn("Failed to update call status, continuing anyway");
+      }
 
       // Join the room with the same call ID
       const roomId = `call-${callId}`;
+      console.log(`Joining WebRTC room: ${roomId}`);
       await webRTCService.joinRoom(roomId, { callId });
       
       // Send status update via WebSocket
       const socket = webRTCService.getWebSocketInstance();
       if (socket) {
+        console.log("Sending call status update via WebSocket");
         socket.send(JSON.stringify({
           type: 'call:status',
           matchId: targetMatchId,
           callId,
           status: 'active'
         }));
+      } else {
+        console.warn("No WebSocket instance available for status update");
       }
 
+      // Update state with call data
       setCallState(prev => ({ 
         ...prev,
         callData,
@@ -217,7 +266,7 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
       }));
       throw error;
     }
-  }, [user?.id, initialize]);
+  }, [user?.id, initialize, getLocalStream]);
 
   // End the current call
   const endCall = useCallback(async () => {
@@ -269,22 +318,6 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
     const newState = enabled !== undefined ? enabled : !callStateRef.current.videoEnabled;
     webRTCService.setVideoEnabled(newState);
     setCallState(prev => ({ ...prev, videoEnabled: newState }));
-  }, []);
-
-  // Get the local media stream (microphone/camera)
-  const getLocalStream = useCallback(async () => {
-    try {
-      const stream = await webRTCService.getLocalStream();
-      setCallState(prev => ({ ...prev, localStream: stream }));
-      return stream;
-    } catch (error) {
-      console.error('Error getting local stream:', error);
-      setCallState(prev => ({ 
-        ...prev, 
-        error: error instanceof Error ? error : new Error(String(error)) 
-      }));
-      throw error;
-    }
   }, []);
 
   // Handle WebRTC events
@@ -400,8 +433,26 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
 
   // Add compatibility methods for the AudioCallUI component
   
+  // Auto-initialize on hook mount if user is available
+  useEffect(() => {
+    const autoInit = async () => {
+      if (user?.id && !callState.isInitializing && callState.localStream === null) {
+        console.log("Auto-initializing WebRTC service");
+        try {
+          await initialize(false);
+          await getLocalStream();
+          console.log("WebRTC service auto-initialized successfully");
+        } catch (error) {
+          console.error("Failed to auto-initialize WebRTC service:", error);
+        }
+      }
+    };
+    
+    autoInit();
+  }, [user?.id, initialize, getLocalStream, callState.isInitializing, callState.localStream]);
+  
   // Tracks whether we've been initialized
-  const initialized = callState.localStream !== null;
+  const initialized = !callState.isInitializing && callState.localStream !== null;
   
   // Answer an incoming call
   const answerCall = useCallback(async (targetMatchId: number, fromUserId: number, callDay: number) => {
