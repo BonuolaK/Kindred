@@ -10,13 +10,18 @@ import { apiRequest } from "@/lib/queryClient";
 import { Match } from "@shared/schema";
 
 export default function CallPage() {
+  console.log("Call page component rendering");
+  
   const [, setLocation] = useLocation();
-  const { matchId } = useParams<{ matchId: string }>();
+  const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isInitiating, setIsInitiating] = useState(false);
-  const parsedMatchId = parseInt(matchId, 10);
+  const parsedMatchId = parseInt(id, 10);
+  
+  // Debug output
+  console.log("Call page loaded with id:", id, "parsed as:", parsedMatchId);
   
   // Get match data
   const { 
@@ -25,16 +30,18 @@ export default function CallPage() {
     error: matchError
   } = useQuery<Match & { otherUser?: any }>({
     queryKey: ['/api/matches', parsedMatchId],
-    enabled: !!matchId && !isNaN(parsedMatchId),
+    enabled: !!id && !isNaN(parsedMatchId)
   });
   
   // Create call mutation
   const createCallMutation = useMutation({
     mutationFn: async () => {
+      console.log("Creating call for match ID:", parsedMatchId);
       const response = await apiRequest("POST", `/api/matches/${parsedMatchId}/calls`);
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Call created successfully:", data);
       queryClient.invalidateQueries({ queryKey: ['/api/matches', parsedMatchId] });
     },
     onError: (error: Error) => {
