@@ -1,0 +1,31 @@
+Failed to start call: 
+Error {}
+
+at t.value (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Failed to start call: 
+Error {}
+
+at t.value (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Failed to start call: 
+Error {}
+
+at t.value (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Failed to start call: 
+Error {}
+
+at t.value (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://4d87f665-242a-4028-bf91-3b28e81de41b-00-28fwwm70r98fw.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Failed to start call: 
+Error {}
+

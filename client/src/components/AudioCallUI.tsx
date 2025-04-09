@@ -105,16 +105,25 @@ export function AudioCallUI({
         } else {
           // Start outgoing call
           try {
+            console.log(`Attempting to start call - Match ID: ${matchId}, User ID: ${otherUserId}, Call Day: ${callDay}`);
             await startCall(matchId, otherUserId, callDay);
           } catch (error) {
             console.error("Failed to start call:", error);
+            setCallState('error');
+            
+            // Show a more user-friendly message
+            setTimeout(() => {
+              onClose();
+            }, 3000);
           }
         }
+      } else {
+        console.log("Audio service not yet initialized, waiting...");
       }
     };
     
     initCall();
-  }, [initialized, isIncoming, startCall, matchId, otherUserId, callDay]);
+  }, [initialized, isIncoming, startCall, matchId, otherUserId, callDay, onClose]);
 
   // Handle call actions
   const handleAnswer = async () => {

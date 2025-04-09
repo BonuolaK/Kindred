@@ -47,6 +47,16 @@ class AudioCallService {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
         console.log(`Connecting to WebSocket at ${wsUrl}`);
+
+        // Test to see if server is accessible before trying to connect
+        fetch('/api/user', { credentials: 'same-origin' })
+          .then(response => {
+            console.log('API connectivity check result:', response.status);
+            if (!response.ok) {
+              console.warn('API connectivity check failed, server might not be accessible');
+            }
+          })
+          .catch(e => console.error('API connectivity check failed:', e));
         
         // Close existing socket if any
         if (this.socket && this.socket.readyState !== WebSocket.CLOSED) {
@@ -56,8 +66,19 @@ class AudioCallService {
         
         this.socket = new WebSocket(wsUrl);
         
+        // Set a connection timeout
+        const connectionTimeout = setTimeout(() => {
+          if (this.socket && this.socket.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket connection timeout');
+            this.socket.close();
+            reject(new Error('WebSocket connection timeout'));
+          }
+        }, 10000); // 10 seconds timeout
+        
         this.socket.onopen = () => {
           console.log('WebSocket connection established successfully');
+          clearTimeout(connectionTimeout);
+          
           // Register user with WebSocket server
           this.sendSocketMessage({
             type: 'register',
@@ -69,15 +90,20 @@ class AudioCallService {
         
         this.socket.onclose = (event) => {
           console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
+          clearTimeout(connectionTimeout);
           this.endCall();
         };
         
         this.socket.onerror = (error) => {
           console.error('WebSocket error occurred:', error);
+          clearTimeout(connectionTimeout);
           reject(error);
         };
         
-        this.socket.onmessage = this.handleSocketMessage.bind(this);
+        this.socket.onmessage = (event) => {
+          console.log('WebSocket message received:', event.data);
+          this.handleSocketMessage(event);
+        };
       } catch (error) {
         console.error('Error initializing audio call service:', error);
         reject(error);
@@ -118,8 +144,20 @@ class AudioCallService {
   // Start a call with another user
   async startCall(matchId: number, otherUserId: number, callDay: number): Promise<void> {
     try {
+      console.log(`Starting call - Match ID: ${matchId}, User ID: ${otherUserId}, Call Day: ${callDay}`);
+      
       if (this.callState !== 'idle') {
         throw new Error('Cannot start a call when one is already in progress');
+      }
+      
+      // Make sure WebSocket is connected
+      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+        console.log('WebSocket not connected, attempting to reconnect...');
+        if (this.userId) {
+          await this.initialize(this.userId);
+        } else {
+          throw new Error('User ID not set, cannot initialize WebSocket');
+        }
       }
       
       this.matchId = matchId;
@@ -132,23 +170,59 @@ class AudioCallService {
       // Update UI to show connecting state
       this.updateCallState('connecting');
       
-      // Get local audio stream
-      this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      // Create call log on the server
+      try {
+        console.log(`Creating call log for match ID: ${matchId}`);
+        const response = await fetch(`/api/matches/${matchId}/calls`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'same-origin' // Include cookies for authentication
+        });
+        
+        if (!response.ok) {
+          console.error('Error creating call log, status:', response.status);
+          try {
+            const error = await response.json();
+            console.error('Error details:', error);
+          } catch (e) {
+            console.error('Could not parse error response');
+          }
+          // Continue even if API call fails
+        } else {
+          console.log('Call log created successfully');
+        }
+      } catch (error) {
+        console.error('Error creating call log:', error);
+        // Continue even if API call fails
+      }
       
-      // Set up peer connection
-      this.setupPeerConnection();
-      
-      // Send call offer to the other user
-      this.sendSocketMessage({
-        type: 'call-initiate',
-        matchId: this.matchId,
-        fromUserId: this.userId,
-        toUserId: this.otherUserId,
-        callDay: this.callDay
-      });
-      
-      // Update state to show call is ringing
-      this.updateCallState('ringing');
+      try {
+        // Get local audio stream
+        console.log('Requesting microphone access...');
+        this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        console.log('Microphone access granted');
+        
+        // Set up peer connection
+        this.setupPeerConnection();
+        
+        // Send call offer to the other user
+        console.log(`Sending call initiation to user ${otherUserId}`);
+        this.sendSocketMessage({
+          type: 'call-initiate',
+          matchId: this.matchId,
+          fromUserId: this.userId,
+          toUserId: this.otherUserId,
+          callDay: this.callDay
+        });
+        
+        // Update state to show call is ringing
+        this.updateCallState('ringing');
+      } catch (mediaError) {
+        console.error('Error accessing media devices:', mediaError);
+        throw new Error('Could not access microphone. Please check your permissions and try again.');
+      }
     } catch (error) {
       console.error('Error starting call:', error);
       this.endCall();
@@ -222,13 +296,27 @@ class AudioCallService {
       
       try {
         // Call API to record call end
-        await fetch(`/api/calls/${this.matchId}/end`, {
+        console.log(`Ending call for match ID: ${this.matchId}, duration: ${duration}s`);
+        const response = await fetch(`/api/calls/${this.matchId}/end`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ duration })
+          body: JSON.stringify({ duration }),
+          credentials: 'same-origin' // Include cookies for authentication
         });
+        
+        if (!response.ok) {
+          console.error('Error recording call end, status:', response.status);
+          try {
+            const error = await response.json();
+            console.error('Error details:', error);
+          } catch (e) {
+            console.error('Could not parse error response');
+          }
+        } else {
+          console.log('Call ended successfully');
+        }
         
         // Invalidate match queries to update UI with new call status
         queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
@@ -503,7 +591,32 @@ class AudioCallService {
   // Send a message through the WebSocket
   private sendSocketMessage(message: any): void {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(message));
+      try {
+        const messageStr = JSON.stringify(message);
+        console.log('Sending WebSocket message:', messageStr.substring(0, 200) + (messageStr.length > 200 ? '...' : ''));
+        this.socket.send(messageStr);
+      } catch (error) {
+        console.error('Error sending WebSocket message:', error);
+        
+        // Try to reconnect if there was an error sending the message
+        if (this.userId) {
+          console.log('Attempting to reconnect WebSocket after send error');
+          this.initialize(this.userId).catch(e => {
+            console.error('Failed to reconnect WebSocket:', e);
+          });
+        }
+      }
+    } else {
+      console.warn('Cannot send message, WebSocket not connected (readyState:', 
+                   this.socket ? this.socket.readyState : 'socket is null', ')');
+      
+      // Try to reconnect if the socket is not open
+      if (this.userId && (!this.socket || this.socket.readyState !== WebSocket.CONNECTING)) {
+        console.log('Attempting to reconnect WebSocket');
+        this.initialize(this.userId).catch(e => {
+          console.error('Failed to reconnect WebSocket:', e);
+        });
+      }
     }
   }
   

@@ -38,7 +38,8 @@ export default function CallInterface({ match, onCallEnded }: CallInterfaceProps
     getTimeRemaining,
     mute,
     unmute,
-    isCallActive
+    isCallActive,
+    onCallStateChange
   } = useAudioCall();
   
   // Handle leaving/ending call
@@ -52,7 +53,7 @@ export default function CallInterface({ match, onCallEnded }: CallInterfaceProps
   // Initialize call state listener
   useEffect(() => {
     // Subscribe to call state changes using the same hook instance
-    const unsubscribe = onCallStateChange((state) => {
+    const unsubscribe = onCallStateChange((state: CallState) => {
       console.log("Call state changed:", state);
       setCallState(state);
       
