@@ -9,6 +9,8 @@ import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { Match } from "@shared/schema";
 
+import ErrorBoundary from "@/components/error-boundary";
+
 export default function CallPage() {
   console.log("Call page component rendering");
   
@@ -18,7 +20,7 @@ export default function CallPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isInitiating, setIsInitiating] = useState(false);
-  const parsedMatchId = parseInt(id, 10);
+  const parsedMatchId = parseInt(id || "0", 10);
   
   // Debug output
   console.log("Call page loaded with id:", id, "parsed as:", parsedMatchId);
@@ -52,54 +54,6 @@ export default function CallPage() {
       });
     }
   });
-  
-  // Get call functionality
-  const { 
-    startCall, 
-    isCallActive, 
-    initialized: isAudioServiceInitialized 
-  } = useAudioCall();
-  
-  // Auto-start call if query parameter is present
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const autoStart = searchParams.get('autoStart') === 'true';
-    
-    const initiateCall = async () => {
-      if (
-        autoStart && 
-        !isInitiating && 
-        match && 
-        match.otherUser && 
-        match.otherUser.id && 
-        user && 
-        isAudioServiceInitialized &&
-        !isCallActive()
-      ) {
-        try {
-          setIsInitiating(true);
-          console.log("Creating call log...");
-          const callResult = await createCallMutation.mutateAsync();
-          console.log("Call created:", callResult);
-          
-          const callDay = match.callCount + 1;
-          console.log("Starting WebRTC call with day:", callDay);
-          await startCall(match.id, match.otherUser.id, callDay);
-        } catch (error) {
-          console.error("Failed to auto-start call:", error);
-          toast({
-            title: "Call Failed",
-            description: "Could not establish the call. Please try again.",
-            variant: "destructive"
-          });
-        } finally {
-          setIsInitiating(false);
-        }
-      }
-    };
-    
-    initiateCall();
-  }, [match, user, isAudioServiceInitialized, isCallActive, startCall, isInitiating, createCallMutation, toast]);
   
   // Handle call ended
   const handleCallEnded = () => {
@@ -149,6 +103,7 @@ export default function CallPage() {
     );
   }
   
+  // Temporary simplified view for debugging
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
       <div className="mb-6">
@@ -162,7 +117,26 @@ export default function CallPage() {
       
       <h1 className="text-3xl font-bold text-center mb-8">Audio Call</h1>
       
-      <CallInterface match={match} onCallEnded={handleCallEnded} />
+      <ErrorBoundary>
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-bold mb-4">Call with {match.otherUser?.username || 'Match'}</h2>
+          <div className="text-center mb-4">
+            <p>Match ID: {match.id}</p>
+            <p>Call count: {match.callCount}</p>
+            <p>Your ID: {user?.id}</p>
+            <p>Other user ID: {match.otherUser?.id}</p>
+          </div>
+          
+          <div className="flex justify-center mt-4">
+            <button
+              className="bg-red-500 text-white px-4 py-2 rounded"
+              onClick={() => setLocation(`/matches`)}
+            >
+              End Call (Debug)
+            </button>
+          </div>
+        </div>
+      </ErrorBoundary>
       
       <div className="mt-8 text-center text-muted-foreground">
         <p>Calls are limited based on how many you've had with this match:</p>
