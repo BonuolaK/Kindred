@@ -217,7 +217,10 @@ export class MemStorage implements IStorage {
       id,
       startTime: now,
       endTime: null,
-      duration: null
+      duration: null,
+      initiatorId: callLogData.initiatorId || null,
+      receiverId: callLogData.receiverId || null,
+      status: callLogData.status || 'pending'
     };
     this.callLogs.set(id, callLog);
     return callLog;

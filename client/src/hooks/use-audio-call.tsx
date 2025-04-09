@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { webRTCService, WebRTCEvent, ConnectionState } from '@/lib/webrtc-service';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '@/lib/queryClient';
+import { CallState, TIME_LIMITS } from '@/lib/audio-call';
 
 // Type for the call data from the backend
 export type CallData = {
@@ -121,6 +122,17 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
       // Join a room with the call ID as the room ID
       const roomId = `call-${callData.id}`;
       await webRTCService.joinRoom(roomId, { callId: callData.id });
+      
+      // Send status update via WebSocket
+      const socket = webRTCService.getWebSocketInstance();
+      if (socket) {
+        socket.send(JSON.stringify({
+          type: 'call:status',
+          matchId: targetMatchId,
+          callId: callData.id,
+          status: 'pending'
+        }));
+      }
 
       setCallState(prev => ({ 
         ...prev, 
@@ -176,6 +188,17 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
       // Join the room with the same call ID
       const roomId = `call-${callId}`;
       await webRTCService.joinRoom(roomId, { callId });
+      
+      // Send status update via WebSocket
+      const socket = webRTCService.getWebSocketInstance();
+      if (socket) {
+        socket.send(JSON.stringify({
+          type: 'call:status',
+          matchId: targetMatchId,
+          callId,
+          status: 'active'
+        }));
+      }
 
       setCallState(prev => ({ 
         ...prev,
@@ -210,6 +233,17 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
           status: 'completed',
           endTime: new Date().toISOString()
         });
+        
+        // Send status update via WebSocket
+        const socket = webRTCService.getWebSocketInstance();
+        if (socket && currentState.matchId) {
+          socket.send(JSON.stringify({
+            type: 'call:status',
+            matchId: currentState.matchId,
+            callId: currentState.callData.id,
+            status: 'completed'
+          }));
+        }
       }
       
       setCallState(prev => ({ 
@@ -364,6 +398,111 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
     };
   }, []);
 
+  // Add compatibility methods for the AudioCallUI component
+  
+  // Tracks whether we've been initialized
+  const initialized = callState.localStream !== null;
+  
+  // Answer an incoming call
+  const answerCall = useCallback(async (targetMatchId: number, fromUserId: number, callDay: number) => {
+    try {
+      return await joinCall(targetMatchId, fromUserId, targetMatchId, false);
+    } catch (error) {
+      console.error('Failed to answer call:', error);
+      throw error;
+    }
+  }, [joinCall]);
+  
+  // Reject an incoming call
+  const rejectCall = useCallback(async (targetMatchId: number, fromUserId: number) => {
+    // Get the active call by match ID
+    const response = await apiRequest('GET', `/api/calls/match/${targetMatchId}/active`);
+    if (response.ok) {
+      const callData = await response.json();
+      if (callData?.id) {
+        // Update call status to rejected
+        await apiRequest('PATCH', `/api/calls/${callData.id}`, {
+          status: 'rejected'
+        });
+        
+        // Send status update via WebSocket
+        const socket = webRTCService.getWebSocketInstance();
+        if (socket) {
+          socket.send(JSON.stringify({
+            type: 'call:status',
+            matchId: targetMatchId,
+            callId: callData.id,
+            status: 'rejected'
+          }));
+        }
+      }
+    }
+    
+    // End the call connection
+    endCall();
+  }, [endCall]);
+  
+  // Get time remaining in the call (in seconds)
+  const getTimeRemaining = useCallback(() => {
+    const callDay = callState.callData?.callDay || 1;
+    const timeLimit = TIME_LIMITS[callDay] || TIME_LIMITS[4]; // Default to day 4+ if beyond
+    
+    // If call is not active or we don't have start time, return the full time limit
+    if (!callState.isConnected || !callState.callData?.startTime) {
+      return timeLimit;
+    }
+    
+    const startTime = new Date(callState.callData.startTime).getTime();
+    const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+    return Math.max(0, timeLimit - elapsedTime);
+  }, [callState.isConnected, callState.callData]);
+  
+  // Check if call is active
+  const isCallActive = callState.isConnected;
+  
+  // Mute the local audio
+  const mute = useCallback(() => {
+    toggleAudio(false);
+  }, [toggleAudio]);
+  
+  // Unmute the local audio
+  const unmute = useCallback(() => {
+    toggleAudio(true);
+  }, [toggleAudio]);
+  
+  // Get the remote stream of a specific user
+  const getRemoteStream = useCallback(() => {
+    if (callState.otherUserId && callState.remoteStreams.has(callState.otherUserId)) {
+      return callState.remoteStreams.get(callState.otherUserId) || null;
+    }
+    // Return first stream if we don't have one specifically for the other user
+    return callState.remoteStreams.size > 0 
+      ? Array.from(callState.remoteStreams.values())[0] 
+      : null;
+  }, [callState.otherUserId, callState.remoteStreams]);
+  
+  // Track call state changes 
+  const onCallStateChange = useCallback((callback: (state: AudioCallUIState) => void) => {
+    const unsubscribe = webRTCService.addEventListener((event) => {
+      if (event.type === 'connecting') {
+        callback('connecting');
+      } else if (event.type === 'connected') {
+        callback('connected');
+      } else if (event.type === 'disconnected') {
+        callback('ended');
+      } else if (event.type === 'error') {
+        callback('error');
+      } else if (event.type === 'remoteStream') {
+        callback('connected');
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
+  
+  // Type for AudioCallUI component's state
+  type AudioCallUIState = 'idle' | 'connecting' | 'ringing' | 'connected' | 'ended' | 'error';
+
   return {
     ...callState,
     initialize,
@@ -372,6 +511,16 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
     endCall,
     toggleAudio,
     toggleVideo,
-    getLocalStream
+    getLocalStream,
+    // AudioCallUI compatibility methods
+    answerCall,
+    rejectCall,
+    mute,
+    unmute,
+    getTimeRemaining,
+    isCallActive,
+    onCallStateChange,
+    getRemoteStream,
+    initialized
   };
 }

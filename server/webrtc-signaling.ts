@@ -1,456 +1,295 @@
-/**
- * WebRTC Signaling Server
- * 
- * Handles WebRTC signaling for establishing peer connections.
- * Includes room management, message relay, and connection state tracking.
- */
-
+// server/webrtc-signaling.ts
 import { Server as HttpServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { randomUUID } from "crypto";
 
-// Types for our signaling protocol
-interface SignalingMessage {
+type SignalingData = {
   type: string;
-  roomId?: string;
-  userId?: number;
-  targetUserId?: number;
-  sessionId?: string;
-  data?: any;
-}
+  [key: string]: any;
+};
 
-// Track active rooms and users
-interface Room {
-  id: string;
-  participants: Map<number, Participant>;
-  createdAt: number;
-  metadata?: any;
-}
+// Connected clients by user ID
+const connectedClients = new Map<number, WebSocket>();
 
-interface Participant {
-  userId: number;
-  socket: WebSocket;
-  sessionId: string;
-  joinedAt: number;
-  metadata?: any; // Can include display name, etc.
-}
+// Rooms for multi-user calls (roomId -> set of userIds)
+const rooms = new Map<string, Set<number>>();
 
-// Timeouts and limits
-const ROOM_CLEANUP_INTERVAL = 60 * 1000; // 60 seconds
-const ROOM_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
-const ICE_GATHERING_TIMEOUT = 30 * 1000; // 30 seconds 
+// Map to track which room each user is in
+const userRooms = new Map<number, string>();
 
-// Main state storage
-const rooms = new Map<string, Room>();
-const userSessions = new Map<number, Set<string>>(); // userId -> Set of sessionIds
-const sessions = new Map<string, { userId: number, roomId: string | null }>();
+// Debug logging function
+const log = (message: string, data?: any) => {
+  console.log(`[WebRTC Signaling] ${message}`, data ? data : '');
+};
 
-/**
- * Setup WebRTC signaling server
- */
-export function setupSignalingServer(httpServer: HttpServer) {
-  // Create WebSocket server with specific path
+export function setupWebRTCSignaling(httpServer: HttpServer) {
   const wss = new WebSocketServer({ 
     server: httpServer, 
-    path: '/rtc'
+    path: '/rtc'  // Use /rtc specifically for WebRTC signaling
   });
-  
-  console.log('WebRTC signaling server initialized on path: /rtc');
 
-  // Setup cleanup intervals
-  setInterval(cleanupStaleRooms, ROOM_CLEANUP_INTERVAL);
-  
-  // Handle new connections
-  wss.on('connection', (socket: WebSocket) => {
-    const sessionId = randomUUID();
+  log('WebRTC signaling server initialized on path: /rtc');
+
+  wss.on('connection', (ws: WebSocket) => {
     let userId: number | null = null;
-    let currentRoomId: string | null = null;
-    
-    console.log(`New signaling connection established: ${sessionId}`);
-    
-    // Send initial session information
-    sendToSocket(socket, {
-      type: 'session_created',
-      sessionId
-    });
-    
-    socket.on('message', (rawMessage: string) => {
+    log('Client connected to WebRTC signaling server');
+
+    ws.on('message', (message: string) => {
       try {
-        const message: SignalingMessage = JSON.parse(rawMessage);
+        const data = JSON.parse(message.toString()) as SignalingData;
         
-        // Add detailed logging 
-        console.log(`Signaling message received [${message.type}] from session ${sessionId}`);
-        
-        switch (message.type) {
-          // User registration with the signaling server
+        // Skip logging for ICE candidates to prevent log flooding
+        if (data.type !== 'ice-candidate') {
+          log('Received message:', data);
+        }
+
+        switch (data.type) {
           case 'register':
-            if (!message.userId || typeof message.userId !== 'number') {
-              return sendError(socket, 'Invalid user ID');
-            }
-            
-            userId = message.userId;
-            sessions.set(sessionId, { userId, roomId: null });
-            
-            // Track this session for the user
-            if (!userSessions.has(userId)) {
-              userSessions.set(userId, new Set());
-            }
-            userSessions.get(userId)?.add(sessionId);
-            
-            console.log(`User ${userId} registered with signaling server (session: ${sessionId})`);
-            
-            // Acknowledge registration
-            sendToSocket(socket, { 
-              type: 'registered',
-              userId,
-              sessionId 
-            });
+            handleRegister(ws, data);
+            userId = data.userId;
             break;
-          
-          // Room creation request
-          case 'create_room':
+
+          case 'join-room':
             if (!userId) {
-              return sendError(socket, 'Must register before creating a room');
-            }
-            
-            const newRoomId = message.roomId || randomUUID();
-            
-            // Check if the room exists, if so just join it
-            if (rooms.has(newRoomId)) {
-              handleJoinRoom(socket, userId, sessionId, newRoomId, message.data);
+              sendErrorToClient(ws, 'Not registered');
               break;
             }
-            
-            // Create new room
-            const newRoom: Room = {
-              id: newRoomId,
-              participants: new Map(),
-              createdAt: Date.now(),
-              metadata: message.data
-            };
-            
-            rooms.set(newRoomId, newRoom);
-            
-            // Join the newly created room
-            handleJoinRoom(socket, userId, sessionId, newRoomId, message.data);
+            handleJoinRoom(userId, ws, data);
             break;
-          
-          // User requests to join an existing room
-          case 'join_room':
+
+          case 'leave-room':
             if (!userId) {
-              return sendError(socket, 'Must register before joining a room');
+              sendErrorToClient(ws, 'Not registered');
+              break;
             }
-            
-            if (!message.roomId) {
-              return sendError(socket, 'Room ID is required');
-            }
-            
-            if (!rooms.has(message.roomId)) {
-              return sendError(socket, 'Room does not exist');
-            }
-            
-            handleJoinRoom(socket, userId, sessionId, message.roomId, message.data);
+            handleLeaveRoom(userId);
             break;
-          
-          // Leave the current room
-          case 'leave_room':
-            const userSessionData = sessions.get(sessionId);
-            if (userSessionData?.roomId) {
-              handleLeaveRoom(socket, userId, sessionId, userSessionData.roomId);
-            }
-            break;
-          
-          // WebRTC signaling messages 
+
           case 'offer':
+            if (!userId) {
+              sendErrorToClient(ws, 'Not registered');
+              break;
+            }
+            handleOffer(userId, data);
+            break;
+
           case 'answer':
-          case 'ice_candidate':
-          case 'ice_candidates_complete':
-            // These messages need to be forwarded to the target peer
-            const signalRoomId = sessions.get(sessionId)?.roomId;
-            if (!userId || !signalRoomId || !message.targetUserId) {
-              return sendError(socket, 'Invalid signaling parameters');
+            if (!userId) {
+              sendErrorToClient(ws, 'Not registered');
+              break;
             }
-            
-            // Forward to the target user with added metadata
-            forwardSignalingMessage(
-              userId, 
-              message.targetUserId, 
-              signalRoomId, 
-              message.type,
-              message.data
-            );
+            handleAnswer(userId, data);
             break;
-          
-          // Message to notify candidates that gathering is complete
-          case 'ice_complete':
-            const iceRoomId = sessions.get(sessionId)?.roomId;
-            if (!userId || !iceRoomId || !message.targetUserId) {
-              return sendError(socket, 'Invalid signaling parameters');
+
+          case 'ice-candidate':
+            if (!userId) {
+              sendErrorToClient(ws, 'Not registered');
+              break;
             }
-            
-            forwardSignalingMessage(
-              userId, 
-              message.targetUserId, 
-              iceRoomId, 
-              'ice_complete',
-              {}
-            );
+            handleIceCandidate(userId, data);
             break;
-          
-          // Connection issues reported by clients
-          case 'connection_error':
-            console.error(`WebRTC connection error reported by user ${userId}: ${message.data?.message || 'Unknown error'}`);
-            
-            // Notify affected peers if in a room
-            const errorRoomId = sessions.get(sessionId)?.roomId;
-            if (errorRoomId && userId && message.targetUserId) {
-              forwardSignalingMessage(
-                userId, 
-                message.targetUserId, 
-                errorRoomId, 
-                'peer_connection_error',
-                message.data
-              );
-            }
-            break;
-            
-          // Client sends heartbeat to keep connection alive
-          case 'heartbeat':
-            sendToSocket(socket, { type: 'heartbeat_ack' });
-            break;
-          
+
           default:
-            console.warn(`Unknown signaling message type: ${message.type}`);
+            log(`Unknown message type: ${data.type}`);
         }
       } catch (error) {
-        console.error('Error processing signaling message:', error);
-        sendError(socket, 'Invalid message format');
+        log('Error processing message:', error);
+        sendErrorToClient(ws, 'Invalid message format');
       }
     });
-    
-    socket.on('close', () => {
-      console.log(`Signaling connection closed: session ${sessionId}, user ${userId || 'unknown'}`);
-      
-      // Clean up any rooms this user was in
-      const userSessionData = sessions.get(sessionId);
-      if (userSessionData?.roomId) {
-        handleLeaveRoom(socket, userId, sessionId, userSessionData.roomId);
-      }
-      
-      // Remove from session tracking
+
+    ws.on('close', () => {
       if (userId) {
-        const userSessionSet = userSessions.get(userId);
-        if (userSessionSet) {
-          userSessionSet.delete(sessionId);
-          if (userSessionSet.size === 0) {
-            userSessions.delete(userId);
-          }
-        }
+        log(`Client disconnected: userId=${userId}`);
+        
+        // Remove user from their room
+        handleLeaveRoom(userId);
+        
+        // Remove client from connected clients
+        connectedClients.delete(userId);
+      } else {
+        log('Unregistered client disconnected');
       }
-      
-      // Clean up session
-      sessions.delete(sessionId);
     });
-    
-    socket.on('error', (error) => {
-      console.error(`WebSocket error in session ${sessionId}:`, error);
-    });
+
+    // Send a welcome message
+    ws.send(JSON.stringify({ 
+      type: 'welcome',
+      message: 'Connected to WebRTC signaling server'
+    }));
+  });
+
+  return wss;
+}
+
+// Handle user registration
+function handleRegister(ws: WebSocket, data: SignalingData) {
+  const userId = parseInt(data.userId.toString(), 10);
+  
+  if (isNaN(userId)) {
+    sendErrorToClient(ws, 'Invalid user ID');
+    return;
+  }
+
+  // Store the connection
+  connectedClients.set(userId, ws);
+  log(`Registered user ${userId}, total connected: ${connectedClients.size}`);
+}
+
+// Handle joining a room
+function handleJoinRoom(userId: number, ws: WebSocket, data: SignalingData) {
+  const roomId = data.roomId.toString();
+  const metadata = data.metadata || {};
+  
+  // Check if user is already in a room
+  const currentRoomId = userRooms.get(userId);
+  if (currentRoomId) {
+    // Leave the current room first
+    handleLeaveRoom(userId);
+  }
+  
+  // Get or create the room
+  let room = rooms.get(roomId);
+  if (!room) {
+    room = new Set<number>();
+    rooms.set(roomId, room);
+    log(`Created new room: ${roomId}`);
+  }
+  
+  // Add user to the room
+  room.add(userId);
+  userRooms.set(userId, roomId);
+  
+  log(`User ${userId} joined room ${roomId}, participants: ${room.size}`);
+  
+  // Get all other participants
+  const participants = Array.from(room).filter(id => id !== userId);
+  
+  // Notify the new participant about existing participants
+  sendToClient(ws, {
+    type: 'room-joined',
+    roomId,
+    participants,
+    metadata
   });
   
-  return wss;
-  
-  // Helper functions
-  
-  /**
-   * Handle a user joining a room
-   */
-  function handleJoinRoom(
-    socket: WebSocket, 
-    userId: number, 
-    sessionId: string, 
-    roomId: string,
-    metadata?: any
-  ) {
-    const room = rooms.get(roomId);
-    if (!room) {
-      return sendError(socket, 'Room not found');
+  // Notify other participants about the new participant
+  participants.forEach(participantId => {
+    const participantWs = connectedClients.get(participantId);
+    if (participantWs) {
+      sendToClient(participantWs, {
+        type: 'participant-joined',
+        roomId,
+        userId,
+        metadata
+      });
     }
-    
-    // Store reference to currentRoomId for this context
-    const userRoomId = sessions.get(sessionId)?.roomId || null;
-    
-    // If user is already in another room, leave it first
-    if (userRoomId && userRoomId !== roomId) {
-      handleLeaveRoom(socket, userId, sessionId, userRoomId);
-    }
-    
-    // Add user to the room
-    const participant: Participant = {
-      userId,
-      socket,
-      sessionId,
-      joinedAt: Date.now(),
-      metadata
-    };
-    
-    room.participants.set(userId, participant);
-    
-    // Update session tracking
-    sessions.set(sessionId, { userId, roomId });
-    
-    console.log(`User ${userId} joined room ${roomId} (total participants: ${room.participants.size})`);
-    
-    // Send success response to the user
-    sendToSocket(socket, {
-      type: 'room_joined',
-      roomId,
-      sessionId,
-      participants: Array.from(room.participants.keys()).filter(id => id !== userId)
-    });
-    
-    // Notify other participants about the new user
-    notifyRoom(roomId, userId, 'participant_joined', { 
-      userId,
-      metadata: participant.metadata
-    });
-  }
+  });
+}
+
+// Handle leaving a room
+function handleLeaveRoom(userId: number) {
+  const roomId = userRooms.get(userId);
+  if (!roomId) return;
   
-  /**
-   * Handle a user leaving a room
-   */
-  function handleLeaveRoom(
-    socket: WebSocket, 
-    userId: number | null, 
-    sessionId: string, 
-    roomId: string
-  ) {
-    const room = rooms.get(roomId);
-    if (!room || !userId) return;
-    
+  const room = rooms.get(roomId);
+  if (room) {
     // Remove user from the room
-    room.participants.delete(userId);
+    room.delete(userId);
     
-    // We don't need to update a currentRoomId variable here since we're tracking rooms 
-    // in the sessions map instead
+    log(`User ${userId} left room ${roomId}, remaining participants: ${room.size}`);
     
-    // Update session tracking
-    sessions.set(sessionId, { userId, roomId: null });
-    
-    console.log(`User ${userId} left room ${roomId} (remaining participants: ${room.participants.size})`);
-    
-    // Notify user that they've left the room
-    sendToSocket(socket, {
-      type: 'room_left',
-      roomId
-    });
-    
-    // Notify remaining participants
-    notifyRoom(roomId, userId, 'participant_left', { userId });
-    
-    // Clean up empty room
-    if (room.participants.size === 0) {
-      console.log(`Room ${roomId} is now empty, removing`);
+    // If room is empty, delete it
+    if (room.size === 0) {
       rooms.delete(roomId);
-    }
-  }
-  
-  /**
-   * Notify all participants in a room except the sender
-   */
-  function notifyRoom(
-    roomId: string, 
-    senderId: number, 
-    type: string, 
-    data: any
-  ) {
-    const room = rooms.get(roomId);
-    if (!room) return;
-    
-    room.participants.forEach((participant, userId) => {
-      // Don't send to the original sender
-      if (userId !== senderId) {
-        sendToSocket(participant.socket, {
-          type,
-          roomId,
-          userId: senderId,
-          data
-        });
-      }
-    });
-  }
-  
-  /**
-   * Forward a signaling message to a specific user
-   */
-  function forwardSignalingMessage(
-    fromUserId: number,
-    toUserId: number,
-    roomId: string,
-    type: string,
-    data: any
-  ) {
-    const room = rooms.get(roomId);
-    if (!room) return;
-    
-    const targetParticipant = room.participants.get(toUserId);
-    if (!targetParticipant) {
-      console.warn(`Cannot forward ${type} to user ${toUserId}, not in room ${roomId}`);
-      return;
-    }
-    
-    sendToSocket(targetParticipant.socket, {
-      type,
-      roomId,
-      userId: fromUserId,
-      data
-    });
-  }
-  
-  /**
-   * Send an error message to a client
-   */
-  function sendError(socket: WebSocket, message: string) {
-    sendToSocket(socket, {
-      type: 'error',
-      data: { message }
-    });
-  }
-  
-  /**
-   * Send a message to a WebSocket
-   */
-  function sendToSocket(socket: WebSocket, data: any) {
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(data));
-    }
-  }
-  
-  /**
-   * Remove stale rooms that have existed too long
-   */
-  function cleanupStaleRooms() {
-    const now = Date.now();
-    let cleanedRooms = 0;
-    
-    rooms.forEach((room, roomId) => {
-      // Check if room is older than the max age
-      if (now - room.createdAt > ROOM_MAX_AGE) {
-        // Notify all participants
-        room.participants.forEach((participant) => {
-          sendToSocket(participant.socket, {
-            type: 'room_expired',
-            roomId
+      log(`Room ${roomId} deleted (empty)`);
+    } else {
+      // Notify other participants
+      room.forEach(participantId => {
+        const participantWs = connectedClients.get(participantId);
+        if (participantWs) {
+          sendToClient(participantWs, {
+            type: 'participant-left',
+            roomId,
+            userId
           });
-        });
-        
-        // Remove the room
-        rooms.delete(roomId);
-        cleanedRooms++;
-      }
-    });
-    
-    if (cleanedRooms > 0) {
-      console.log(`Cleaned up ${cleanedRooms} stale rooms (total remaining: ${rooms.size})`);
+        }
+      });
     }
+  }
+  
+  // Remove from user rooms tracking
+  userRooms.delete(userId);
+}
+
+// Handle WebRTC offer
+function handleOffer(fromUserId: number, data: SignalingData) {
+  const { offer, matchId, toUserId } = data;
+  const targetWs = connectedClients.get(toUserId);
+  
+  if (!targetWs) {
+    const fromWs = connectedClients.get(fromUserId);
+    if (fromWs) {
+      sendErrorToClient(fromWs, 'Target user not connected');
+    }
+    return;
+  }
+  
+  sendToClient(targetWs, {
+    type: 'offer',
+    offer,
+    matchId,
+    fromUserId,
+    toUserId
+  });
+}
+
+// Handle WebRTC answer
+function handleAnswer(fromUserId: number, data: SignalingData) {
+  const { answer, toUserId } = data;
+  const targetWs = connectedClients.get(toUserId);
+  
+  if (!targetWs) {
+    const fromWs = connectedClients.get(fromUserId);
+    if (fromWs) {
+      sendErrorToClient(fromWs, 'Target user not connected');
+    }
+    return;
+  }
+  
+  sendToClient(targetWs, {
+    type: 'answer',
+    answer,
+    fromUserId,
+    toUserId
+  });
+}
+
+// Handle ICE candidate
+function handleIceCandidate(fromUserId: number, data: SignalingData) {
+  const { candidate, toUserId } = data;
+  const targetWs = connectedClients.get(toUserId);
+  
+  if (!targetWs) return;
+  
+  sendToClient(targetWs, {
+    type: 'ice-candidate',
+    candidate,
+    fromUserId,
+    toUserId
+  });
+}
+
+// Send error message to client
+function sendErrorToClient(ws: WebSocket, message: string) {
+  sendToClient(ws, {
+    type: 'error',
+    message
+  });
+}
+
+// Send message to client
+function sendToClient(ws: WebSocket, data: any) {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(data));
   }
 }

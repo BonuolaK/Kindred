@@ -1,9 +1,10 @@
 // components/AudioCallUI.tsx
 import { useState, useEffect, useRef } from "react";
-import { useAudioCall } from "@/hooks/use-audio-call";
+import { useAudioCall, CallData } from "@/hooks/use-audio-call";
 import { Button } from "@/components/ui/button";
 import { PhoneCall, PhoneOff, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { formatSecondsToTime } from "@/lib/utils";
+import { CallState } from "@/lib/audio-call";
 
 interface AudioCallUIProps {
   matchId: number;
@@ -70,22 +71,30 @@ export function AudioCallUI({
   useEffect(() => {
     if (callState === 'connected') {
       // Set up local audio (typically muted to avoid echo)
-      const localStream = getLocalStream();
-      if (localStream && localAudioRef.current) {
-        localAudioRef.current.srcObject = localStream;
-        localAudioRef.current.muted = true; // Always mute local audio output to prevent echo
-      }
+      const setupLocalStream = async () => {
+        try {
+          const stream = await getLocalStream();
+          if (stream && localAudioRef.current) {
+            localAudioRef.current.srcObject = stream;
+            localAudioRef.current.muted = true; // Always mute local audio output to prevent echo
+          }
+        } catch (error) {
+          console.error("Error setting up local stream:", error);
+        }
+      };
+      
+      // Start timer to track remaining time
+      timerRef.current = setInterval(() => {
+        setTimeRemaining(getTimeRemaining());
+      }, 1000);
+      
+      setupLocalStream();
       
       // Set up remote audio
       const remoteStream = getRemoteStream();
       if (remoteStream && remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStream;
       }
-      
-      // Start timer to track remaining time
-      timerRef.current = setInterval(() => {
-        setTimeRemaining(getTimeRemaining());
-      }, 1000);
     }
     
     return () => {

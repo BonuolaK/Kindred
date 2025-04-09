@@ -10,8 +10,10 @@ const activeCalls = new Map<string, {
   initiator: number;
   receiver: number;
   matchId: number;
+  callId?: number;
   callDay: number;
   startTime: number;
+  status: 'pending' | 'connecting' | 'active' | 'completed' | 'missed' | 'rejected';
 }>();
 
 // Store signal offers for call setup
@@ -89,7 +91,8 @@ export function setupSocketServer(httpServer: HttpServer) {
               receiver: toUserId,
               matchId: callMatchId,
               callDay,
-              startTime: Date.now()
+              startTime: Date.now(),
+              status: 'pending'
             });
             break;
             
@@ -194,6 +197,58 @@ export function setupSocketServer(httpServer: HttpServer) {
             // Clean up
             activeCalls.delete(`${endMatchId}-${userId}-${endTo}`);
             activeCalls.delete(`${endMatchId}-${endTo}-${userId}`);
+            break;
+            
+          case 'call:status':
+            if (!userId) break;
+            
+            const { matchId: statusMatchId, status, callId } = data;
+            console.log(`Call status update: ${status} for call ${callId} in match ${statusMatchId}`);
+            
+            // Find the call in our active calls map
+            let callKey = '';
+            let callData = null;
+            
+            // Try both potential key formats
+            if (userId) {
+              // Look for calls where this user is the initiator
+              for (const [key, call] of activeCalls.entries()) {
+                if (call.matchId.toString() === statusMatchId.toString() && 
+                  (call.initiator === userId || call.receiver === userId)) {
+                  callKey = key;
+                  callData = call;
+                  break;
+                }
+              }
+            }
+            
+            if (callData) {
+              // Update the call status
+              callData.status = status;
+              if (callId) callData.callId = callId;
+              activeCalls.set(callKey, callData);
+              
+              // Notify the other party about the status change
+              const otherUserId = callData.initiator === userId ? callData.receiver : callData.initiator;
+              const otherUserWs = users.get(otherUserId);
+              
+              if (otherUserWs) {
+                sendToClient(otherUserWs, {
+                  type: 'call:statusUpdate',
+                  status,
+                  callId,
+                  matchId: statusMatchId,
+                  from: userId
+                });
+              }
+              
+              // If the call is completed or missed/rejected, clean up
+              if (['completed', 'missed', 'rejected'].includes(status)) {
+                setTimeout(() => {
+                  activeCalls.delete(callKey);
+                }, 5000); // Keep it around briefly for final messaging
+              }
+            }
             break;
             
           default:

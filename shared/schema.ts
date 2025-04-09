@@ -59,10 +59,13 @@ export const messages = pgTable("messages", {
 export const callLogs = pgTable("call_logs", {
   id: serial("id").primaryKey(),
   matchId: integer("match_id").notNull(),
+  initiatorId: integer("initiator_id"),
+  receiverId: integer("receiver_id"),
   startTime: timestamp("start_time").defaultNow().notNull(),
   endTime: timestamp("end_time"),
   duration: integer("duration"), // in seconds
   callDay: integer("call_day").notNull(), // 1, 2, 3, or 4+ for unlimited
+  status: text("status").default('pending'), // pending, active, completed, missed, rejected
 });
 
 export const notes = pgTable("notes", {

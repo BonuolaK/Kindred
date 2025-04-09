@@ -109,6 +109,16 @@ export class WebRTCService {
   /**
    * Initialize the WebRTC service
    */
+  /**
+   * Get the current WebSocket instance for direct messaging
+   */
+  getWebSocketInstance(): WebSocket | null {
+    return this.socket;
+  }
+  
+  /**
+   * Initialize the WebRTC service with user information
+   */
   async initialize(userId: number, videoEnabled = false): Promise<void> {
     if (this.userId === userId && this.socket && this.socket.readyState === WebSocket.OPEN) {
       console.log('[WebRTC] Already initialized');
@@ -429,7 +439,7 @@ export class WebRTCService {
         
         // Create new WebSocket connection
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/rtc`;
+        const wsUrl = `${protocol}//${window.location.host}/rtc`; // Use /rtc for WebRTC signaling
         
         console.log(`[WebRTC] Connecting to signaling server at ${wsUrl}`);
         this.socket = new WebSocket(wsUrl);
