@@ -1,0 +1,171 @@
+// server/socket.js
+const { Server } = require("socket.io");
+const http = require("http");
+const express = require("express");
+
+const app = express();
+const server = http.createServer(app);
+
+// Create Socket.io server with CORS enabled
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+// Store active users and their socket IDs
+const users = new Map();
+
+// Store active calls
+const activeCalls = new Map();
+
+// Store signal offers for call setup
+const pendingOffers = new Map();
+
+io.on("connection", (socket) => {
+  const userId = socket.handshake.auth.userId;
+  
+  if (!userId) {
+    socket.disconnect();
+    return;
+  }
+  
+  console.log(`User connected: ${userId}`);
+  users.set(userId, socket.id);
+  
+  // Handle call offer
+  socket.on("call:offer", (data) => {
+    const { offer, to, matchId, callDay } = data;
+    console.log(`Call offer from ${userId} to ${to} for match ${matchId}`);
+    
+    const targetSocketId = users.get(to.toString());
+    
+    if (!targetSocketId) {
+      socket.emit("call:error", { message: "User is offline" });
+      return;
+    }
+    
+    // Store the offer for later retrieval
+    pendingOffers.set(`${matchId}-${userId}-${to}`, offer);
+    
+    // Send the offer to the target user
+    io.to(targetSocketId).emit("call:offer", {
+      offer,
+      from: userId,
+      matchId,
+      callDay
+    });
+    
+    // Track the call
+    activeCalls.set(`${matchId}-${userId}-${to}`, {
+      initiator: userId,
+      receiver: to,
+      matchId,
+      callDay,
+      startTime: Date.now()
+    });
+  });
+  
+  // Return offer when requested
+  socket.on("call:getOffer", (data, callback) => {
+    const { matchId, from } = data;
+    const offer = pendingOffers.get(`${matchId}-${from}-${userId}`);
+    
+    if (offer) {
+      callback(offer);
+    } else {
+      socket.emit("call:error", { message: "No offer found" });
+    }
+  });
+  
+  // Handle call answer
+  socket.on("call:answer", (data) => {
+    const { answer, to, matchId } = data;
+    console.log(`Call answered by ${userId} to ${to} for match ${matchId}`);
+    
+    const targetSocketId = users.get(to.toString());
+    
+    if (!targetSocketId) {
+      socket.emit("call:error", { message: "User is offline" });
+      return;
+    }
+    
+    // Send the answer to the initiator
+    io.to(targetSocketId).emit("call:answer", { answer, from: userId });
+    
+    // Clean up the stored offer
+    pendingOffers.delete(`${matchId}-${to}-${userId}`);
+  });
+  
+  // Handle ICE candidates
+  socket.on("call:iceCandidate", (data) => {
+    const { candidate, to, matchId } = data;
+    
+    const targetSocketId = users.get(to.toString());
+    
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("call:iceCandidate", { candidate, from: userId });
+    }
+  });
+  
+  // Handle call rejection
+  socket.on("call:reject", (data) => {
+    const { to, matchId } = data;
+    console.log(`Call rejected by ${userId} for match ${matchId}`);
+    
+    const targetSocketId = users.get(to.toString());
+    
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("call:rejected", { from: userId });
+    }
+    
+    // Clean up
+    pendingOffers.delete(`${matchId}-${to}-${userId}`);
+    activeCalls.delete(`${matchId}-${to}-${userId}`);
+  });
+  
+  // Handle call end
+  socket.on("call:end", (data) => {
+    const { to, matchId } = data;
+    console.log(`Call ended by ${userId} for match ${matchId}`);
+    
+    const targetSocketId = users.get(to.toString());
+    
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("call:ended", { from: userId });
+    }
+    
+    // Clean up
+    activeCalls.delete(`${matchId}-${userId}-${to}`);
+    activeCalls.delete(`${matchId}-${to}-${userId}`);
+  });
+  
+  // Handle disconnect
+  socket.on("disconnect", () => {
+    console.log(`User disconnected: ${userId}`);
+    users.delete(userId);
+    
+    // End any active calls involving this user
+    for (const [key, call] of activeCalls.entries()) {
+      if (call.initiator === userId || call.receiver === userId) {
+        const otherUserId = call.initiator === userId ? call.receiver : call.initiator;
+        const otherSocketId = users.get(otherUserId.toString());
+        
+        if (otherSocketId) {
+          io.to(otherSocketId).emit("call:ended", { from: userId });
+        }
+        
+        activeCalls.delete(key);
+      }
+    }
+  });
+});
+
+const PORT = process.env.PORT || 4000;
+server.listen(PORT, () => {
+  console.log(`Socket.io server running on port ${PORT}`);
+});
+
+module.exports = { server };

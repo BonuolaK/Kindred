@@ -21,6 +21,13 @@ export function formatCallDuration(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
+// Format a number of seconds to MM:SS format
+export function formatSecondsToTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
 export function formatDate(date: Date | string): string {
   return format(new Date(date), 'MMM d, yyyy');
 }

@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { MatchingAlgorithm, canReceiveNewMatch } from "./matching-algorithm";
+import { setupSocketServer } from "./socket";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
@@ -33,7 +34,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // HTTP server creation
   const httpServer = createServer(app);
   
-  // WebSocket server for audio calls
+  // Set up both WebSocket servers - the old one for backward compatibility
+  // and the new Socket.io server for improved functionality
+  
+  // 1. Original WebSocket server (ws) for existing clients
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   
   // Connected users map: userId -> WebSocket connection
@@ -114,6 +118,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   });
+  
+  // 2. Set up Socket.io server for improved functionality
+  try {
+    const io = setupSocketServer(httpServer);
+    console.log('Socket.io server initialized');
+  } catch (error) {
+    console.error('Failed to initialize Socket.io server:', error);
+  }
 
   // Match endpoints
   app.get("/api/matches", async (req, res, next) => {

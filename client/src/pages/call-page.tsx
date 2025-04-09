@@ -10,6 +10,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Match } from "@shared/schema";
 
 import SimpleCallInterface from "@/components/simple-call-interface";
+import { AudioCallUI } from "@/components/AudioCallUI";
 import ErrorBoundary from "@/components/error-boundary";
 
 export default function CallPage() {
@@ -92,12 +93,24 @@ export default function CallPage() {
       <h1 className="text-3xl font-bold text-center mb-8">Audio Call</h1>
       
       <ErrorBoundary>
-        {user && (
-          <SimpleCallInterface 
-            match={match} 
-            userId={user.id}
-            onCallEnded={handleCallEnded}
-          />
+        {user && match.otherUser && (
+          <div className="flex justify-center items-center">
+            {/* Using the new WebSocket-based AudioCallUI component */}
+            <AudioCallUI
+              matchId={match.id}
+              otherUserId={match.otherUser.id}
+              otherUserName={match.otherUser.username || 'Your Match'}
+              callDay={match.callCount + 1}
+              onClose={handleCallEnded}
+            />
+            
+            {/* Legacy SimpleCallInterface component - can be removed once AudioCallUI is fully tested */}
+            {/* <SimpleCallInterface 
+              match={match} 
+              userId={user.id}
+              onCallEnded={handleCallEnded}
+            /> */}
+          </div>
         )}
       </ErrorBoundary>
       
