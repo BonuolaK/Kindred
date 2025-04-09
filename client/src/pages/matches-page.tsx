@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 import { Match, User } from "@shared/schema";
 import MatchCard from "@/components/match-card";
 import UserAvatar from "@/components/user-avatar";
@@ -19,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function MatchesPage() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const [selectedMatch, setSelectedMatch] = useState<(Match & { otherUser?: User }) | null>(null);
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState<string | undefined>(undefined);
@@ -117,33 +119,93 @@ export default function MatchesPage() {
       
       <main className="flex-1 container max-w-5xl py-6">
         <div className="flex flex-col space-y-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Your Matches</h1>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center gap-1">
-                  <Filter className="h-4 w-4" /> Filter
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-52">
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm">Filter Matches</h4>
-                  <Select value={filterValue} onValueChange={setFilterValue}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select filter" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Matches</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="scheduled">Call Scheduled</SelectItem>
-                      <SelectItem value="chatUnlocked">Chat Unlocked</SelectItem>
-                      <SelectItem value="photosRevealed">Photos Revealed</SelectItem>
-                    </SelectContent>
-                  </Select>
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">Your Matches</h1>
+                <div className="flex items-center mt-1 text-sm text-muted-foreground">
+                  <span className="font-medium">
+                    {matches.length}/{user?.profileType === 'basic' ? '3' : user?.profileType === 'premium' ? '5' : '∞'} matches
+                  </span>
+                  {user?.profileType !== 'elite' && (
+                    <Button 
+                      variant="link" 
+                      className="h-auto p-0 pl-2" 
+                      onClick={() => {
+                        window.location.href = "/profile";
+                      }}
+                    >
+                      Upgrade for more
+                    </Button>
+                  )}
                 </div>
-              </PopoverContent>
-            </Popover>
+              </div>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center gap-1">
+                    <Filter className="h-4 w-4" /> Filter
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-52">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Filter Matches</h4>
+                    <Select value={filterValue} onValueChange={setFilterValue}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select filter" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Matches</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="scheduled">Call Scheduled</SelectItem>
+                        <SelectItem value="chatUnlocked">Chat Unlocked</SelectItem>
+                        <SelectItem value="photosRevealed">Photos Revealed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="bg-muted/30 rounded-lg p-4 border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">
+                    {user?.profileType === 'basic' ? 'Basic Account' : 
+                     user?.profileType === 'premium' ? 'Premium Account' : 
+                     user?.profileType === 'elite' ? 'Elite Account' : 'Basic Account'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {user?.profileType === 'basic' ? 'Up to 3 matches' : 
+                     user?.profileType === 'premium' ? 'Up to 5 matches' : 
+                     user?.profileType === 'elite' ? 'Unlimited matches' : 'Up to 3 matches'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-xs flex flex-col items-end">
+                    <span>
+                      {(matches.length || 0)} / 
+                      {user?.profileType === 'basic' ? '3' : 
+                       user?.profileType === 'premium' ? '5' : 
+                       '∞'}
+                    </span>
+                    <span className="text-muted-foreground">Matches used</span>
+                  </div>
+                  {(user?.profileType === 'basic' || user?.profileType === 'premium') && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="text-xs h-8"
+                      onClick={() => {
+                        window.location.href = "/profile";
+                      }}
+                    >
+                      Upgrade
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
           
           <Tabs defaultValue="grid" className="w-full">

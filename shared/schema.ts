@@ -19,6 +19,7 @@ export const users = pgTable("users", {
   avatar: text("avatar"),
   isPhotoRevealed: boolean("is_photo_revealed").default(false).notNull(),
   isPremium: boolean("is_premium").default(false).notNull(),
+  profileType: text("profile_type").default("basic").notNull(),
   communicationStyle: text("communication_style"),
   freeTimeActivities: text("free_time_activities").array(),
   values: text("values"),
@@ -137,6 +138,7 @@ export const registrationSchema = z.object({
   loveLanguage: z.string().optional(),
   relationshipPace: z.string().optional(),
   dealbreakers: z.array(z.string()).optional(),
+  profileType: z.enum(["basic", "premium", "elite"]).optional(),
 });
 
 export const profileSchema = insertUserSchema.omit({

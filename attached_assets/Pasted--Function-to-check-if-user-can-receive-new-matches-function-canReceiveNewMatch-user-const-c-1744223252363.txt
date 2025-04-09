@@ -1,0 +1,122 @@
+// Function to check if user can receive new matches
+function canReceiveNewMatch(user) {
+  const currentMatches = user.matches.length;
+  
+  switch(user.profileType) {
+    case 'basic':
+      return currentMatches < 3;
+    case 'premium':
+      return currentMatches < 5;
+    case 'elite':
+      return true; // Unlimited matches
+    default:
+      return false;
+  }
+}
+
+// When creating a new match for a user
+function createMatch(user, potentialMatch) {
+  if (canReceiveNewMatch(user)) {
+    // Create the match
+    const newMatch = {
+      id: generateUniqueId(),
+      userId: user.id,
+      matchedUserId: potentialMatch.id,
+      createdAt: new Date()
+    };
+    
+    user.matches.push(newMatch);
+    return newMatch;
+  }
+  
+  return null; // Cannot create match due to limitations
+}
+
+
+
+
+// Function to switch user profile type
+function switchUserProfileType(user, newProfileType) {
+  if (!['basic', 'premium', 'elite'].includes(newProfileType)) {
+    throw new Error('Invalid profile type');
+  }
+  
+  user.profileType = newProfileType;
+  return user;
+}
+
+
+// Function to create a new user with at least one match
+function createNewUserWithMatch(userData) {
+  const user = {
+    id: generateUniqueId(),
+    ...userData,
+    profileType: userData.profileType || 'basic',
+    matches: []
+  };
+  
+  // Create a test match for the new user
+  const testMatch = {
+    id: generateUniqueId(),
+    userId: user.id,
+    matchedUserId: 'test-match-user-' + Math.floor(Math.random() * 1000),
+    createdAt: new Date()
+  };
+  
+  user.matches.push(testMatch);
+  return user;
+}
+
+
+// Audio call integration using WebRTC
+const audioCallConfig = {
+  initializeAudioCall: function(user, match) {
+    // Create new RTCPeerConnection
+    const peerConnection = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'turn:your-turn-server.com', username: 'username', credential: 'credential' }
+      ]
+    });
+    
+    // Get local audio stream
+    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      .then(stream => {
+        // Add local stream to connection
+        stream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, stream);
+        });
+        
+        // Create and send offer (in a real app, you'd send this to the other user)
+        return peerConnection.createOffer();
+      })
+      .then(offer => {
+        return peerConnection.setLocalDescription(offer);
+      })
+      .then(() => {
+        // Here you would send the offer to the other user via your signaling server
+        console.log('Audio call setup complete');
+      })
+      .catch(error => {
+        console.error('Error setting up audio call:', error);
+      });
+      
+    return peerConnection;
+  },
+  
+  endAudioCall: function(peerConnection) {
+    // Close the connection
+    if (peerConnection) {
+      peerConnection.close();
+    }
+    
+    // Stop all audio tracks
+    const localStreams = peerConnection.getLocalStreams();
+    localStreams.forEach(stream => {
+      stream.getTracks().forEach(track => {
+        track.stop();
+      });
+    });
+  }
+};
+

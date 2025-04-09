@@ -5,6 +5,25 @@ import { User } from "@shared/schema";
  * This algorithm matches users based on personality compatibility (60%), 
  * location proximity (20%), and age compatibility (20%)
  */
+/**
+ * Function to check if user can receive new matches based on their profile type
+ * @param user The user to check
+ * @param currentMatchCount The number of current matches the user has
+ * @returns Boolean indicating if the user can receive more matches
+ */
+export function canReceiveNewMatch(user: User, currentMatchCount: number): boolean {
+  switch(user.profileType) {
+    case 'basic':
+      return currentMatchCount < 3;
+    case 'premium':
+      return currentMatchCount < 5;
+    case 'elite':
+      return true; // Unlimited matches
+    default:
+      return currentMatchCount < 3; // Default to basic if profileType is not recognized
+  }
+}
+
 export class MatchingAlgorithm {
   private weights = {
     personality: 0.6,

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { MatchingAlgorithm } from "./matching-algorithm";
+import { MatchingAlgorithm, canReceiveNewMatch } from "./matching-algorithm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
@@ -30,6 +30,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Subscription endpoint
+  app.post("/api/subscription", async (req, res, next) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const userId = req.user.id;
+      const { profileType } = req.body;
+      
+      if (!profileType || !['basic', 'premium', 'elite'].includes(profileType)) {
+        return res.status(400).json({ message: "Invalid subscription type. Must be one of: basic, premium, elite" });
+      }
+      
+      // Get the current user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // In a real app, you would process payment here based on the subscription type
+      
+      // Update the user's profile type
+      const updatedUser = await storage.updateUser(userId, { profileType });
+      
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update subscription" });
+      }
+      
+      res.json({
+        message: `Subscription updated to ${profileType}`,
+        user: updatedUser
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // HTTP server creation
   const httpServer = createServer(app);
   
@@ -51,11 +87,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user already has matches
       const existingMatches = await storage.getMatchesByUserId(userId);
       
+      // Check if user can receive new matches based on their profile type
+      const canReceiveMore = canReceiveNewMatch(user, existingMatches.length);
+      if (!canReceiveMore) {
+        return res.status(403).json({
+          message: `You've reached the maximum number of matches for your ${user.profileType} account. Upgrade to receive more matches.`,
+          matchesCreated: 0,
+          matches: existingMatches
+        });
+      }
+      
       // Get all users except current user
       // In a production app, you would implement pagination and filtering
       const allUsers = [];
       let currentId = 1;
-      let potentialUser = null;
+      let potentialUser: any = null;
       
       // Simple approach to get all users
       while ((potentialUser = await storage.getUser(currentId))) {
