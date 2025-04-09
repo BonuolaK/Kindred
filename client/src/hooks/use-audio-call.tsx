@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { audioCallService, CallState, initializeAudioService } from "@/lib/audio-call";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -7,26 +7,51 @@ export function useAudioCall() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [initialized, setInitialized] = useState(false);
+  const initAttemptsRef = useRef(0);
+  const maxRetries = 3;
   
   // Initialize audio service when component mounts and user is available
   useEffect(() => {
-    if (user && user.id && !initialized) {
-      initializeAudioService(user.id)
-        .then(() => {
-          setInitialized(true);
-        })
-        .catch((error) => {
-          console.error("Failed to initialize audio service:", error);
+    let retryTimeout: number | null = null;
+    
+    const initializeAudio = async () => {
+      if (!user?.id) return;
+      
+      try {
+        console.log(`Attempting to initialize audio service for user ${user.id} (attempt ${initAttemptsRef.current + 1}/${maxRetries})`);
+        await initializeAudioService(user.id);
+        console.log('Audio service initialized successfully');
+        setInitialized(true);
+        initAttemptsRef.current = 0; // Reset counter on success
+      } catch (error) {
+        console.error("Failed to initialize audio service:", error);
+        
+        if (initAttemptsRef.current < maxRetries - 1) {
+          initAttemptsRef.current++;
+          const delay = 1000 * Math.pow(2, initAttemptsRef.current); // Exponential backoff
+          console.log(`Retrying audio initialization in ${delay/1000} seconds...`);
+          
+          // Schedule retry
+          retryTimeout = window.setTimeout(initializeAudio, delay);
+        } else {
           toast({
             title: "Connection Error",
-            description: "Failed to initialize audio service. Please try again.",
+            description: "Failed to connect to audio service after multiple attempts. Please refresh the page.",
             variant: "destructive",
           });
-        });
+        }
+      }
+    };
+    
+    if (user?.id && !initialized) {
+      initializeAudio();
     }
     
     // Cleanup on unmount
     return () => {
+      if (retryTimeout) {
+        window.clearTimeout(retryTimeout);
+      }
       if (initialized) {
         audioCallService.cleanup();
       }

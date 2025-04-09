@@ -153,21 +153,43 @@ export function AudioCallUI({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center bg-gray-100 rounded-lg p-6 shadow-lg w-80">
-      <h2 className="text-xl font-semibold mb-4">
-        {callState === 'idle' && 'Starting call...'}
-        {callState === 'connecting' && 'Connecting...'}
-        {callState === 'ringing' && (isIncoming ? 'Incoming Call' : 'Calling...')}
-        {callState === 'connected' && 'On Call'}
-        {callState === 'ended' && 'Call Ended'}
-        {callState === 'error' && 'Call Failed'}
-      </h2>
+    <div className="flex flex-col items-center justify-center rounded-lg p-6 w-full max-w-sm mx-auto">
+      {/* Call state banner */}
+      <div className={`w-full py-3 px-4 rounded-md text-center mb-6 ${
+        callState === 'idle' ? 'bg-gray-100 text-gray-700' :
+        callState === 'connecting' ? 'bg-blue-100 text-blue-700 animate-pulse' :
+        callState === 'ringing' ? 'bg-yellow-100 text-yellow-700' :
+        callState === 'connected' ? 'bg-green-100 text-green-700' :
+        callState === 'ended' ? 'bg-gray-100 text-gray-700' :
+        'bg-red-100 text-red-700'
+      }`}>
+        <h2 className="text-xl font-semibold">
+          {callState === 'idle' && 'Starting call...'}
+          {callState === 'connecting' && 'Connecting...'}
+          {callState === 'ringing' && (isIncoming ? 'Incoming Call' : 'Calling...')}
+          {callState === 'connected' && 'On Call'}
+          {callState === 'ended' && 'Call Ended'}
+          {callState === 'error' && 'Call Failed'}
+        </h2>
+      </div>
       
-      <div className="text-lg mb-6">{otherUserName}</div>
+      {/* Contact avatar placeholder */}
+      <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mb-4">
+        <span className="text-3xl">{otherUserName.charAt(0).toUpperCase()}</span>
+      </div>
+      
+      <div className="text-lg font-medium mb-6">{otherUserName}</div>
       
       {callState === 'connected' && (
-        <div className="text-md mb-4">
+        <div className="text-md mb-4 bg-primary/10 py-2 px-4 rounded-md">
           Time remaining: {formatSecondsToTime(timeRemaining)}
+        </div>
+      )}
+      
+      {/* Show error message if call failed */}
+      {callState === 'error' && (
+        <div className="text-sm text-red-500 mb-4 bg-red-50 p-3 rounded-md">
+          There was a problem connecting the call. Please check your microphone permissions and network connection.
         </div>
       )}
       
@@ -189,21 +211,27 @@ export function AudioCallUI({
         {/* Connected state controls */}
         {callState === 'connected' && (
           <>
-            <Button onClick={toggleMute} variant="outline">
-              {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
+            <Button onClick={toggleMute} variant={isMuted ? "default" : "outline"} className="w-14 h-14 rounded-full">
+              {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
             </Button>
-            <Button onClick={handleEndCall} variant="destructive">
-              <PhoneOff className="mr-2" size={16} />
-              End Call
+            <Button onClick={handleEndCall} variant="destructive" className="w-14 h-14 rounded-full">
+              <PhoneOff size={20} />
             </Button>
           </>
         )}
         
         {/* Connecting/Outgoing call state */}
         {(callState === 'connecting' || (callState === 'ringing' && !isIncoming)) && (
-          <Button onClick={handleEndCall} variant="destructive">
+          <Button onClick={handleEndCall} variant="destructive" className="px-6">
             <PhoneOff className="mr-2" size={16} />
-            Cancel
+            Cancel Call
+          </Button>
+        )}
+        
+        {/* Error or ended state */}
+        {(callState === 'error' || callState === 'ended') && (
+          <Button onClick={onClose} variant="outline" className="px-6">
+            Return to Matches
           </Button>
         )}
       </div>
@@ -211,6 +239,12 @@ export function AudioCallUI({
       {/* Hidden audio elements to play the streams */}
       <audio ref={localAudioRef} autoPlay />
       <audio ref={remoteAudioRef} autoPlay />
+      
+      {/* Debug connection status */}
+      <div className="mt-8 text-xs text-gray-500 border-t pt-2">
+        <p>Connection status: {initialized ? 'Initialized' : 'Not initialized'}</p>
+        <p>Match ID: {matchId} | User ID: {otherUserId}</p>
+      </div>
     </div>
   );
 }

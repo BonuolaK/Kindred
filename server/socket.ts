@@ -3,13 +3,13 @@ import { Server as HttpServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 
 // Store active users and their socket IDs
-const users = new Map<string, WebSocket>();
+const users = new Map<number, WebSocket>();
 
 // Store active calls
 const activeCalls = new Map<string, {
-  initiator: string;
-  receiver: string;
-  matchId: string;
+  initiator: number;
+  receiver: number;
+  matchId: number;
   callDay: number;
   startTime: number;
 }>();
@@ -17,31 +17,40 @@ const activeCalls = new Map<string, {
 // Store signal offers for call setup
 const pendingOffers = new Map<string, any>();
 
+// Debug variables to help with troubleshooting
+let connectionCount = 0;
+let messageCount = 0;
+
 export function setupSocketServer(httpServer: HttpServer) {
   // Create WebSocket server
   const wss = new WebSocketServer({ 
     server: httpServer, 
-    path: '/socket.io'  // Different path than the original WebSocket
+    path: '/ws'  // Match the path used in the client
   });
+  console.log('WebSocket server initialized on path: /ws');
 
   // Connected users map: userId -> WebSocket connection
   wss.on('connection', (ws: WebSocket) => {
-    console.log('Client connected to advanced WebSocket');
-    let userId: string | null = null;
+    connectionCount++;
+    console.log(`Client connected to WebSocket (total connections: ${connectionCount})`);
+    let userId: number | null = null;
     
     ws.on('message', (message) => {
+      messageCount++;
       try {
         const data = JSON.parse(message.toString());
-        console.log('Received socket message:', data);
+        console.log(`Received socket message (${messageCount}):`, data);
         
         // Handle different message types
         switch (data.type) {
           case 'register':
             // Register user connection
-            userId = data.userId?.toString();
-            if (userId) {
+            userId = parseInt(data.userId, 10);
+            if (!isNaN(userId)) {
               users.set(userId, ws);
-              console.log(`User ${userId} registered with advanced WebSocket`);
+              console.log(`User ${userId} registered with WebSocket (active users: ${users.size})`);
+            } else {
+              console.error(`Invalid userId received: ${data.userId}`);
             }
             break;
             
@@ -51,7 +60,8 @@ export function setupSocketServer(httpServer: HttpServer) {
             const { offer: callOffer, to: callTo, matchId: callMatchId, callDay } = data;
             console.log(`Call offer from ${userId} to ${callTo} for match ${callMatchId}`);
             
-            const targetWs = users.get(callTo.toString());
+            const toUserId = parseInt(callTo.toString(), 10);
+            const targetWs = users.get(toUserId);
             
             if (!targetWs) {
               sendToClient(ws, {
@@ -62,7 +72,7 @@ export function setupSocketServer(httpServer: HttpServer) {
             }
             
             // Store the offer for later retrieval
-            pendingOffers.set(`${callMatchId}-${userId}-${callTo}`, callOffer);
+            pendingOffers.set(`${callMatchId}-${userId}-${toUserId}`, callOffer);
             
             // Send the offer to the target user
             sendToClient(targetWs, {
@@ -74,9 +84,9 @@ export function setupSocketServer(httpServer: HttpServer) {
             });
             
             // Track the call
-            activeCalls.set(`${callMatchId}-${userId}-${callTo}`, {
-              initiator: userId.toString(),
-              receiver: callTo.toString(),
+            activeCalls.set(`${callMatchId}-${userId}-${toUserId}`, {
+              initiator: userId,
+              receiver: toUserId,
               matchId: callMatchId,
               callDay,
               startTime: Date.now()
@@ -201,7 +211,8 @@ export function setupSocketServer(httpServer: HttpServer) {
         users.delete(userId);
         
         // End any active calls involving this user
-        for (const [key, call] of activeCalls.entries()) {
+        // Manually iterate to avoid downlevelIteration issues
+        activeCalls.forEach((call, key) => {
           if (call.initiator === userId || call.receiver === userId) {
             const otherUserId = call.initiator === userId ? call.receiver : call.initiator;
             const otherUserWs = users.get(otherUserId);
@@ -215,7 +226,7 @@ export function setupSocketServer(httpServer: HttpServer) {
             
             activeCalls.delete(key);
           }
-        }
+        });
       }
     });
   });

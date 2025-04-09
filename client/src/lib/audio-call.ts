@@ -76,7 +76,7 @@ class AudioCallService {
         }, 10000); // 10 seconds timeout
         
         this.socket.onopen = () => {
-          console.log('WebSocket connection established successfully');
+          console.log(`[WS] Connection established successfully for user ${userId}`);
           clearTimeout(connectionTimeout);
           
           // Register user with WebSocket server
@@ -84,24 +84,41 @@ class AudioCallService {
             type: 'register',
             userId: this.userId
           });
-          console.log(`User ${userId} registered with WebSocket server`);
+          console.log(`[WS] User ${userId} registered with WebSocket server`);
           resolve();
         };
         
         this.socket.onclose = (event) => {
-          console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
+          console.log(`[WS] Connection closed: code=${event.code}, reason="${event.reason}", clean=${event.wasClean}`);
           clearTimeout(connectionTimeout);
-          this.endCall();
+          
+          // Attempt to reconnect if not a clean close and we have a user ID
+          if (!event.wasClean && this.userId) {
+            console.log(`[WS] Connection closed unexpectedly, will retry in 5 seconds`);
+            setTimeout(() => {
+              console.log(`[WS] Attempting reconnection for user ${this.userId}`);
+              if (this.userId) {
+                this.initialize(this.userId).catch(err => {
+                  console.error('[WS] Reconnection failed:', err);
+                });
+              }
+            }, 5000);
+          } else {
+            // Just end the call on a clean close
+            this.endCall();
+          }
         };
         
         this.socket.onerror = (error) => {
-          console.error('WebSocket error occurred:', error);
+          console.error('[WS] Error occurred:', error);
           clearTimeout(connectionTimeout);
           reject(error);
         };
         
         this.socket.onmessage = (event) => {
-          console.log('WebSocket message received:', event.data);
+          // Truncate the log to avoid flooding the console
+          const dataPreview = event.data.substring(0, 100) + (event.data.length > 100 ? '...' : '');
+          console.log(`[WS] Message received: ${dataPreview}`);
           this.handleSocketMessage(event);
         };
       } catch (error) {
@@ -150,6 +167,11 @@ class AudioCallService {
         throw new Error('Cannot start a call when one is already in progress');
       }
       
+      // Make sure we have valid data before proceeding
+      if (!matchId || !otherUserId || isNaN(matchId) || isNaN(otherUserId)) {
+        throw new Error(`Invalid parameters: matchId=${matchId}, otherUserId=${otherUserId}`);
+      }
+      
       // Make sure WebSocket is connected
       if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
         console.log('WebSocket not connected, attempting to reconnect...');
@@ -162,10 +184,10 @@ class AudioCallService {
       
       this.matchId = matchId;
       this.otherUserId = otherUserId;
-      this.callDay = callDay;
+      this.callDay = callDay || 1; // Default to first call day if not provided
       
       // Set time limit based on call day
-      this.timeLimit = TIME_LIMITS[callDay] || TIME_LIMITS[4]; // Default to day 4+ if beyond
+      this.timeLimit = TIME_LIMITS[this.callDay] || TIME_LIMITS[4]; // Default to day 4+ if beyond
       
       // Update UI to show connecting state
       this.updateCallState('connecting');
@@ -178,6 +200,7 @@ class AudioCallService {
           headers: {
             'Content-Type': 'application/json'
           },
+          body: JSON.stringify({ matchId }), // Include match ID in body too
           credentials: 'same-origin' // Include cookies for authentication
         });
         
@@ -590,31 +613,45 @@ class AudioCallService {
   
   // Send a message through the WebSocket
   private sendSocketMessage(message: any): void {
+    // Make sure user IDs are numbers not strings
+    if (message.userId && typeof message.userId === 'string') {
+      message.userId = parseInt(message.userId, 10);
+    }
+    if (message.fromUserId && typeof message.fromUserId === 'string') {
+      message.fromUserId = parseInt(message.fromUserId, 10);
+    }
+    if (message.toUserId && typeof message.toUserId === 'string') {
+      message.toUserId = parseInt(message.toUserId, 10);
+    }
+    
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       try {
         const messageStr = JSON.stringify(message);
-        console.log('Sending WebSocket message:', messageStr.substring(0, 200) + (messageStr.length > 200 ? '...' : ''));
+        console.log(`[WS] Sending message: ${messageStr.substring(0, 100)}${messageStr.length > 100 ? '...' : ''}`);
         this.socket.send(messageStr);
       } catch (error) {
-        console.error('Error sending WebSocket message:', error);
+        console.error('[WS] Error sending message:', error);
         
         // Try to reconnect if there was an error sending the message
         if (this.userId) {
-          console.log('Attempting to reconnect WebSocket after send error');
+          console.log('[WS] Attempting to reconnect after send error');
           this.initialize(this.userId).catch(e => {
-            console.error('Failed to reconnect WebSocket:', e);
+            console.error('[WS] Failed to reconnect after send error:', e);
           });
         }
       }
     } else {
-      console.warn('Cannot send message, WebSocket not connected (readyState:', 
-                   this.socket ? this.socket.readyState : 'socket is null', ')');
+      const state = this.socket ? 
+        ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][this.socket.readyState] : 
+        'socket is null';
+      
+      console.warn(`[WS] Cannot send message, socket state: ${state}`);
       
       // Try to reconnect if the socket is not open
       if (this.userId && (!this.socket || this.socket.readyState !== WebSocket.CONNECTING)) {
-        console.log('Attempting to reconnect WebSocket');
+        console.log('[WS] Attempting to reconnect for message sending');
         this.initialize(this.userId).catch(e => {
-          console.error('Failed to reconnect WebSocket:', e);
+          console.error('[WS] Failed to reconnect for message sending:', e);
         });
       }
     }

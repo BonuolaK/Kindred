@@ -34,98 +34,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // HTTP server creation
   const httpServer = createServer(app);
   
-  // Set up both WebSocket servers - the old one for backward compatibility
-  // and the new Socket.io server for improved functionality
+  // Setup WebSocket server from socket.ts
+  const wss = setupSocketServer(httpServer);
   
-  // 1. Original WebSocket server (ws) for existing clients
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
-  // Connected users map: userId -> WebSocket connection
-  const connectedUsers = new Map<number, WebSocket>();
-  
-  // WebSocket connection handler
-  wss.on('connection', (ws: WebSocket) => {
-    console.log('Client connected to WebSocket');
-    let userId: number | null = null;
-    
-    ws.on('message', (message) => {
-      try {
-        const data = JSON.parse(message.toString());
-        console.log('Received message:', data);
-        
-        // Handle different message types
-        switch (data.type) {
-          case 'register':
-            // Register user connection
-            userId = data.userId;
-            // Type check to make sure userId is not null
-            if (userId !== null) {
-              connectedUsers.set(userId, ws);
-              console.log(`User ${userId} registered with WebSocket`);
-            }
-            break;
-            
-          case 'call-initiate':
-            // Forward call initiation to recipient
-            if (data.toUserId && connectedUsers.has(data.toUserId)) {
-              const recipientWs = connectedUsers.get(data.toUserId);
-              if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
-                recipientWs.send(JSON.stringify(data));
-                console.log(`Call initiation from ${data.fromUserId} forwarded to ${data.toUserId}`);
-              }
-            } else {
-              console.log(`User ${data.toUserId} not connected, can't forward call`);
-              // Send back a notification that user is unavailable
-              if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                  type: 'user-unavailable',
-                  userId: data.toUserId,
-                  matchId: data.matchId
-                }));
-              }
-            }
-            break;
-            
-          case 'call-accept':
-          case 'call-reject':
-          case 'call-end':
-          case 'offer':
-          case 'answer':
-          case 'ice-candidate':
-            // Forward WebRTC signaling messages to the other user
-            if (data.toUserId && connectedUsers.has(data.toUserId)) {
-              const recipientWs = connectedUsers.get(data.toUserId);
-              if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
-                recipientWs.send(JSON.stringify(data));
-                console.log(`Message type ${data.type} forwarded from ${data.fromUserId} to ${data.toUserId}`);
-              }
-            }
-            break;
-            
-          default:
-            console.log(`Unknown message type: ${data.type}`);
-        }
-      } catch (error) {
-        console.error('Error processing WebSocket message:', error);
-      }
-    });
-    
-    ws.on('close', () => {
-      console.log(`Client disconnected from WebSocket ${userId ? `(User ${userId})` : ''}`);
-      // Remove user from connected users
-      if (userId !== null) {
-        connectedUsers.delete(userId);
-      }
-    });
-  });
-  
-  // 2. Set up Socket.io server for improved functionality
-  try {
-    const io = setupSocketServer(httpServer);
-    console.log('Socket.io server initialized');
-  } catch (error) {
-    console.error('Failed to initialize Socket.io server:', error);
-  }
+  // Debug log to confirm setup
+  console.log('WebSocket server set up via socket.ts');
 
   // Match endpoints
   app.get("/api/matches", async (req, res, next) => {

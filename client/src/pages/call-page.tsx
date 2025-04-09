@@ -95,21 +95,25 @@ export default function CallPage() {
       <ErrorBoundary>
         {user && match.otherUser && (
           <div className="flex justify-center items-center">
-            {/* Using the new WebSocket-based AudioCallUI component */}
-            <AudioCallUI
-              matchId={match.id}
-              otherUserId={match.otherUser.id}
-              otherUserName={match.otherUser.username || 'Your Match'}
-              callDay={match.callCount + 1}
-              onClose={handleCallEnded}
-            />
-            
-            {/* Legacy SimpleCallInterface component - can be removed once AudioCallUI is fully tested */}
-            {/* <SimpleCallInterface 
-              match={match} 
-              userId={user.id}
-              onCallEnded={handleCallEnded}
-            /> */}
+            <div className="bg-white shadow-lg rounded-lg p-6 mb-6 max-w-md w-full">
+              {/* Using the new WebSocket-based AudioCallUI component */}
+              <AudioCallUI
+                matchId={match.id}
+                otherUserId={match.otherUser.id}
+                otherUserName={match.otherUser.username || 'Your Match'}
+                callDay={match.callCount + 1}
+                onClose={handleCallEnded}
+              />
+              
+              {/* Display debug info for troubleshooting */}
+              <div className="mt-6 text-xs border-t pt-4 text-muted-foreground">
+                <p className="font-semibold">Debug Info:</p>
+                <p>Match ID: {match.id}</p>
+                <p>Other User ID: {match.otherUser.id}</p>
+                <p>Call Day: {match.callCount + 1}</p>
+                <p>Current User: {user.username} (ID: {user.id})</p>
+              </div>
+            </div>
           </div>
         )}
       </ErrorBoundary>
