@@ -1,15 +1,19 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import { setupGoogleAuth } from "./google-auth";
 
 declare global {
   namespace Express {
     interface User extends SelectUser {}
+    interface Session {
+      needsOnboarding?: boolean;
+    }
   }
 }
 
@@ -29,7 +33,7 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
-  const sessionSecret = process.env.SESSION_SECRET || "kindred-secret-key-development";
+  const sessionSecret = process.env.AUTH_SECRET || process.env.SESSION_SECRET || "kindred-secret-key-development";
   
   const sessionSettings: session.SessionOptions = {
     secret: sessionSecret,
@@ -120,13 +124,13 @@ export function setupAuth(app: Express) {
         
         // Get the top matches (limit to 3 for example)
         const topMatches = matchResults
-          .filter(match => match.matchScore >= 40) // Lower threshold to ensure at least one match
+          .filter((match: { matchScore: number }) => match.matchScore >= 40) // Lower threshold to ensure at least one match
           .slice(0, 3);
         
         // Create matches in database for each top match
         if (topMatches.length > 0) {
           await Promise.all(
-            topMatches.map(match => 
+            topMatches.map((match: { id: number, matchScore: number }) => 
               storage.createMatch({
                 userId1: user.id,
                 userId2: match.id,
@@ -194,7 +198,14 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    res.json(req.user);
+    
+    // Check if the user needs onboarding and include that in the response
+    const needsOnboarding = req.session?.needsOnboarding === true;
+    
+    res.json({
+      ...req.user,
+      needsOnboarding
+    });
   });
   
   // Update profile endpoint
@@ -204,12 +215,22 @@ export function setupAuth(app: Express) {
     try {
       const userId = req.user.id;
       const updatedUser = await storage.updateUser(userId, req.body);
+      
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
       }
+      
+      // If this was an onboarding completion, clear the onboarding flag
+      if (req.session?.needsOnboarding) {
+        req.session.needsOnboarding = false;
+      }
+      
       res.json(updatedUser);
     } catch (error) {
       next(error);
     }
   });
+  
+  // Set up Google Authentication
+  setupGoogleAuth(app);
 }

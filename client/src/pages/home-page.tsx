@@ -21,8 +21,17 @@ export default function HomePage() {
   
   // Check if profile is complete to show onboarding if needed
   useEffect(() => {
-    if (user && (!user.age || !user.gender || !user.interestedGenders)) {
-      setShowOnboarding(true);
+    if (user) {
+      // Check for the needsOnboarding flag from Google Auth
+      if (user.needsOnboarding) {
+        setShowOnboarding(true);
+        return;
+      }
+      
+      // Also check if profile is incomplete
+      if (!user.age || !user.gender || !user.interestedGenders) {
+        setShowOnboarding(true);
+      }
     }
   }, [user]);
 
