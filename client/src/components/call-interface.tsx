@@ -51,8 +51,9 @@ export default function CallInterface({ match, onCallEnded }: CallInterfaceProps
   
   // Initialize call state listener
   useEffect(() => {
-    // Subscribe to call state changes
-    const unsubscribe = useAudioCall().onCallStateChange((state) => {
+    // Subscribe to call state changes using the same hook instance
+    const unsubscribe = onCallStateChange((state) => {
+      console.log("Call state changed:", state);
       setCallState(state);
       
       // If call ended, notify parent component
@@ -65,7 +66,7 @@ export default function CallInterface({ match, onCallEnded }: CallInterfaceProps
     return () => {
       unsubscribe();
     };
-  }, [onCallEnded]);
+  }, [onCallStateChange, onCallEnded]);
   
   // Connect audio streams to audio elements
   useEffect(() => {
