@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { profileSchema } from "@shared/schema";
 import { ukCities } from "@/lib/uk-cities";
+import AvatarPlaceholder from "@/components/avatar-placeholder";
+import AvatarSelector from "@/components/avatar-selector";
 import {
   Form,
   FormControl,
@@ -69,6 +71,7 @@ export default function ProfilePage() {
       location: user?.location || "",
       bio: user?.bio || "",
       photoUrl: user?.photoUrl || "",
+      avatar: user?.avatar || "",
       communicationStyle: user?.communicationStyle || "",
       freeTimeActivities: user?.freeTimeActivities || [],
       values: user?.values || "",
@@ -608,6 +611,50 @@ export default function ProfilePage() {
                           <FormMessage />
                         </FormItem>
                       )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="avatar"
+                      render={({ field }) => {
+                        const [dialogOpen, setDialogOpen] = useState(false);
+                        
+                        return (
+                          <FormItem>
+                            <FormLabel>Choose Avatar Emoji</FormLabel>
+                            <div className="flex items-center gap-4">
+                              <div 
+                                className="cursor-pointer"
+                                onClick={() => setDialogOpen(true)}
+                              >
+                                <AvatarPlaceholder 
+                                  user={{ ...user, avatar: field.value }} 
+                                  size="lg"
+                                  selectable={true}
+                                  onSelectAvatar={() => setDialogOpen(true)}
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <FormDescription>
+                                  Select an emoji avatar that represents your personality
+                                </FormDescription>
+                              </div>
+                            </div>
+                            
+                            <AvatarSelector
+                              open={dialogOpen}
+                              onOpenChange={setDialogOpen}
+                              currentAvatar={field.value || ""}
+                              onSelect={(emoji) => {
+                                field.onChange(emoji);
+                                setDialogOpen(false);
+                              }}
+                            />
+                            
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                   </>
                 )}

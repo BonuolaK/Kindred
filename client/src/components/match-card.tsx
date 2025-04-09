@@ -24,7 +24,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
     <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
       <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-lg font-medium">{otherUser.name}</CardTitle>
+          <CardTitle className="text-lg font-medium">{otherUser.username}</CardTitle>
           <CardDescription className="text-sm">
             Matched on {formatDate(match.matchDate)}
           </CardDescription>

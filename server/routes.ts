@@ -176,9 +176,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...match,
           otherUser: otherUser ? {
             id: otherUser.id,
+            username: otherUser.username,
             name: otherUser.name,
             location: otherUser.location,
             photoUrl: match.arePhotosRevealed ? otherUser.photoUrl : null,
+            avatar: otherUser.avatar || null,
             // Include other non-sensitive properties as needed
           } : null
         };
@@ -218,9 +220,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...match,
         otherUser: {
           id: otherUser.id,
+          username: otherUser.username,
           name: otherUser.name,
           location: otherUser.location,
           photoUrl: match.arePhotosRevealed ? otherUser.photoUrl : null,
+          avatar: otherUser.avatar || null,
           // Include other non-sensitive information as needed
         }
       });
