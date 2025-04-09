@@ -40,31 +40,40 @@ class AudioCallService {
   initialize(userId: number): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+        console.log(`Initializing audio call service for user ${userId}`);
         this.userId = userId;
         
         // Set up WebSocket connection
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log(`Connecting to WebSocket at ${wsUrl}`);
+        
+        // Close existing socket if any
+        if (this.socket && this.socket.readyState !== WebSocket.CLOSED) {
+          console.log('Closing existing WebSocket connection');
+          this.socket.close();
+        }
         
         this.socket = new WebSocket(wsUrl);
         
         this.socket.onopen = () => {
-          console.log('WebSocket connection established');
+          console.log('WebSocket connection established successfully');
           // Register user with WebSocket server
           this.sendSocketMessage({
             type: 'register',
             userId: this.userId
           });
+          console.log(`User ${userId} registered with WebSocket server`);
           resolve();
         };
         
-        this.socket.onclose = () => {
-          console.log('WebSocket connection closed');
+        this.socket.onclose = (event) => {
+          console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
           this.endCall();
         };
         
         this.socket.onerror = (error) => {
-          console.error('WebSocket error:', error);
+          console.error('WebSocket error occurred:', error);
           reject(error);
         };
         

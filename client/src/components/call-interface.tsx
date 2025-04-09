@@ -24,7 +24,7 @@ export default function CallInterface({ match, onCallEnded }: CallInterfaceProps
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   
   // Get call day and otherUserId
-  const callDayForMatch = match.callCount + 1;
+  const callDayForMatch = (match.callCount ?? 0) + 1;
   const otherUserId = match.otherUser?.id;
   
   // Get audio call service functions
