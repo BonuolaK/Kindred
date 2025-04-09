@@ -482,13 +482,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         callDay
       });
       
-      // Update match with call scheduled flag
+      // Update match with call scheduled flag - this helps prevent duplicate calls
       await storage.updateMatch(matchId, {
         callScheduled: true,
         scheduledCallTime: new Date()
       });
       
-      res.status(201).json(callLog);
+      // Get the other user's information
+      const otherUserId = match.userId1 === userId ? match.userId2 : match.userId1;
+      const otherUser = await storage.getUser(otherUserId);
+      
+      // Return the call log and the other user's information
+      res.status(201).json({
+        ...callLog,
+        otherUser: otherUser ? {
+          id: otherUser.id,
+          username: otherUser.username,
+          name: otherUser.name,
+          avatar: otherUser.avatar
+        } : null
+      });
     } catch (error) {
       next(error);
     }

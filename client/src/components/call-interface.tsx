@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
-import { useAudioCall } from '@/hooks/use-audio-call';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import UserAvatar from '@/components/user-avatar';
-import { Progress } from '@/components/ui/progress';
-import { Loader2, Mic, MicOff, Phone, PhoneOff } from 'lucide-react';
-import { Match, User } from '@shared/schema';
+import { useState, useRef, useEffect } from "react";
+import { useAudioCall } from "@/hooks/use-audio-call";
+import UserAvatar from "./user-avatar";
+import { CallState } from "@/lib/audio-call";
+import { Match, User } from "@shared/schema";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Mic, MicOff, Phone, PhoneOff } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 type CallInterfaceProps = {
   match: Match & { otherUser?: Partial<User> };
@@ -14,91 +15,125 @@ type CallInterfaceProps = {
 };
 
 export default function CallInterface({ match, onCallEnded }: CallInterfaceProps) {
-  const [, navigate] = useLocation();
   const [isMuted, setIsMuted] = useState(false);
+  const [callState, setCallState] = useState<CallState>('idle');
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  
+  // Audio element refs
+  const localAudioRef = useRef<HTMLAudioElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
+  
+  // Get call day and otherUserId
+  const callDayForMatch = match.callCount + 1;
+  const otherUserId = match.otherUser?.id;
+  
+  // Get audio call service functions
   const { 
-    callState,
-    timeRemaining, 
-    formattedTimeRemaining,
-    callDay,
     startCall, 
     answerCall, 
     rejectCall, 
-    endCall,
-    remoteAudioRef, 
-    localAudioRef 
+    endCall, 
+    getRemoteStream,
+    getLocalStream,
+    getTimeRemaining,
+    mute,
+    unmute,
+    isCallActive
   } = useAudioCall();
   
-  const otherUserId = match.otherUser?.id!;
-  const callDayForMatch = match.callCount + 1; // Next call day
-  
-  // Auto-start call if it's a scheduled call
-  useEffect(() => {
-    // Only start if we're in idle state and have the necessary info
-    if (callState === 'idle' && match && otherUserId) {
-      startCall(match.id, otherUserId, callDayForMatch);
-    }
-  }, [match, otherUserId, callState, startCall, callDayForMatch]);
-  
-  // Handle call end
-  useEffect(() => {
-    if (callState === 'ended' && onCallEnded) {
-      onCallEnded();
-    }
-  }, [callState, onCallEnded]);
-  
-  // Calculate progress for the timer
-  const calculateProgress = () => {
-    if (callState !== 'connected') return 0;
-    
-    // Determine the max time based on call day
-    let maxTime;
-    switch (callDay) {
-      case 1: maxTime = 300; break; // 5 minutes
-      case 2: maxTime = 600; break; // 10 minutes
-      case 3: maxTime = 1200; break; // 20 minutes
-      default: maxTime = 1800; break; // 30 minutes
-    }
-    
-    return Math.max(0, Math.min(100, (timeRemaining / maxTime) * 100));
-  };
-  
-  // Toggle mute
-  const toggleMute = () => {
-    const localStream = localAudioRef.current?.srcObject as MediaStream;
-    if (localStream) {
-      localStream.getAudioTracks().forEach(track => {
-        track.enabled = !track.enabled;
-      });
-      setIsMuted(!isMuted);
-    }
-  };
-  
-  // Handle leaving the call
+  // Handle leaving/ending call
   const handleLeaveCall = () => {
     endCall();
     if (onCallEnded) {
       onCallEnded();
-    } else {
-      navigate('/matches');
     }
   };
   
-  return (
-    <Card className="w-full max-w-md mx-auto shadow-lg">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl">
-          {callState === 'idle' && 'Starting Call...'}
-          {callState === 'connecting' && 'Connecting...'}
-          {callState === 'ringing' && 'Call Ringing...'}
-          {callState === 'connected' && `Call with ${match.otherUser?.username || 'User'}`}
-          {callState === 'ended' && 'Call Ended'}
-        </CardTitle>
-      </CardHeader>
+  // Initialize call state listener
+  useEffect(() => {
+    // Subscribe to call state changes
+    const unsubscribe = useAudioCall().onCallStateChange((state) => {
+      setCallState(state);
       
-      <CardContent className="flex flex-col items-center justify-center space-y-6">
-        {/* User avatar */}
-        <div className="relative">
+      // If call ended, notify parent component
+      if (state === 'ended' && onCallEnded) {
+        onCallEnded();
+      }
+    });
+    
+    // Cleanup subscription
+    return () => {
+      unsubscribe();
+    };
+  }, [onCallEnded]);
+  
+  // Connect audio streams to audio elements
+  useEffect(() => {
+    // Set up local audio
+    const localStream = getLocalStream();
+    if (localAudioRef.current && localStream) {
+      localAudioRef.current.srcObject = localStream;
+    }
+    
+    // Set up remote audio
+    const remoteStream = getRemoteStream();
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
+    }
+  }, [callState, getLocalStream, getRemoteStream]);
+  
+  // Update time remaining
+  useEffect(() => {
+    if (callState === 'connected') {
+      const intervalId = setInterval(() => {
+        setTimeRemaining(getTimeRemaining());
+      }, 1000);
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [callState, getTimeRemaining]);
+  
+  // Toggle mute state
+  const toggleMute = () => {
+    if (isMuted) {
+      unmute();
+      setIsMuted(false);
+    } else {
+      mute();
+      setIsMuted(true);
+    }
+  };
+  
+  // Format time remaining as MM:SS
+  const formattedTimeRemaining = (() => {
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  })();
+  
+  // Calculate progress percentage
+  const calculateProgress = () => {
+    // Time limits for different call days (in seconds)
+    const timeLimits: Record<number, number> = {
+      1: 300, // 5 minutes
+      2: 600, // 10 minutes
+      3: 1200, // 20 minutes
+      4: 1800, // 30 minutes
+    };
+    
+    const totalTime = timeLimits[callDayForMatch] || timeLimits[4];
+    return (timeRemaining / totalTime) * 100;
+  };
+  
+  return (
+    <Card className="w-full max-w-xl mx-auto">
+      <CardContent className="space-y-4 pt-6">
+        <h2 className="text-2xl font-bold text-center mb-4">
+          Call with {match.otherUser?.username || 'Match'}
+        </h2>
+        
+        {/* Avatar display */}
+        <div className="relative mx-auto w-24 h-24 mb-6">
           <UserAvatar 
             user={match.otherUser} 
             size="xl" 
@@ -121,7 +156,7 @@ export default function CallInterface({ match, onCallEnded }: CallInterfaceProps
                 {formattedTimeRemaining}
               </div>
               <div className="text-sm text-gray-500">
-                Call {callDay}: {callDay === 1 ? '5 minute' : callDay === 2 ? '10 minute' : '20 minute'} limit
+                Call {callDayForMatch}: {callDayForMatch === 1 ? '5 minute' : callDayForMatch === 2 ? '10 minute' : '20 minute'} limit
               </div>
               <Progress value={calculateProgress()} className="w-full max-w-xs mt-2" />
             </div>

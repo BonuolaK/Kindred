@@ -1,183 +1,125 @@
-import { useState, useEffect, useRef } from "react";
-import { useRoute, useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useParams, useLocation } from "wouter";
+import { useAudioCall } from "@/hooks/use-audio-call";
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 import CallInterface from "@/components/call-interface";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Match, CallLog } from "@shared/schema";
-import { ChevronLeft, Loader2, Mic, MicOff, Volume2, VolumeX, PhoneOff } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function CallPage() {
+  const [, setLocation] = useLocation();
+  const { matchId } = useParams<{ matchId: string }>();
   const { user } = useAuth();
-  const [, navigate] = useLocation();
-  const [matched, params] = useRoute<{ id: string }>("/call/:id");
-  const matchId = matched && params ? parseInt(params.id) : 0;
+  const [isInitiating, setIsInitiating] = useState(false);
   
-  // UI state
-  const [showEndCallDialog, setShowEndCallDialog] = useState(false);
-  const [endCallNote, setEndCallNote] = useState("");
-  
-  // Fetch match details
-  const { data: matchData, isLoading: isLoadingMatch } = useQuery<Match & { otherUser: any }>({
-    queryKey: [`/api/matches/${matchId}`],
+  // Get match data
+  const { 
+    data: match, 
+    isLoading: isLoadingMatch,
+    error: matchError
+  } = useQuery({
+    queryKey: ['/api/matches', parseInt(matchId, 10)],
     enabled: !!matchId,
   });
   
-  // Save note mutation
-  const saveNoteMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const res = await apiRequest("POST", `/api/matches/${matchId}/notes`, { content });
-      return res.json();
-    }
-  });
+  // Get call functionality
+  const { 
+    startCall, 
+    isCallActive, 
+    initialized: isAudioServiceInitialized 
+  } = useAudioCall();
   
-  // Handle call end
+  // Auto-start call if query parameter is present
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const autoStart = searchParams.get('autoStart') === 'true';
+    
+    const initiateCall = async () => {
+      if (
+        autoStart && 
+        !isInitiating && 
+        match && 
+        match.otherUser && 
+        match.otherUser.id && 
+        user && 
+        isAudioServiceInitialized &&
+        !isCallActive()
+      ) {
+        try {
+          setIsInitiating(true);
+          const callDay = match.callCount + 1;
+          await startCall(match.id, match.otherUser.id, callDay);
+        } catch (error) {
+          console.error("Failed to auto-start call:", error);
+        } finally {
+          setIsInitiating(false);
+        }
+      }
+    };
+    
+    initiateCall();
+  }, [match, user, isAudioServiceInitialized, isCallActive, startCall, isInitiating]);
+  
+  // Handle call ended
   const handleCallEnded = () => {
-    // If there's a note, save it
-    if (endCallNote.trim()) {
-      saveNoteMutation.mutate(endCallNote);
-    }
-    
-    // Update match data
-    queryClient.invalidateQueries({ queryKey: [`/api/matches/${matchId}`] });
-    
-    // Redirect back to matches page
-    navigate("/matches");
+    // Redirect to match page after call ends
+    setTimeout(() => {
+      setLocation(`/matches/${matchId}`);
+    }, 2000);
   };
   
-  // Handle back to matches
-  const handleBackToMatches = () => {
-    navigate("/matches");
-  };
-  
-  // Generate conversation starters
-  const getRandomConversationStarters = () => {
-    const starters = [
-      "If you could travel anywhere tomorrow, where would you go?",
-      "What's a book or movie that changed how you see the world?",
-      "What's something you're proud of that you don't usually talk about?",
-      "What does your ideal weekend look like?",
-      "If you could have dinner with anyone, living or dead, who would it be?",
-      "What's a hobby you've always wanted to try but haven't yet?",
-      "What's your favorite way to spend time alone?",
-      "What's something unexpected that always makes you smile?",
-      "If you could master any skill instantly, what would it be?",
-      "What's one thing you're excited about for the future?"
-    ];
-    
-    // Return two random starters
-    const shuffled = [...starters].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, 2);
-  };
-  
-  // Loading state
-  if (!user || isLoadingMatch) {
+  // Show loading state
+  if (isLoadingMatch || !match) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary to-secondary text-white flex flex-col items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-white" />
-        <p className="mt-4">Setting up your call...</p>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading call...</span>
       </div>
     );
   }
   
-  // Match not found
-  if (!matchData) {
+  // Show error state
+  if (matchError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary to-secondary text-white flex flex-col items-center justify-center p-4">
-        <h2 className="text-2xl font-heading font-bold mb-4">Call Error</h2>
-        <p className="text-center mb-6">We couldn't find the match you're trying to call.</p>
-        <Button 
-          variant="secondary" 
-          onClick={handleBackToMatches}
-          className="bg-white text-primary hover:bg-white/90"
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="text-destructive text-xl">Error loading match</div>
+        <p className="text-muted-foreground">Please try again later</p>
+        <button
+          className="mt-4 bg-primary text-white px-4 py-2 rounded"
+          onClick={() => setLocation(`/matches`)}
         >
-          Back to Matches
-        </Button>
+          Return to Matches
+        </button>
       </div>
     );
   }
   
-  // Render the call interface
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary to-secondary text-white flex flex-col p-4 md:p-8">
-      {/* Back button */}
-      <button 
-        className="self-start p-2 rounded-full bg-white/10 hover:bg-white/20 mb-4"
-        onClick={handleBackToMatches}
-      >
-        <ChevronLeft className="h-6 w-6" />
-      </button>
+    <div className="container max-w-4xl mx-auto py-8 px-4">
+      <div className="mb-6">
+        <button
+          className="text-primary hover:underline flex items-center"
+          onClick={() => setLocation(`/matches`)}
+        >
+          &larr; Back to Matches
+        </button>
+      </div>
       
-      <div className="flex flex-col flex-1 items-center justify-center">
-        {/* Call interface */}
-        <CallInterface 
-          match={matchData}
-          onCallEnded={handleCallEnded}
-        />
-        
-        {/* Conversation starters */}
-        <div className="mt-8 w-full max-w-md bg-white/10 backdrop-blur-sm rounded-xl p-4">
-          <div className="text-center font-medium mb-4">Conversation Starters</div>
-          <div className="space-y-3">
-            {getRandomConversationStarters().map((starter, index) => (
-              <div key={index} className="bg-white/10 rounded-lg px-3 py-2 text-sm">
-                {starter}
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Note dialog */}
-        <Dialog open={showEndCallDialog} onOpenChange={setShowEndCallDialog}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Save Call Note</DialogTitle>
-              <DialogDescription>
-                Add a note about your conversation (optional)
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="py-4">
-              <Textarea
-                placeholder="Write notes about this call..."
-                value={endCallNote}
-                onChange={(e) => setEndCallNote(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-            
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowEndCallDialog(false)}
-              >
-                Skip
-              </Button>
-              <Button 
-                variant="default"
-                onClick={() => {
-                  if (endCallNote.trim()) {
-                    saveNoteMutation.mutate(endCallNote);
-                  }
-                  setShowEndCallDialog(false);
-                  navigate("/matches");
-                }}
-              >
-                Save Note
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <h1 className="text-3xl font-bold text-center mb-8">Audio Call</h1>
+      
+      <CallInterface match={match} onCallEnded={handleCallEnded} />
+      
+      <div className="mt-8 text-center text-muted-foreground">
+        <p>Calls are limited based on how many you've had with this match:</p>
+        <ul className="list-disc list-inside mt-2 inline-block text-left">
+          <li>First call: 5 minutes</li>
+          <li>Second call: 10 minutes</li>
+          <li>Third call and beyond: 20 minutes</li>
+        </ul>
+        <p className="mt-4">
+          After your second call, message functionality will be unlocked.<br />
+          After your third call, photos will be revealed.
+        </p>
       </div>
     </div>
   );

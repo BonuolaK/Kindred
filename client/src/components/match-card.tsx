@@ -71,16 +71,29 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
       </CardContent>
       
       <CardFooter className="p-4 pt-0 grid grid-cols-3 gap-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center justify-center gap-1"
-          onClick={() => onScheduleCall && onScheduleCall(match.id)}
-          disabled={!!match.callScheduled}
-        >
-          {match.callScheduled ? <CalendarClock className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
-          {match.callScheduled ? "Scheduled" : "Call"}
-        </Button>
+        {match.callScheduled ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center justify-center gap-1"
+            disabled
+          >
+            <CalendarClock className="h-4 w-4" />
+            Scheduled
+          </Button>
+        ) : (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center justify-center gap-1"
+            asChild
+          >
+            <Link to={`/call/${match.id}?autoStart=true`}>
+              <Phone className="h-4 w-4" />
+              Call
+            </Link>
+          </Button>
+        )}
         
         {isChatUnlocked ? (
           <Button 
