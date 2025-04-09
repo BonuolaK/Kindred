@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
-import { calculateCallDuration, formatCallDuration } from "@/lib/utils";
 
 type CallTimerProps = {
   callDay: number;
@@ -9,60 +8,69 @@ type CallTimerProps = {
 };
 
 export default function CallTimer({ callDay, isActive, onTimeEnd }: CallTimerProps) {
-  const totalDuration = calculateCallDuration(callDay);
-  const [timeRemaining, setTimeRemaining] = useState(totalDuration);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
   
-  // Progress as percentage
-  const progress = ((totalDuration - timeRemaining) / totalDuration) * 100;
-
+  // Calculate total time based on call day (in seconds)
+  const getTotalTime = () => {
+    switch (callDay) {
+      case 1: return 300; // 5 minutes
+      case 2: return 600; // 10 minutes
+      case 3: return 1200; // 20 minutes
+      default: return 1800; // 30 minutes
+    }
+  };
+  
+  // Format time as MM:SS
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  // Initialize timer on component mount or when call day changes
   useEffect(() => {
-    // Reset timer when callDay changes
-    setTimeRemaining(totalDuration);
-  }, [callDay, totalDuration]);
-
+    setTimeRemaining(getTotalTime());
+  }, [callDay]);
+  
+  // Countdown timer logic
   useEffect(() => {
-    if (isActive) {
-      timerRef.current = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current!);
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (isActive && timeRemaining > 0) {
+      interval = setInterval(() => {
+        setTimeRemaining(prev => {
+          const newTime = prev - 1;
+          if (newTime <= 0) {
+            // Time's up!
+            if (interval) clearInterval(interval);
             onTimeEnd();
             return 0;
           }
-          return prev - 1;
+          return newTime;
         });
       }, 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
+    } else if (timeRemaining <= 0 && interval) {
+      clearInterval(interval);
+      onTimeEnd();
     }
-
+    
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
+      if (interval) clearInterval(interval);
     };
-  }, [isActive, onTimeEnd]);
-
+  }, [isActive, timeRemaining, onTimeEnd]);
+  
+  // Calculate progress percentage
+  const progress = (timeRemaining / getTotalTime()) * 100;
+  
   return (
-    <div className="w-full">
-      <div className="text-center mb-2">
-        <div className="font-heading font-bold text-5xl">
-          {formatCallDuration(timeRemaining)}
-        </div>
-        <p className="text-white/80 text-lg mt-1">minutes remaining</p>
+    <div className="w-full max-w-xs mx-auto">
+      <div className="text-2xl font-heading font-bold mb-2 text-center">
+        {formatTime(timeRemaining)}
       </div>
-      
-      <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
-        <div 
-          className="bg-white h-full transition-all duration-1000 ease-linear" 
-          style={{ width: `${progress}%` }}
-        ></div>
+      <div className="text-sm text-center mb-2">
+        Day {callDay}: {callDay === 1 ? '5 minute' : callDay === 2 ? '10 minute' : callDay === 3 ? '20 minute' : '30 minute'} limit
       </div>
-      <div className="flex justify-between mt-2 text-sm text-white/70">
-        <span>0:00</span>
-        <span>{formatCallDuration(totalDuration)}</span>
-      </div>
+      <Progress value={progress} className="h-2" />
     </div>
   );
 }

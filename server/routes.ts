@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { MatchingAlgorithm, canReceiveNewMatch } from "./matching-algorithm";
@@ -71,6 +71,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // WebSocket server for audio calls
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Connected users map: userId -> WebSocket connection
+  const connectedUsers = new Map<number, WebSocket>();
+  
+  // WebSocket connection handler
+  wss.on('connection', (ws: WebSocket) => {
+    console.log('WebSocket client connected');
+    
+    // Handle incoming messages
+    ws.addEventListener('message', (event) => {
+      try {
+        const message = event.data.toString();
+        const data = JSON.parse(message);
+        console.log('WebSocket message received:', data.type);
+        
+        // Handle different message types
+        switch (data.type) {
+          case 'register':
+            // Register user with their ID
+            if (data.userId) {
+              connectedUsers.set(data.userId, ws);
+              console.log(`User ${data.userId} registered`);
+            }
+            break;
+            
+          case 'call-initiate':
+          case 'call-accept':
+          case 'call-reject':
+          case 'call-end':
+          case 'offer':
+          case 'answer':
+          case 'ice-candidate':
+            // Forward signaling messages to the target user
+            if (data.toUserId && connectedUsers.has(data.toUserId)) {
+              const targetWs = connectedUsers.get(data.toUserId);
+              if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+                targetWs.send(message);
+              }
+            }
+            break;
+            
+          default:
+            console.log('Unknown message type:', data.type);
+        }
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
+      }
+    });
+    
+    // Handle disconnection
+    ws.addEventListener('close', () => {
+      console.log('WebSocket client disconnected');
+      // Remove user from connected users map
+      const userEntries = Array.from(connectedUsers.entries());
+      for (const [userId, userWs] of userEntries) {
+        if (userWs === ws) {
+          connectedUsers.delete(userId);
+          console.log(`User ${userId} unregistered`);
+          break;
+        }
+      }
+    });
+  });
   
   // Match endpoints
   app.post("/api/generate-matches", async (req, res, next) => {
