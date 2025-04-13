@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Logo from "./logo";
-import { UserCircle, Menu, LogOut, Settings, MessageCircle } from "lucide-react";
+import { UserCircle, Menu, LogOut, Settings, MessageCircle, ChevronLeft } from "lucide-react";
 
 export default function Header() {
   const [location, navigate] = useLocation();
@@ -27,12 +27,30 @@ export default function Header() {
     return null; // Don't show header on landing or auth pages
   }
 
+  // Function to handle back navigation
+  const handleBack = () => {
+    window.history.back();
+  };
+
   return (
     <header className="bg-white shadow-sm py-3 sticky top-0 z-20">
       <div className="container mx-auto px-4 flex justify-between items-center">
-        <div className="flex items-center cursor-pointer" onClick={() => navigate("/home")}>
-          <Logo />
-          <span className="ml-2 text-gray-800 font-heading font-semibold text-xl">Kindred</span>
+        <div className="flex items-center">
+          {/* Back button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mr-2 text-gray-600 hover:text-primary"
+            onClick={handleBack}
+          >
+            <ChevronLeft className="h-5 w-5" />
+            <span className="sr-only">Back</span>
+          </Button>
+          
+          <div className="flex items-center cursor-pointer" onClick={() => navigate("/home")}>
+            <Logo />
+            <span className="ml-2 text-gray-800 font-heading font-semibold text-xl">Kindred</span>
+          </div>
         </div>
 
         <div className="hidden md:flex space-x-6">
