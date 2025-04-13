@@ -602,6 +602,87 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     )}
                     
                     {currentStep === 6 && (
+                      <FormField
+                        control={form.control}
+                        name="gender"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormControl>
+                                <RadioGroup
+                                  onValueChange={field.onChange}
+                                  value={field.value || ''}
+                                  className="flex flex-col space-y-3 mt-4"
+                                >
+                                  {["Woman", "Man", "Non-binary", "Other"].map((gender) => (
+                                    <FormItem key={gender} className="flex items-center space-x-3 space-y-0">
+                                      <FormControl>
+                                        <RadioGroupItem value={gender} />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">
+                                        {gender}
+                                      </FormLabel>
+                                    </FormItem>
+                                  ))}
+                                </RadioGroup>
+                              </FormControl>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 7 && (
+                      <FormField
+                        control={form.control}
+                        name="interestedGenders"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormDescription>Select all that apply</FormDescription>
+                              <div className="grid grid-cols-1 gap-4 mt-4">
+                                {["Women", "Men", "Non-binary", "Other"].map((gender) => (
+                                  <FormItem 
+                                    key={gender} 
+                                    className="flex items-center space-x-3 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <Checkbox 
+                                        checked={field.value?.includes(gender)} 
+                                        onCheckedChange={(checked) => {
+                                          if (checked) {
+                                            field.onChange([...(field.value || []), gender]);
+                                          } else {
+                                            field.onChange(field.value?.filter((value) => value !== gender));
+                                          }
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                      {gender}
+                                    </FormLabel>
+                                  </FormItem>
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 8 && (
                       <div className="flex-1 flex flex-col justify-center">
                         <motion.div 
                           initial={{ y: 10, opacity: 0 }} 
@@ -620,7 +701,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                     <Input
                                       type="number"
                                       placeholder="Min age"
-                                      min={18}
+                                      min={21}
                                       max={100}
                                       {...field}
                                       onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
@@ -641,7 +722,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                     <Input
                                       type="number"
                                       placeholder="Max age"
-                                      min={18}
+                                      min={21}
                                       max={100}
                                       {...field}
                                       onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
@@ -657,7 +738,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       </div>
                     )}
                     
-                    {currentStep === 7 && (
+                    {currentStep === 9 && (
                       <FormField
                         control={form.control}
                         name="location"
@@ -682,77 +763,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                     ))}
                                   </SelectContent>
                                 </Select>
-                              </FormControl>
-                              <FormMessage />
-                            </motion.div>
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                    
-                    {currentStep === 8 && (
-                      <FormField
-                        control={form.control}
-                        name="bio"
-                        render={({ field }) => (
-                          <FormItem className="flex-1 flex flex-col justify-center">
-                            <motion.div 
-                              initial={{ y: 10, opacity: 0 }} 
-                              animate={{ y: 0, opacity: 1 }}
-                              transition={{ delay: 0.1 }}
-                            >
-                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormDescription>
-                                Tell potential matches about yourself, your interests, and what you're looking for
-                              </FormDescription>
-                              <FormControl>
-                                <Textarea 
-                                  placeholder="I'm a..." 
-                                  {...field} 
-                                  className="mt-4 min-h-[150px]"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </motion.div>
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                    
-                    {currentStep === 9 && (
-                      <FormField
-                        control={form.control}
-                        name="communicationStyle"
-                        render={({ field }) => (
-                          <FormItem className="flex-1 flex flex-col justify-center">
-                            <motion.div 
-                              initial={{ y: 10, opacity: 0 }} 
-                              animate={{ y: 0, opacity: 1 }}
-                              transition={{ delay: 0.1 }}
-                            >
-                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormControl>
-                                <RadioGroup
-                                  onValueChange={field.onChange}
-                                  value={field.value || ''}
-                                  className="flex flex-col space-y-3 mt-4"
-                                >
-                                  {[
-                                    "Direct and straightforward",
-                                    "Diplomatic and gentle",
-                                    "Actions more than words",
-                                    "Expressive and open"
-                                  ].map((style) => (
-                                    <FormItem key={style} className="flex items-center space-x-3 space-y-0">
-                                      <FormControl>
-                                        <RadioGroupItem value={style} />
-                                      </FormControl>
-                                      <FormLabel className="font-normal">
-                                        {style}
-                                      </FormLabel>
-                                    </FormItem>
-                                  ))}
-                                </RadioGroup>
                               </FormControl>
                               <FormMessage />
                             </motion.div>
