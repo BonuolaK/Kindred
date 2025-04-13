@@ -6,19 +6,43 @@ import { WebSocketServer, WebSocket } from "ws";
  * A basic WebSocket server with minimal functionality for testing
  */
 export function setupBasicWebSocketServer(httpServer: HttpServer) {
-  // Initialize a simple WebSocket server with CORS handling
+  // Initialize a simple WebSocket server with advanced diagnostics
+  // This server is specifically designed to troubleshoot WebSocket issues
   const wss = new WebSocketServer({ 
     server: httpServer, 
     path: '/basic-ws',
     // Use minimal options to avoid potential issues
     clientTracking: true,
     perMessageDeflate: false, // Disable compression for better reliability
+    // Handle protocol negotiation - log and accept the first protocol or default to none
+    handleProtocols: (protocols: string[], request) => {
+      // Log protocols for debugging
+      console.log(`[Basic WS] Client requested protocols:`, protocols);
+      
+      // Accept any protocol if provided
+      if (protocols && protocols.length > 0) {
+        console.log(`[Basic WS] Accepting protocol: ${protocols[0]}`);
+        return protocols[0];
+      }
+      
+      console.log(`[Basic WS] No protocol specified, accepting connection without protocol`);
+      return false;
+    },
     // Explicitly verify and accept clients from our origin
     verifyClient: (info, cb) => {
-      // In development, we accept all connections
-      // Note: In production, we would check against allowed origins
-      console.log(`[Basic WS] Connection attempt from origin: ${info.origin}`);
-      cb(true); // Accept all clients in development
+      // Log full verification info for debugging
+      console.log(`[Basic WS] Connection verification:`, {
+        origin: info.origin,
+        secure: info.secure,
+        req: {
+          url: info.req.url,
+          headers: info.req.headers,
+          method: info.req.method
+        }
+      });
+      
+      // In development environment, accept ALL connections regardless of origin
+      cb(true, 200, "Connection accepted");
     }
   });
   
@@ -47,7 +71,17 @@ export function setupBasicWebSocketServer(httpServer: HttpServer) {
       console.log(`  ${key}: ${req.headers[key]}`);
     });
     
-    // Skip sending a welcome message initially
+    // Track handshake timing for diagnosing issues
+    const connectionStartTime = Date.now();
+    console.log(`[Basic WS] Connection established at: ${new Date(connectionStartTime).toISOString()}`);
+    
+    // Send a very small immediate welcome message to verify socket is working
+    try {
+      ws.send('ok');
+      console.log('[Basic WS] Sent immediate minimal handshake response');
+    } catch (error) {
+      console.error('[Basic WS] Failed to send initial handshake:', error);
+    }
     
     // Set up error handler
     ws.on('error', (error) => {
