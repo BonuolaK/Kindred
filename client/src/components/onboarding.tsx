@@ -427,38 +427,67 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                   </FormControl>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value ? new Date(field.value) : undefined}
-                                    onSelect={(date) => {
-                                      if (date) {
-                                        const today = new Date();
-                                        const birthDate = new Date(date);
-                                        const age = today.getFullYear() - birthDate.getFullYear();
-                                        
-                                        // Check if birthday has occurred this year
-                                        const hasBirthdayOccurred = 
-                                          today.getMonth() > birthDate.getMonth() || 
-                                          (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
-                                        
-                                        const calculatedAge = hasBirthdayOccurred ? age : age - 1;
-                                        
-                                        field.onChange(date.toISOString());
-                                        
-                                        // Update the age field
-                                        form.setValue("age", calculatedAge);
-                                      } else {
-                                        field.onChange("");
-                                      }
-                                    }}
-                                    disabled={(date) => {
-                                      // Disable dates less than 21 years ago
-                                      const twentyOneYearsAgo = new Date();
-                                      twentyOneYearsAgo.setFullYear(twentyOneYearsAgo.getFullYear() - 21);
-                                      return date > new Date() || date > twentyOneYearsAgo;
-                                    }}
-                                    initialFocus
-                                  />
+                                  <div className="flex flex-col space-y-4 p-2">
+                                    <div className="flex justify-between pb-2">
+                                      <Select
+                                        onValueChange={(value) => {
+                                          const currentDate = field.value ? new Date(field.value) : new Date();
+                                          currentDate.setFullYear(parseInt(value));
+                                          field.onChange(currentDate.toISOString());
+                                        }}
+                                        value={field.value 
+                                          ? new Date(field.value).getFullYear().toString() 
+                                          : (new Date().getFullYear() - 21).toString()}
+                                      >
+                                        <SelectTrigger className="w-[120px]">
+                                          <SelectValue placeholder="Year" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {Array.from({ length: 80 }, (_, i) => {
+                                            const year = new Date().getFullYear() - 21 - i;
+                                            return (
+                                              <SelectItem key={year} value={year.toString()}>
+                                                {year}
+                                              </SelectItem>
+                                            );
+                                          })}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  
+                                    <Calendar
+                                      mode="single"
+                                      selected={field.value ? new Date(field.value) : undefined}
+                                      onSelect={(date) => {
+                                        if (date) {
+                                          const today = new Date();
+                                          const birthDate = new Date(date);
+                                          const age = today.getFullYear() - birthDate.getFullYear();
+                                          
+                                          // Check if birthday has occurred this year
+                                          const hasBirthdayOccurred = 
+                                            today.getMonth() > birthDate.getMonth() || 
+                                            (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+                                          
+                                          const calculatedAge = hasBirthdayOccurred ? age : age - 1;
+                                          
+                                          field.onChange(date.toISOString());
+                                          
+                                          // Update the age field
+                                          form.setValue("age", calculatedAge);
+                                        } else {
+                                          field.onChange("");
+                                        }
+                                      }}
+                                      disabled={(date) => {
+                                        // Disable dates less than 21 years ago
+                                        const twentyOneYearsAgo = new Date();
+                                        twentyOneYearsAgo.setFullYear(twentyOneYearsAgo.getFullYear() - 21);
+                                        return date > new Date() || date > twentyOneYearsAgo;
+                                      }}
+                                      initialFocus
+                                    />
+                                  </div>
                                 </PopoverContent>
                               </Popover>
                               <FormMessage />
@@ -774,7 +803,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     {currentStep === 10 && (
                       <FormField
                         control={form.control}
-                        name="freeTimeActivities"
+                        name="bio"
                         render={({ field }) => (
                           <FormItem className="flex-1 flex flex-col justify-center">
                             <motion.div 
@@ -783,44 +812,16 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               transition={{ delay: 0.1 }}
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormDescription>Select all that apply</FormDescription>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                                {[
-                                  "Reading and learning",
-                                  "Sports and fitness",
-                                  "Outdoor adventures",
-                                  "Creative arts",
-                                  "Socializing with friends",
-                                  "Cooking and food",
-                                  "Travel and exploring",
-                                  "Movies and TV shows",
-                                  "Gaming",
-                                  "Music and concerts",
-                                  "Photography",
-                                  "Volunteering"
-                                ].map((activity) => (
-                                  <FormItem 
-                                    key={activity} 
-                                    className="flex items-center space-x-3 space-y-0"
-                                  >
-                                    <FormControl>
-                                      <Checkbox 
-                                        checked={(field.value || []).includes(activity)} 
-                                        onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            field.onChange([...(field.value || []), activity]);
-                                          } else {
-                                            field.onChange((field.value || []).filter((value) => value !== activity));
-                                          }
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                      {activity}
-                                    </FormLabel>
-                                  </FormItem>
-                                ))}
-                              </div>
+                              <FormDescription>
+                                Tell potential matches about yourself, your interests, and what you're looking for
+                              </FormDescription>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="I'm a..." 
+                                  {...field} 
+                                  className="mt-4 min-h-[150px]"
+                                />
+                              </FormControl>
                               <FormMessage />
                             </motion.div>
                           </FormItem>
@@ -831,7 +832,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     {currentStep === 11 && (
                       <FormField
                         control={form.control}
-                        name="values"
+                        name="communicationStyle"
                         render={({ field }) => (
                           <FormItem className="flex-1 flex flex-col justify-center">
                             <motion.div 
@@ -847,18 +848,17 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                   className="flex flex-col space-y-3 mt-4"
                                 >
                                   {[
-                                    "Trust and honesty",
-                                    "Growth and ambition",
-                                    "Stability and security", 
-                                    "Independence and freedom",
-                                    "Shared experiences and adventure"
-                                  ].map((value) => (
-                                    <FormItem key={value} className="flex items-center space-x-3 space-y-0">
+                                    "Direct and straightforward",
+                                    "Diplomatic and gentle",
+                                    "Actions more than words",
+                                    "Expressive and open"
+                                  ].map((style) => (
+                                    <FormItem key={style} className="flex items-center space-x-3 space-y-0">
                                       <FormControl>
-                                        <RadioGroupItem value={value} />
+                                        <RadioGroupItem value={style} />
                                       </FormControl>
                                       <FormLabel className="font-normal">
-                                        {value}
+                                        {style}
                                       </FormLabel>
                                     </FormItem>
                                   ))}
