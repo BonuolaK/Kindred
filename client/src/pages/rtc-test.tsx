@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
-import { Mic, MicOff, Phone, PhoneOff } from 'lucide-react';
-import { webRTCService, WebRTCEvent } from '@/lib/webrtc-service';
+import { AlertTriangle, Info, Mic, MicOff, Phone, PhoneOff } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function RtcTestPage() {
   const { user } = useAuth();

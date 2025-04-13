@@ -437,20 +437,30 @@ export class WebRTCService {
           this.socket.close();
         }
         
-        // Create new WebSocket connection
-        // In Replit environment, we need to ensure we use the right URL
+        // Create new WebSocket connection with better error handling for Replit
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
         
-        // Build the WebSocket URL - use full window.location.host to correctly handle Replit domains
-        const wsUrl = `${protocol}//${window.location.host}/rtc`; // Use /rtc for WebRTC signaling
+        // Run a quick health check on the API to ensure the server is accessible
+        fetch('/api/user', { method: 'HEAD', credentials: 'same-origin' })
+          .then(() => {
+            console.log(`[WebRTC] Server is accessible, proceeding with WebSocket connection`);
+          })
+          .catch(err => {
+            console.warn(`[WebRTC] Server health check failed: ${err.message}`);
+          });
+        
+        // Build the WebSocket URL with explicit host to handle Replit domains
+        const wsUrl = `${protocol}//${host}/rtc`; // Use /rtc for WebRTC signaling
         
         console.log(`[WebRTC] Connecting to signaling server at ${wsUrl}`);
         this.socket = new WebSocket(wsUrl);
         
-        // Set up connection timeout
+        // Set up connection timeout (extend to 15 seconds for Replit)
         const connectionTimeout = setTimeout(() => {
+          console.error('[WebRTC] WebSocket connection timed out');
           reject(new Error('Signaling connection timeout'));
-        }, 10000);
+        }, 15000);
         
         this.socket.onopen = () => {
           console.log('[WebRTC] Signaling connection established');
@@ -1099,7 +1109,7 @@ export class WebRTCService {
   }
   
   /**
-   * Attempt to reconnect to the signaling server
+   * Attempt to reconnect to the signaling server with improved reliability
    */
   private attemptReconnect(): void {
     if (this.reconnectionAttempts >= RECONNECTION_ATTEMPTS) {
@@ -1118,25 +1128,51 @@ export class WebRTCService {
     console.log(`[WebRTC] Attempting to reconnect, attempt ${this.reconnectionAttempts}/${RECONNECTION_ATTEMPTS}`);
     this.emitEvent({ type: 'reconnecting', attempt: this.reconnectionAttempts });
     
-    // Wait before reconnecting
-    setTimeout(async () => {
-      if (!this.userId) return;
-      
-      try {
-        await this.setupSignaling();
-        
-        // Rejoin room if we were in one
-        if (this.roomId) {
-          await this.joinRoom(this.roomId);
+    // Check the server health before attempting reconnection
+    fetch('/api/user', { method: 'HEAD', credentials: 'same-origin' })
+      .then(response => {
+        if (!response.ok) {
+          console.warn('[WebRTC] Server health check before reconnection failed with status', response.status);
+        } else {
+          console.log('[WebRTC] Server health check passed, attempting WebSocket reconnection');
         }
-        
-        // Reset reconnection attempts on success
-        this.reconnectionAttempts = 0;
-      } catch (error) {
-        console.error('[WebRTC] Reconnection attempt failed:', error);
-        this.attemptReconnect();
+      })
+      .catch(error => {
+        console.warn('[WebRTC] Server health check failed:', error.message);
+      })
+      .finally(() => {
+        // Proceed with reconnection after server health check
+        setTimeout(this.doReconnect.bind(this), RECONNECTION_DELAY);
+      });
+  }
+  
+  /**
+   * Execute the actual reconnection logic
+   */
+  private async doReconnect(): Promise<void> {
+    if (!this.userId) return;
+    
+    try {
+      await this.setupSignaling();
+      
+      // Rejoin room if we were in one
+      if (this.roomId) {
+        await this.joinRoom(this.roomId);
       }
-    }, RECONNECTION_DELAY);
+      
+      // Reset reconnection attempts on success
+      this.reconnectionAttempts = 0;
+      console.log('[WebRTC] Reconnection successful');
+      
+    } catch (error) {
+      console.error('[WebRTC] Reconnection attempt failed:', error);
+      
+      // Use increasing backoff for retries
+      const backoffDelay = RECONNECTION_DELAY * Math.min(2, this.reconnectionAttempts);
+      console.log(`[WebRTC] Will retry in ${backoffDelay/1000} seconds`);
+      
+      setTimeout(() => this.attemptReconnect(), backoffDelay);
+    }
   }
   
   /**
