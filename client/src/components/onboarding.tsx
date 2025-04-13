@@ -408,9 +408,35 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
         </div>
         
         <Card className="mb-8">
-          <CardHeader>
+          <CardHeader className="relative">
             <div className="flex items-center justify-between mb-2">
               <CardTitle className="text-2xl font-heading">{currentStepData.title}</CardTitle>
+              
+              {/* Exit button in top right corner */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                onClick={() => {
+                  // Save current progress without marking onboarding as complete
+                  const currentData = form.getValues();
+                  updateProfileMutation.mutate(currentData, {
+                    onSuccess: () => {
+                      toast({
+                        title: "Progress saved",
+                        description: "Your profile updates have been saved.",
+                      });
+                      // Return to profile page
+                      onComplete();
+                    }
+                  });
+                }}
+                disabled={updateProfileMutation.isPending}
+                title="Exit and save progress"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
             <CardDescription>{currentStepData.description}</CardDescription>
             
@@ -1528,51 +1554,25 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                 </AnimatePresence>
                 
                 <div className="flex justify-between pt-4">
-                  <div className="flex gap-2">
-                    {currentStep > 1 ? (
-                      <Button 
-                        type="button" 
-                        onClick={handlePrevious}
-                        variant="outline"
-                      >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Previous
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        onClick={() => window.history.back()}
-                        variant="outline"
-                      >
-                        <ChevronLeft className="mr-2 h-4 w-4" />
-                        Back
-                      </Button>
-                    )}
-                    
-                    {/* Exit button to save current progress and return to profile */}
+                  {currentStep > 1 ? (
+                    <Button 
+                      type="button" 
+                      onClick={handlePrevious}
+                      variant="outline"
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Previous
+                    </Button>
+                  ) : (
                     <Button
                       type="button"
-                      variant="ghost"
-                      onClick={() => {
-                        // Save current progress without marking onboarding as complete
-                        const currentData = form.getValues();
-                        updateProfileMutation.mutate(currentData, {
-                          onSuccess: () => {
-                            toast({
-                              title: "Progress saved",
-                              description: "Your profile updates have been saved.",
-                            });
-                            // Return to profile page
-                            onComplete();
-                          }
-                        });
-                      }}
-                      disabled={updateProfileMutation.isPending}
+                      onClick={() => window.history.back()}
+                      variant="outline"
                     >
-                      <X className="mr-2 h-4 w-4" />
-                      Exit & Save
+                      <ChevronLeft className="mr-2 h-4 w-4" />
+                      Back
                     </Button>
-                  </div>
+                  )}
                   
                   <Button 
                     type="button" 
