@@ -13,14 +13,36 @@ import { User } from "@shared/schema";
  */
 export function canReceiveNewMatch(user: User, currentMatchCount: number): boolean {
   switch(user.profileType) {
+    case 'free':
+      return currentMatchCount < 1;
     case 'basic':
       return currentMatchCount < 3;
     case 'premium':
       return currentMatchCount < 5;
-    case 'elite':
-      return true; // Unlimited matches
+    case 'unlimited':
+      return currentMatchCount < 10;
     default:
       return currentMatchCount < 3; // Default to basic if profileType is not recognized
+  }
+}
+
+/**
+ * Get the maximum number of matches allowed for a user based on their subscription type
+ * @param user The user to check
+ * @returns The maximum number of matches allowed
+ */
+export function getMaxMatchesAllowed(user: User): number {
+  switch(user.profileType) {
+    case 'free':
+      return 1;
+    case 'basic':
+      return 3;
+    case 'premium':
+      return 5;
+    case 'unlimited':
+      return 10;
+    default:
+      return 3; // Default to basic if profileType is not recognized
   }
 }
 

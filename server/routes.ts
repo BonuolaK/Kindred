@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { MatchingAlgorithm, canReceiveNewMatch } from "./matching-algorithm";
+import { MatchingAlgorithm, canReceiveNewMatch, getMaxMatchesAllowed } from "./matching-algorithm";
 import { setupSocketServer } from "./socket";
 import { setupWebRTCSignaling } from "./webrtc-signaling";
 import { setupBasicWebSocketServer } from "./basic-ws";
@@ -159,11 +159,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         match.userId1 === userId ? match.userId2 : match.userId1
       );
       
+      // Get the maximum number of matches allowed for this user's subscription tier
+      const maxMatches = getMaxMatchesAllowed(user);
+      const remainingMatchSlots = maxMatches - existingMatches.length;
+      console.log(`User ${user.username} has ${existingMatches.length} existing matches, allowed ${maxMatches} total (${remainingMatchSlots} remaining)`);
+      
+      // Skip if user has reached their match limit
+      if (remainingMatchSlots <= 0) {
+        console.log(`User ${user.username} has reached their match limit of ${maxMatches}. No new matches will be created.`);
+        res.status(200).json({ 
+          matchResults: matchResults.slice(0, 5),
+          message: "Match limit reached for your subscription tier. Upgrade to receive more matches."
+        });
+        return;
+      }
+      
       // Get top matches that aren't already matched
       const topMatches = matchResults
         .filter(match => !existingMatchUserIds.includes(match.id))
         .filter(match => match.matchScore >= 40) // Lower threshold to ensure matches
-        .slice(0, 3);
+        .slice(0, remainingMatchSlots); // Only create up to the remaining match slots
       
       // Create new matches
       const newMatches = [];
@@ -177,7 +192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           newMatches.push(newMatch);
         }
-        console.log(`Created ${newMatches.length} new matches for user ${user.username}`);
+        console.log(`Created ${newMatches.length} new matches for user ${user.username} (${existingMatches.length + newMatches.length}/${maxMatches} total)`);
       } else if (allUsers.length > 0 && existingMatches.length === 0) {
         // If no matches found by algorithm and user has no matches, create a single random match
         const compatibleUsers = allUsers.filter(candidate => {
