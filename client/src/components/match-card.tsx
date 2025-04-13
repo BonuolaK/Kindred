@@ -7,6 +7,7 @@ import { Lock, Phone, MessageCircle, CalendarClock, Eye, Clock, X, RefreshCw } f
 import UserAvatar from "./user-avatar";
 import { Link } from "wouter";
 import { CallPreferencesDisplay } from "./call-preferences-display";
+import { CompactCallPreferences } from "./compact-call-preferences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type MatchCardProps = {
@@ -88,17 +89,91 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
           )}
         </div>
         
-        {otherUser.callPreferences && (
-          <div className="w-full rounded-md bg-gray-50 p-3 mb-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-4 w-4 text-primary" />
-              <h4 className="text-sm font-medium text-gray-700">Preferred Call Times</h4>
-            </div>
-            <div className="text-xs">
-              <CallPreferencesDisplay preferences={otherUser.callPreferences} className="text-xs" />
-            </div>
+        <div className="w-full mb-3">
+          <div className="flex justify-between items-center">
+            <CompactCallPreferences preferences={otherUser.callPreferences} />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6 text-primary hover:text-primary/80 hover:bg-primary/10 rounded-full"
+                    onClick={() => {
+                      const modal = document.createElement('div');
+                      modal.id = 'call-preferences-modal';
+                      modal.innerHTML = `
+                        <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                          <div class="bg-white rounded-lg shadow-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
+                            <div class="flex justify-between items-center mb-4">
+                              <h3 class="text-lg font-medium">Call Preferences</h3>
+                              <button class="text-gray-500 hover:text-gray-700" onclick="document.getElementById('call-preferences-modal').remove()">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                              </button>
+                            </div>
+                            <div id="call-preferences-content">
+                              <div class="text-gray-600">
+                                Loading call preferences...
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      `;
+                      document.body.appendChild(modal);
+                      
+                      // Render the detailed preferences into the modal
+                      const contentElement = document.getElementById('call-preferences-content');
+                      if (contentElement && otherUser.callPreferences) {
+                        const detailedPreferences = document.createElement('div');
+                        detailedPreferences.className = 'text-sm';
+                        contentElement.innerHTML = '';
+                        contentElement.appendChild(detailedPreferences);
+                        
+                        // This is a hacky approach since we can't directly render React components here
+                        // In a real app, you'd use a proper React modal
+                        const weekdays = otherUser.callPreferences.weekdays?.map(slot => 
+                          `<span class="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-700 mr-2 mb-2">
+                            Weekdays: ${slot.start.replace(/:\d\d$/, '')} - ${slot.end.replace(/:\d\d$/, '')}
+                          </span>`
+                        ).join('') || '';
+                        
+                        const weekends = otherUser.callPreferences.weekends?.map(slot => 
+                          `<span class="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-700 mr-2 mb-2">
+                            Weekends: ${slot.start.replace(/:\d\d$/, '')} - ${slot.end.replace(/:\d\d$/, '')}
+                          </span>`
+                        ).join('') || '';
+                        
+                        const unavailable = otherUser.callPreferences.notAvailable?.map(day => 
+                          `<span class="inline-block bg-red-100 rounded-full px-3 py-1 text-sm font-medium text-red-700 mr-2 mb-2">
+                            ${day.charAt(0).toUpperCase() + day.slice(1)}
+                          </span>`
+                        ).join('') || '';
+                        
+                        detailedPreferences.innerHTML = `
+                          <div class="mb-4">
+                            <h4 class="font-medium mb-2">Available Times</h4>
+                            <div class="flex flex-wrap">${weekdays}${weekends}</div>
+                          </div>
+                          ${unavailable ? `
+                          <div>
+                            <h4 class="font-medium mb-2">Unavailable Days</h4>
+                            <div class="flex flex-wrap">${unavailable}</div>
+                          </div>
+                          ` : ''}
+                        `;
+                      }
+                    }}
+                  >
+                    <Clock className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>View detailed call preferences</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
-        )}
+        </div>
       </CardContent>
       
       <CardFooter className="p-4 pt-0 grid grid-cols-3 gap-3">
