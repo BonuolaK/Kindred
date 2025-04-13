@@ -69,6 +69,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Debug: Log all user IDs in the system
       console.log("Attempting to find all users in the system:");
       
+      // Get any unmatched users - we'll use this to exclude them from potential matches
+      const unmatchedMatches = await db
+        .select()
+        .from(matches)
+        .where(
+          and(
+            eq(matches.unmatchedBy, userId),
+            eq(matches.status, 'unmatched')
+          )
+        );
+      
+      // Extract user IDs that have been unmatched by the current user
+      const unmatchedUserIds = unmatchedMatches.map(match => 
+        match.userId1 === userId ? match.userId2 : match.userId1
+      );
+      
+      console.log(`User ${userId} has unmatched ${unmatchedUserIds.length} users`);
+      
       // Try to get users in a range rather than just incrementing IDs
       // This handles cases where user IDs might have gaps
       for (let currentId = 1; currentId < 100; currentId++) {
@@ -77,12 +95,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (potentialUser) {
             console.log(`Found user ID ${currentId}: ${potentialUser.username} (${potentialUser.gender || 'No gender'}, interested in: ${potentialUser.interestedGenders ? JSON.stringify(potentialUser.interestedGenders) : 'Not specified'})`);
             
-            if (potentialUser.id !== userId) {
+            // Only add if it's not the current user and not previously unmatched
+            if (potentialUser.id !== userId && !unmatchedUserIds.includes(potentialUser.id)) {
               allUsers.push(potentialUser);
               
               // Keep a copy of user info for debugging
               const { password, ...userInfo } = potentialUser;
               userProfiles.push(userInfo);
+            } else if (unmatchedUserIds.includes(potentialUser.id)) {
+              console.log(`Skipping user ${potentialUser.username} (ID: ${potentialUser.id}) because they were previously unmatched`);
             }
           }
         } catch (error) {
