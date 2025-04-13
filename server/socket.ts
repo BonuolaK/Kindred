@@ -8,8 +8,8 @@ const users = new Map<number, WebSocket>();
 // Track online users
 const onlineUsers = new Set<number>();
 
-// Store active calls
-const activeCalls = new Map<string, {
+// Define call data interface
+interface CallData {
   initiator: number;
   receiver: number;
   matchId: number;
@@ -17,7 +17,10 @@ const activeCalls = new Map<string, {
   callDay: number;
   startTime: number;
   status: 'pending' | 'connecting' | 'active' | 'completed' | 'missed' | 'rejected';
-}>();
+}
+
+// Store active calls
+const activeCalls = new Map<string, CallData>();
 
 // Store signal offers for call setup
 const pendingOffers = new Map<string, any>();
@@ -131,9 +134,66 @@ export function setupSocketServer(httpServer: HttpServer) {
             userId = parseInt(data.userId, 10);
             if (!isNaN(userId)) {
               users.set(userId, ws);
-              console.log(`User ${userId} registered with WebSocket (active users: ${users.size})`);
+              
+              // Add to online users set
+              onlineUsers.add(userId);
+              
+              // Broadcast user's online status to all connected clients
+              users.forEach((clientWs, clientId) => {
+                if (clientWs.readyState === WebSocket.OPEN) {
+                  sendToClient(clientWs, {
+                    type: 'status',
+                    userId: userId,
+                    online: true
+                  });
+                }
+              });
+              
+              // Send current online users to the newly connected client
+              sendToClient(ws, {
+                type: 'initialStatus',
+                users: Array.from(onlineUsers)
+              });
+              
+              console.log(`User ${userId} registered with WebSocket (active users: ${users.size}, online users: ${onlineUsers.size})`);
             } else {
               console.error(`Invalid userId received: ${data.userId}`);
+            }
+            break;
+            
+          case 'heartbeat':
+            // Update client heartbeat time
+            clientHeartbeats.set(ws, Date.now());
+            // If user was previously marked offline, mark them as online again
+            if (userId && !onlineUsers.has(userId)) {
+              onlineUsers.add(userId);
+              // Broadcast user's online status
+              users.forEach((clientWs, clientId) => {
+                if (clientWs.readyState === WebSocket.OPEN) {
+                  sendToClient(clientWs, {
+                    type: 'status',
+                    userId: userId,
+                    online: true
+                  });
+                }
+              });
+            }
+            break;
+            
+          case 'offline':
+            // User is going offline manually
+            if (userId) {
+              onlineUsers.delete(userId);
+              // Broadcast user's offline status
+              users.forEach((clientWs, clientId) => {
+                if (clientWs.readyState === WebSocket.OPEN) {
+                  sendToClient(clientWs, {
+                    type: 'status',
+                    userId: userId,
+                    online: false
+                  });
+                }
+              });
             }
             break;
             
@@ -306,11 +366,11 @@ export function setupSocketServer(httpServer: HttpServer) {
             if (userId) {
               // Look for calls where this user is the initiator
               // Use forEach to avoid TypeScript issues with for...of and Map.entries()
-              activeCalls.forEach((call: any, key: string) => {
+              activeCalls.forEach((call, key: string) => {
                 if (call.matchId.toString() === statusMatchId.toString() && 
                     (call.initiator === userId || call.receiver === userId)) {
                   callKey = key;
-                  callData = call as CallData;
+                  callData = call;
                 }
               });
             }
@@ -406,7 +466,20 @@ function cleanupDeadConnection(ws: WebSocket) {
     // Clean up user registration
     if (userIdToRemove !== null) {
       users.delete(userIdToRemove);
-      console.log(`Cleaned up registration for user ${userIdToRemove}`);
+      
+      // Mark user as offline and notify other clients
+      onlineUsers.delete(userIdToRemove);
+      users.forEach((clientWs, clientId) => {
+        if (clientWs.readyState === WebSocket.OPEN) {
+          sendToClient(clientWs, {
+            type: 'status',
+            userId: userIdToRemove,
+            online: false
+          });
+        }
+      });
+      
+      console.log(`Cleaned up registration for user ${userIdToRemove} and marked as offline`);
       
       // End any active calls involving this user
       // Use forEach to avoid TypeScript issues with for...of and Map.entries()

@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,10 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
   const otherUser = match.otherUser;
   const isPhotoRevealed = match.arePhotosRevealed || false;
   const isChatUnlocked = match.isChatUnlocked || false;
+  
+  // Get online status
+  const { isUserOnline } = useOnlineStatus();
+  const isOtherUserOnline = isUserOnline(otherUser.id);
   
   // State for unmatch dialog
   const [unmatchDialogOpen, setUnmatchDialogOpen] = useState(false);
@@ -167,7 +172,11 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
       
       <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-lg font-medium">{otherUser.username}</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg font-medium">{otherUser.username}</CardTitle>
+            <div className={`h-2.5 w-2.5 rounded-full ${isOtherUserOnline ? 'bg-green-500' : 'bg-gray-300'}`} 
+                 title={isOtherUserOnline ? 'Online' : 'Offline'} />
+          </div>
           <CardDescription className="text-sm">
             Matched on {formatDate(match.matchDate)}
           </CardDescription>
@@ -353,7 +362,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
             <CalendarClock className="h-4 w-4" />
             Scheduled
           </Button>
-        ) : (
+        ) : isOtherUserOnline ? (
           <Button 
             variant="outline" 
             size="sm" 
@@ -365,6 +374,25 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
               Call
             </Link>
           </Button>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center justify-center gap-1 h-10 border-gray-300 text-gray-500"
+                  disabled
+                >
+                  <Phone className="h-4 w-4" />
+                  Call
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>User is offline</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
         
         {isChatUnlocked ? (
