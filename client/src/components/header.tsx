@@ -89,7 +89,7 @@ export default function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="p-1">
               {user?.avatar ? (
-                <div className="h-9 w-9 rounded-full flex items-center justify-center text-xl">
+                <div className="h-10 w-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-2xl">
                   {user.avatar}
                 </div>
               ) : (
