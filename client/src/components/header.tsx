@@ -9,7 +9,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Logo from "./logo";
-import { UserCircle, Menu, LogOut, Settings, MessageCircle, ChevronLeft } from "lucide-react";
+import { UserCircle, Menu, LogOut, MessageCircle, ChevronLeft } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export default function Header() {
   const [location, navigate] = useLocation();
@@ -86,8 +87,18 @@ export default function Header() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="p-2">
-              <UserCircle className="h-6 w-6" />
+            <Button variant="ghost" className="p-1">
+              {user?.avatar ? (
+                <div className="h-9 w-9 rounded-full flex items-center justify-center text-xl">
+                  {user.avatar}
+                </div>
+              ) : (
+                <Avatar className="h-9 w-9 border-2 border-primary">
+                  <AvatarFallback className="bg-primary-50 text-primary">
+                    {user?.username?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -98,10 +109,6 @@ export default function Header() {
             <DropdownMenuItem onClick={() => navigate("/chats")}>
               <MessageCircle className="mr-2 h-4 w-4" />
               <span>Chats</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/settings")}>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
