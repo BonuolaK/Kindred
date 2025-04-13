@@ -2,6 +2,19 @@ import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzl
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Time slot type for call preferences
+export const timeSlotSchema = z.object({
+  start: z.string(), // Format: HH:MM in 24hr format
+  end: z.string(),   // Format: HH:MM in 24hr format
+});
+
+// Call preferences schema
+export const callPreferencesSchema = z.object({
+  weekdays: z.array(timeSlotSchema).optional(),
+  weekends: z.array(timeSlotSchema).optional(),
+  notAvailable: z.array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])).optional(),
+});
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -28,6 +41,7 @@ export const users = pgTable("users", {
   loveLanguage: text("love_language"),
   relationshipPace: text("relationship_pace"),
   dealbreakers: text("dealbreakers").array(),
+  callPreferences: json("call_preferences").$type<z.infer<typeof callPreferencesSchema>>(),
   idVerified: boolean("id_verified").default(false),
   idVerificationImage: text("id_verification_image"),
   idVerificationSkipped: boolean("id_verification_skipped").default(false),
