@@ -437,38 +437,76 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
                                   {(() => {
-                                    // Use separate local state for year, month, day selection
+                                    // Use separate local state for year, month selection
                                     const [selectedYear, setSelectedYear] = useState(
                                       field.value ? new Date(field.value).getFullYear() : new Date().getFullYear() - 21
                                     );
-                                    const [selectedMonth, setSelectedMonth] = useState(
-                                      field.value ? new Date(field.value).getMonth() : 0
-                                    );
                                     const [viewMode, setViewMode] = useState<'year' | 'date'>('year');
-                                    const [defaultDate] = useState(
-                                      field.value ? new Date(field.value) : new Date(new Date().getFullYear() - 21, 0, 1)
-                                    );
                                     
+                                    // Calculate year range (1900 to current year-21)
+                                    const currentYear = new Date().getFullYear();
+                                    const startYear = 1900;
+                                    const endYear = currentYear - 21;
+                                    const numYears = endYear - startYear + 1;
+                                    
+                                    // Function to handle year selection
                                     const handleYearSelect = (year: number) => {
                                       setSelectedYear(year);
-                                      // Create a date with the selected year and current month
-                                      const newDate = new Date(defaultDate);
-                                      newDate.setFullYear(year);
-                                      newDate.setMonth(selectedMonth);
-                                      // Update the field value
+                                      
+                                      // Create a date with the selected year (Jan 1st)
+                                      const newDate = new Date(year, 0, 1);
                                       field.onChange(newDate.toISOString());
+                                      
                                       // Switch to date selection
                                       setViewMode('date');
                                     };
                                     
-                                    // Render the year selection grid
+                                    // Pagination for year selection
+                                    const [yearPage, setYearPage] = useState(0);
+                                    const yearsPerPage = 24; // 4 columns x 6 rows
+                                    const totalPages = Math.ceil(numYears / yearsPerPage);
+                                    
+                                    // Get years for current page (most recent first)
+                                    const getPageYears = (page: number) => {
+                                      const startIdx = page * yearsPerPage;
+                                      const years = [];
+                                      for (let i = 0; i < yearsPerPage; i++) {
+                                        const yearIndex = startIdx + i;
+                                        if (yearIndex < numYears) {
+                                          years.push(endYear - yearIndex);
+                                        }
+                                      }
+                                      return years;
+                                    };
+                                    
+                                    // Render the year selection grid with pagination
                                     const renderYearSelection = () => {
-                                      const currentYear = new Date().getFullYear();
-                                      const years = Array.from({ length: 80 }, (_, i) => currentYear - 21 - i);
+                                      const years = getPageYears(yearPage);
                                       
                                       return (
-                                        <div className="p-3">
-                                          <div className="mb-2 text-center font-semibold">Select Year</div>
+                                        <div className="p-3 w-[300px]">
+                                          <div className="mb-2 flex items-center justify-between">
+                                            <Button 
+                                              variant="ghost" 
+                                              size="sm"
+                                              disabled={yearPage === 0}
+                                              onClick={() => setYearPage(p => Math.max(0, p - 1))}
+                                            >
+                                              <ChevronLeft className="h-4 w-4" />
+                                            </Button>
+                                            <div className="font-semibold text-center">
+                                              Select Year ({years[years.length-1] || endYear}-{years[0] || startYear})
+                                            </div>
+                                            <Button 
+                                              variant="ghost" 
+                                              size="sm"
+                                              disabled={yearPage >= totalPages - 1}
+                                              onClick={() => setYearPage(p => Math.min(totalPages - 1, p + 1))}
+                                            >
+                                              <ArrowRight className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                          
                                           <div className="grid grid-cols-4 gap-2">
                                             {years.map(year => (
                                               <Button
@@ -484,6 +522,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                         </div>
                                       );
                                     };
+                                    
+                                    // State for the date picker
+                                    const [currentMonth, setCurrentMonth] = useState<Date>(() => 
+                                      field.value ? new Date(field.value) : new Date(selectedYear, 0, 1)
+                                    );
                                     
                                     // Render the calendar for date selection
                                     const renderDateSelection = () => {
@@ -505,8 +548,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                           
                                           <Calendar
                                             mode="single"
-                                            month={new Date(selectedYear, selectedMonth)}
-                                            defaultMonth={new Date(selectedYear, selectedMonth)}
+                                            month={currentMonth}
+                                            onMonthChange={setCurrentMonth}
                                             selected={field.value ? new Date(field.value) : undefined}
                                             onSelect={(date) => {
                                               if (date) {
@@ -521,8 +564,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                                 
                                                 const calculatedAge = hasBirthdayOccurred ? age : age - 1;
                                                 
-                                                // Update selected month when date is selected
-                                                setSelectedMonth(date.getMonth());
+                                                // Update field value
                                                 field.onChange(date.toISOString());
                                                 
                                                 // Update the age field
