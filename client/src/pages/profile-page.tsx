@@ -212,8 +212,8 @@ export default function ProfilePage() {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Age Preference</h3>
                   <p>
-                    {user?.agePreferenceMin && user?.agePreferenceMax 
-                      ? `${user.agePreferenceMin} - ${user.agePreferenceMax}`
+                    {(user?.agePreferenceMin !== undefined || user?.agePreferenceMax !== undefined)
+                      ? `${user?.agePreferenceMin || 21} - ${user?.agePreferenceMax || 100}` 
                       : 'Not specified'}
                   </p>
                 </div>
