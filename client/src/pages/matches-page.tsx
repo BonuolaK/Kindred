@@ -132,7 +132,7 @@ export default function MatchesPage() {
                       variant="link" 
                       className="h-auto p-0 pl-2" 
                       onClick={() => {
-                        window.location.href = "/profile";
+                        navigate("/profile/subscription");
                       }}
                     >
                       Upgrade for more
@@ -197,7 +197,7 @@ export default function MatchesPage() {
                       variant="outline"
                       className="text-xs h-8"
                       onClick={() => {
-                        window.location.href = "/profile";
+                        navigate("/profile/subscription");
                       }}
                     >
                       Upgrade
