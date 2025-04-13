@@ -1,4 +1,4 @@
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import Logo from "./logo";
 
 export default function Footer() {
@@ -75,6 +75,11 @@ export default function Footer() {
         
         <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-500">
           <p>&copy; {new Date().getFullYear()} Kindred. All rights reserved.</p>
+          <div className="mt-4 flex justify-center space-x-4 text-xs">
+            <Link href="/ws-diagnostics" className="text-gray-500 hover:text-gray-300 transition-colors">Connection Diagnostics</Link>
+            <span className="text-gray-600">|</span>
+            <Link href="/simple-ws-test" className="text-gray-500 hover:text-gray-300 transition-colors">WebSocket Test</Link>
+          </div>
         </div>
       </div>
     </footer>

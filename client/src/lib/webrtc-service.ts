@@ -4,6 +4,28 @@
  * Manages WebRTC connections with proper configuration, error handling,
  * and reconnection logic. Handles media stream acquisition, ICE candidate
  * exchange, and SDP negotiation.
+ * 
+ * Troubleshooting Notes:
+ * 
+ * 1. WebSocket Connection Issues:
+ *    - WebSocket error 1006 often indicates an abnormal closure without proper termination
+ *    - Common causes include: network interruptions, server crashes, timeouts, CORS issues, or proxy/load balancer problems
+ *    - Our heartbeat mechanism detects disconnections and automatically attempts reconnection
+ *    - Connection stability issues can be diagnosed using WebSocket Diagnostics (/ws-diagnostics)
+ * 
+ * 2. WebRTC Connection Failures:
+ *    - ICE connectivity failures are often related to network restrictions or firewall settings
+ *    - Our implementation uses multiple STUN servers and falls back to relay servers if direct connection fails
+ *    - Detailed connection state is logged in the console and can be monitored in the browser
+ * 
+ * 3. Media Stream Issues:
+ *    - Access to camera/microphone requires proper permissions
+ *    - Mobile browser compatibility varies, we handle fallbacks for audio-only mode
+ * 
+ * 4. Debugging Tools:
+ *    - WebRTC stats are collected and can be inspected for detailed metrics
+ *    - ConnectionState tracking provides visibility into the connectivity process
+ *    - ICE candidate gathering timeouts help prevent stalled connections
  */
 
 import { queryClient } from './queryClient';
