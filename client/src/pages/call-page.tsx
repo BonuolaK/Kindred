@@ -26,14 +26,21 @@ export default function CallPage() {
   // Debug output
   console.log("Call page loaded with id:", id, "parsed as:", parsedMatchId);
   
-  // Get match data
+  // Get match data - using a direct API call to get specific match
   const { 
     data: match, 
     isLoading: isLoadingMatch,
     error: matchError
   } = useQuery<Match & { otherUser?: any }>({
-    queryKey: ['/api/matches', parsedMatchId],
-    enabled: !!id && !isNaN(parsedMatchId),
+    queryKey: ['/api/matches', parsedMatchId, 'details'],
+    queryFn: async () => {
+      const res = await fetch(`/api/matches/${parsedMatchId}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch match details');
+      }
+      return res.json();
+    },
+    enabled: !!id && !isNaN(parsedMatchId) && !!user,
     refetchInterval: 5000 // Refresh data every 5 seconds
   });
   
