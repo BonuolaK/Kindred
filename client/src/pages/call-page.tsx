@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import CallInterface from "@/components/call-interface";
 import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { Match } from "@shared/schema";
+import { Match, User } from "@shared/schema";
 
 import SimpleCallInterface from "@/components/simple-call-interface";
 import { AudioCallUI } from "@/components/AudioCallUI";
@@ -23,35 +23,47 @@ export default function CallPage() {
   const queryClient = useQueryClient();
   const parsedMatchId = parseInt(id || "0", 10);
   
+  const [matchDetails, setMatchDetails] = useState<Match & { otherUser?: Partial<User> }>();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  
   // Debug output
   console.log("Call page loaded with id:", id, "parsed as:", parsedMatchId);
   
-  // Get match data - using a direct API call to get specific match
-  const { 
-    data: match, 
-    isLoading: isLoadingMatch,
-    error: matchError
-  } = useQuery<Match & { otherUser?: any }>({
-    queryKey: ['/api/matches', parsedMatchId, 'details'],
-    queryFn: async () => {
-      const res = await fetch(`/api/matches/${parsedMatchId}`);
-      if (!res.ok) {
-        throw new Error('Failed to fetch match details');
-      }
-      return res.json();
-    },
-    enabled: !!id && !isNaN(parsedMatchId) && !!user,
-    refetchInterval: 5000 // Refresh data every 5 seconds
-  });
-  
-  // Debug match data
   useEffect(() => {
-    if (match) {
-      console.log("Match data loaded:", match);
-      console.log("Other user data:", match.otherUser);
-      console.log("Current user:", user);
+    // Directly fetch the match details without React Query
+    async function fetchMatchDetails() {
+      if (!parsedMatchId || !user) return;
+      
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/matches/${parsedMatchId}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch match: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log("Direct API response:", data);
+        
+        setMatchDetails(data);
+        setIsLoading(false);
+      } catch (err) {
+        console.error("Error fetching match:", err);
+        setError(err instanceof Error ? err : new Error(String(err)));
+        setIsLoading(false);
+      }
     }
-  }, [match, user]);
+    
+    fetchMatchDetails();
+    
+    // Set up refresh interval
+    const intervalId = setInterval(() => {
+      fetchMatchDetails();
+    }, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, [parsedMatchId, user]);
   
   // Handle call ended
   const handleCallEnded = () => {
@@ -68,7 +80,7 @@ export default function CallPage() {
   };
   
   // Show loading state
-  if (isLoadingMatch || !match) {
+  if (isLoading || !matchDetails) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -78,7 +90,7 @@ export default function CallPage() {
   }
   
   // Show error state
-  if (matchError) {
+  if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <div className="text-destructive text-xl">Error setting up call</div>
@@ -109,24 +121,24 @@ export default function CallPage() {
       <h1 className="text-3xl font-bold text-center mb-8">Audio Call</h1>
       
       <ErrorBoundary>
-        {user && match.otherUser && (
+        {user && matchDetails.otherUser && (
           <div className="flex justify-center items-center">
             <div className="bg-white shadow-lg rounded-lg p-6 mb-6 max-w-md w-full">
               {/* Using the new WebSocket-based AudioCallUI component */}
               <AudioCallUI
-                matchId={match.id}
-                otherUserId={match.otherUser.id}
-                otherUserName={match.otherUser.username || 'Your Match'}
-                callDay={match.callCount + 1}
+                matchId={matchDetails.id}
+                otherUserId={matchDetails.otherUser.id}
+                otherUserName={matchDetails.otherUser.username || 'Your Match'}
+                callDay={matchDetails.callCount + 1}
                 onClose={handleCallEnded}
               />
               
               {/* Display debug info for troubleshooting */}
               <div className="mt-6 text-xs border-t pt-4 text-muted-foreground">
                 <p className="font-semibold">Debug Info:</p>
-                <p>Match ID: {match.id}</p>
-                <p>Other User ID: {match.otherUser.id}</p>
-                <p>Call Day: {match.callCount + 1}</p>
+                <p>Match ID: {matchDetails.id}</p>
+                <p>Other User ID: {matchDetails.otherUser.id}</p>
+                <p>Call Day: {matchDetails.callCount + 1}</p>
                 <p>Current User: {user.username} (ID: {user.id})</p>
               </div>
             </div>
