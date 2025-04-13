@@ -285,7 +285,7 @@ export default function MatchesPage() {
                         <div>
                           <h3 className="font-medium">{match.otherUser.name}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {match.compatibility}% Match • Matched on {formatDate(match.matchDate)}
+                            Matched on {formatDate(match.matchDate)}
                           </p>
                         </div>
                       </div>
