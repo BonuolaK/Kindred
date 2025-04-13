@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { callPreferencesSchema } from "@shared/schema";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 import {
   ChevronLeft,
   Check,
@@ -242,6 +243,7 @@ type OnboardingProps = {
 
 export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingProps) {
   const { user, updateProfileMutation } = useAuth();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   
@@ -288,49 +290,65 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
       if (!result) return;
     }
     
-    // Check if all required fields are filled for the final step
+    // Save current field progress immediately for each step, but don't complete onboarding yet
+    if (fieldName && currentStep !== steps.length) {
+      // Get current form data and save the current field update
+      const currentFormData = form.getValues();
+      
+      // Keep onboardingCompleted flag as false until final step
+      const formDataForUpdate = {
+        ...currentFormData,
+        onboardingCompleted: false
+      };
+      
+      // Update only what's changed (the current field)
+      updateProfileMutation.mutate(formDataForUpdate);
+    }
+    
+    // Check if completing the final step
     if (currentStep === steps.length) {
-      // Submit the form on the last step
+      // Submit the form on the last step - this will mark onboarding as complete
       onSubmit(form.getValues());
+    } else if (currentStep === 18) { // After completing the call preferences step
+      // This is the last substantive step (before the final "completed" message)
+      const currentFormData = form.getValues();
+      const requiredFieldsFilled = 
+        currentFormData.username && 
+        currentFormData.gender && 
+        currentFormData.interestedGenders?.length > 0 && 
+        currentFormData.age >= 21 && 
+        currentFormData.bio && 
+        currentFormData.location && 
+        currentFormData.freeTimeActivities?.length > 0 &&
+        currentFormData.values && 
+        currentFormData.conflictResolution && 
+        currentFormData.loveLanguage && 
+        currentFormData.relationshipPace && 
+        currentFormData.dealbreakers?.length > 0;
+        
+      if (requiredFieldsFilled) {
+        // All required fields are filled, mark onboarding as complete
+        const formDataWithCompletionFlag = {
+          ...currentFormData,
+          onboardingCompleted: true as boolean
+        };
+        
+        updateProfileMutation.mutate(formDataWithCompletionFlag, {
+          onSuccess: () => {
+            // Move to the last step to show completion message
+            setCurrentStep(steps.length);
+            setTimeout(() => onComplete(), 2000); // Show completion message for 2 seconds before completing
+          }
+        });
+      } else {
+        // Move to next step without marking onboarding as complete
+        setDirection("forward");
+        setCurrentStep(currentStep + 1);
+      }
     } else {
-      // Move to next step
+      // Regular step progression for all other steps
       setDirection("forward");
       setCurrentStep(currentStep + 1);
-      
-      // Only check for auto-completion at specific milestones
-      // For example, after completing key fields like "bio" (step 10)
-      if (currentStep === 16) { // After relationship pace
-        const currentFormData = form.getValues();
-        const requiredFieldsFilled = 
-          currentFormData.username && 
-          currentFormData.gender && 
-          currentFormData.interestedGenders?.length > 0 && 
-          currentFormData.age >= 21 && 
-          currentFormData.bio && 
-          currentFormData.location && 
-          currentFormData.freeTimeActivities?.length > 0 &&
-          currentFormData.values && 
-          currentFormData.conflictResolution && 
-          currentFormData.loveLanguage && 
-          currentFormData.relationshipPace && 
-          currentFormData.dealbreakers?.length > 0;
-          
-        if (requiredFieldsFilled) {
-          // All required fields are filled, so set completion flag and submit
-          const formDataWithCompletionFlag = {
-            ...currentFormData,
-            onboardingCompleted: true as boolean
-          };
-          
-          updateProfileMutation.mutate(formDataWithCompletionFlag, {
-            onSuccess: () => {
-              // Move to the last step to show completion message
-              setCurrentStep(steps.length);
-              setTimeout(() => onComplete(), 2000); // Show completion message for 2 seconds before completing
-            }
-          });
-        }
-      }
     }
   };
   
@@ -357,7 +375,8 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
       data.relationshipPace && 
       data.dealbreakers?.length > 0;
       
-    // Set onboarding completed flag
+    // This is called on the final page, so mark onboarding as complete
+    // if all required fields are filled, but always save the call preferences
     const formDataWithCompletionFlag = {
       ...data,
       onboardingCompleted: requiredFieldsFilled as boolean
@@ -365,7 +384,16 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
     
     updateProfileMutation.mutate(formDataWithCompletionFlag, {
       onSuccess: () => {
-        onComplete();
+        // Only complete onboarding if all required fields are filled
+        if (requiredFieldsFilled) {
+          onComplete();
+        } else {
+          // Otherwise, save the call preferences but keep the user in onboarding
+          toast({
+            title: "Call preferences saved",
+            description: "Your call preferences have been updated, but you still need to complete all required fields.",
+          });
+        }
       }
     });
   };
@@ -1443,12 +1471,31 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                                   type="button"
                                   variant="outline"
                                   onClick={() => {
-                                    field.onChange({
+                                    // Set default flexible timing
+                                    const flexibleSchedule = {
                                       weekdays: [],
                                       weekends: [],
                                       notAvailable: []
+                                    };
+                                    
+                                    // Update the field
+                                    field.onChange(flexibleSchedule);
+                                    
+                                    // Save the current form data
+                                    const currentData = form.getValues();
+                                    updateProfileMutation.mutate({
+                                      ...currentData,
+                                      callPreferences: flexibleSchedule,
+                                      onboardingCompleted: false
+                                    }, {
+                                      onSuccess: () => {
+                                        toast({
+                                          title: "Call preferences saved",
+                                          description: "Flexible timing preferences have been saved.",
+                                        });
+                                        handleNext();
+                                      }
                                     });
-                                    handleNext();
                                   }}
                                 >
                                   Skip (Flexible Timing)
