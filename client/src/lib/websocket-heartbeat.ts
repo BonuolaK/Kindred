@@ -142,42 +142,114 @@ function attemptReconnect(
   }
   
   ws.reconnectAttempts++;
-  const delay = RECONNECTION_DELAY * Math.min(2, ws.reconnectAttempts);
+  const delay = RECONNECTION_DELAY * Math.pow(1.5, ws.reconnectAttempts - 1); // Exponential backoff
   
   console.log(`[WebSocket] Attempting to reconnect (${ws.reconnectAttempts}/${MAX_RECONNECTION_ATTEMPTS}) in ${delay}ms`);
   
   setTimeout(() => {
-    // Check if we're already reconnected
-    if (ws.readyState === WebSocket.OPEN) return;
-    
-    // Create a new connection
-    const newWs = createWebSocketWithHeartbeat(url, protocols);
-    
-    // Transfer properties from old connection
-    newWs.userId = ws.userId;
-    newWs.roomId = ws.roomId;
-    newWs.reconnectAttempts = ws.reconnectAttempts;
-    newWs.onReconnect = ws.onReconnect;
-    
-    // Add event listener to handle registration after reconnection
-    newWs.addEventListener('open', () => {
-      // Re-register user if we have a user ID
-      if (newWs.userId) {
-        console.log(`[WebSocket] Re-registering user ${newWs.userId} after reconnection`);
-        try {
-          newWs.send(JSON.stringify({
-            type: 'register',
-            userId: newWs.userId
-          }));
-        } catch (error) {
-          console.error('[WebSocket] Error re-registering user:', error);
-        }
-      }
+    try {
+      // Check if we're already reconnected
+      if (ws.readyState === WebSocket.OPEN) return;
       
-      // Call the reconnect callback if available
-      if (newWs.onReconnect) {
-        newWs.onReconnect();
+      // Instead of creating a recursive chain of websockets, use the same instance
+      // but create a new underlying connection
+      const oldUserId = ws.userId;
+      const oldRoomId = ws.roomId;
+      const oldReconnectAttempts = ws.reconnectAttempts;
+      const oldOnReconnect = ws.onReconnect;
+      
+      // Create and initialize a new WebSocket connection
+      const rawWs = new WebSocket(url, protocols);
+      
+      // Copy the raw WebSocket properties to our existing wrapper
+      Object.getOwnPropertyNames(rawWs).forEach(prop => {
+        if (prop !== 'addEventListener' && prop !== 'removeEventListener') {
+          try {
+            // @ts-ignore - dynamically copying properties
+            ws[prop] = rawWs[prop];
+          } catch (e) {
+            // Some properties might be read-only
+          }
+        }
+      });
+      
+      // Restore our tracking properties
+      ws.userId = oldUserId;
+      ws.roomId = oldRoomId;
+      ws.reconnectAttempts = oldReconnectAttempts;
+      ws.onReconnect = oldOnReconnect;
+      ws.heartbeatEnabled = true;
+      ws.heartbeatInterval = null;
+      ws.heartbeatTimeout = null;
+      
+      // Add listeners to the new raw websocket but have them call our wrapper's listeners
+      rawWs.onopen = (event) => {
+        console.log('[WebSocket] Reconnection successful');
+        startHeartbeat(ws);
+        
+        // Re-register user if we have a user ID
+        if (ws.userId) {
+          console.log(`[WebSocket] Re-registering user ${ws.userId} after reconnection`);
+          try {
+            ws.send(JSON.stringify({
+              type: 'register',
+              userId: ws.userId
+            }));
+          } catch (error) {
+            console.error('[WebSocket] Error re-registering user:', error);
+          }
+        }
+        
+        // Call the reconnect callback if available
+        if (ws.onReconnect) {
+          ws.onReconnect();
+        }
+        
+        // Forward the event to any listeners on our wrapper
+        const openEvent = new Event('open');
+        ws.dispatchEvent(openEvent);
+      };
+      
+      rawWs.onmessage = (event) => {
+        // Create a simpler message event to avoid TypeScript readonly array issues
+        const messageEvent = new MessageEvent('message', {
+          data: event.data,
+          origin: event.origin || '',
+          lastEventId: event.lastEventId || ''
+        });
+        ws.dispatchEvent(messageEvent);
+      };
+      
+      rawWs.onclose = (event) => {
+        const closeEvent = new CloseEvent('close', {
+          wasClean: event.wasClean,
+          code: event.code,
+          reason: event.reason
+        });
+        stopHeartbeat(ws);
+        // Don't trigger reconnection from here, as it would be recursive
+        ws.dispatchEvent(closeEvent);
+        
+        // If still not at max attempts, try again only for abnormal closures
+        if (event.code !== 1000 && event.code !== 1001 && 
+            ws.reconnectAttempts < MAX_RECONNECTION_ATTEMPTS) {
+          attemptReconnect(ws, url, protocols);
+        }
+      };
+      
+      rawWs.onerror = (event) => {
+        const errorEvent = new Event('error');
+        ws.dispatchEvent(errorEvent);
+      };
+      
+    } catch (error) {
+      console.error('[WebSocket] Error during reconnection attempt:', error);
+      // Try again if we haven't hit the limit
+      if (ws.reconnectAttempts < MAX_RECONNECTION_ATTEMPTS) {
+        setTimeout(() => {
+          attemptReconnect(ws, url, protocols);
+        }, delay);
       }
-    });
+    }
   }, delay);
 }

@@ -468,35 +468,66 @@ export class WebRTCService {
           reject(new Error('Signaling connection timeout'));
         }, 15000);
         
-        this.socket.onopen = () => {
+        // Use event listeners instead of direct property assignment for better compatibility
+        this.socket.addEventListener('open', () => {
           console.log('[WebRTC] Signaling connection established');
           clearTimeout(connectionTimeout);
           
-          // Set up heartbeat
-          this.setupHeartbeat();
+          // The heartbeat is now handled by the WebSocketWithHeartbeat implementation
+          
+          // If we have a user ID, register with the server
+          if (this.userId) {
+            this.sendSignalingMessage({
+              type: 'register',
+              userId: this.userId
+            });
+          }
           
           // Resolve the promise
           resolve();
-        };
+        });
         
-        this.socket.onmessage = (event) => {
+        this.socket.addEventListener('message', (event) => {
           this.handleSignalingMessage(event.data);
-        };
+        });
         
-        this.socket.onclose = (event) => {
+        this.socket.addEventListener('close', (event) => {
           console.log(`[WebRTC] Signaling connection closed: ${event.code} ${event.reason}`);
           clearTimeout(connectionTimeout);
           
-          // Attempt to reconnect if not a normal closure
-          if (event.code !== 1000 && event.code !== 1001) {
-            this.attemptReconnect();
-          }
-        };
+          // Our WebSocketWithHeartbeat implementation will handle reconnection
+        });
         
-        this.socket.onerror = (error) => {
+        this.socket.addEventListener('error', (error) => {
           console.error('[WebRTC] Signaling error:', error);
           clearTimeout(connectionTimeout);
-          reject(new Error('Signaling connection error'));
+          
+          // Only reject if we haven't resolved yet
+          // This prevents errors during reconnection attempts from causing issues
+          if (this.socket && this.socket.readyState !== WebSocket.OPEN) {
+            reject(new Error('Signaling connection error'));
+          }
+        });
+        
+        // Set up reconnection callback
+        this.socket.onReconnect = () => {
+          console.log('[WebRTC] WebSocket reconnected, re-registering...');
+          
+          // Re-register user ID
+          if (this.userId) {
+            this.sendSignalingMessage({
+              type: 'register',
+              userId: this.userId
+            });
+          }
+          
+          // Re-join room if we were in one
+          if (this.roomId) {
+            console.log(`[WebRTC] Re-joining room ${this.roomId} after reconnection`);
+            this.joinRoom(this.roomId)
+              .then(() => console.log(`[WebRTC] Successfully re-joined room ${this.roomId}`))
+              .catch(error => console.error(`[WebRTC] Failed to re-join room: ${error.message}`));
+          }
         };
       } catch (error) {
         console.error('[WebRTC] Failed to set up signaling:', error);
@@ -507,17 +538,14 @@ export class WebRTCService {
   
   /**
    * Set up heartbeat to keep WebSocket connection alive
+   * Note: This is now handled by the WebSocketWithHeartbeat implementation
    */
   private setupHeartbeat(): void {
+    // This method is now a no-op as heartbeats are handled by WebSocketWithHeartbeat
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
     }
-    
-    this.heartbeatInterval = window.setInterval(() => {
-      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-        this.sendSignalingMessage({ type: 'heartbeat' });
-      }
-    }, 30000); // Send heartbeat every 30 seconds
   }
   
   /**
