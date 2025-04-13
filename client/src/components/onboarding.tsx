@@ -454,7 +454,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                         </SelectContent>
                                       </Select>
                                     </div>
-                                  
+                                    
                                     <Calendar
                                       mode="single"
                                       selected={field.value ? new Date(field.value) : undefined}
