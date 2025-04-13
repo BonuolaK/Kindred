@@ -161,11 +161,12 @@ const steps: Step[] = [
 // Basic validation schema
 const onboardingSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  age: z.number().min(18, "You must be at least 18 years old").max(120),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  age: z.number().min(21, "You must be at least 21 years old to use Kindred").max(120),
   gender: z.string().min(1, "Please select your gender"),
   interestedGenders: z.array(z.string()).min(1, "Please select at least one gender"),
-  agePreferenceMin: z.number().min(18, "Minimum age must be at least 18").max(120).optional(),
-  agePreferenceMax: z.number().min(18, "Maximum age must be at least 18").max(120).optional(),
+  agePreferenceMin: z.number().min(21, "Minimum age must be at least 21").max(120).optional(),
+  agePreferenceMax: z.number().min(21, "Maximum age must be at least 21").max(120).optional(),
   location: z.string().min(1, "Please select your location"),
   bio: z.string().optional(),
   communicationStyle: z.string().optional(),
@@ -175,6 +176,9 @@ const onboardingSchema = z.object({
   loveLanguage: z.string().optional(),
   relationshipPace: z.string().optional(),
   dealbreakers: z.array(z.string()).optional(),
+  avatar: z.string().optional(),
+  idVerificationImage: z.string().optional(),
+  idVerificationSkipped: z.boolean().optional(),
 });
 
 type OnboardingFormValues = z.infer<typeof onboardingSchema>;
