@@ -17,7 +17,7 @@ export default function MobileNav({ activeTab }: MobileNavProps) {
   const tabs = [
     { id: "home", label: "Home", icon: <Home className="text-xl" />, path: "/home" },
     { id: "matches", label: "Matches", icon: <Heart className="text-xl" />, path: "/matches" },
-    { id: "conversations", label: "Messages", icon: <MessageCircle className="text-xl" />, path: "/conversations" },
+    { id: "chats", label: "Chats", icon: <MessageCircle className="text-xl" />, path: "/chats" },
     { id: "profile", label: "Profile", icon: <User className="text-xl" />, path: "/profile" },
   ];
 

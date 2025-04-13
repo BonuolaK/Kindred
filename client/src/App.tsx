@@ -8,6 +8,7 @@ import AuthPage from "@/pages/auth-page";
 import HomePage from "@/pages/home-page";
 import ProfilePage from "@/pages/profile-page";
 import MatchesPage from "@/pages/matches-page";
+import ChatsPage from "@/pages/chats-page";
 import ConversationPage from "@/pages/conversation-page";
 import CallPage from "@/pages/call-page";
 import SocketTestPage from "@/pages/socket-test";
@@ -27,7 +28,9 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/home" component={HomePage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
+      <ProtectedRoute path="/profile/subscription" component={ProfilePage} />
       <ProtectedRoute path="/matches" component={MatchesPage} />
+      <ProtectedRoute path="/chats" component={ChatsPage} />
       <ProtectedRoute path="/conversation/:id" component={ConversationPage} />
       <ProtectedRoute path="/call/:id" component={CallPage} />
       <ProtectedRoute path="/debug-matches" component={DebugMatches} />
