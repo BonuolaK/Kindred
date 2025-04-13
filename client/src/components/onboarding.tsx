@@ -1193,8 +1193,100 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         )}
                       />
                     )}
-                    
+
                     {currentStep === 16 && (
+                      <FormField
+                        control={form.control}
+                        name="relationshipPace"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormControl>
+                                <RadioGroup
+                                  onValueChange={(value: string) => field.onChange(value)}
+                                  value={typeof field.value === 'string' ? field.value : ''}
+                                  className="flex flex-col space-y-3 mt-4"
+                                >
+                                  {[
+                                    "Taking things slowly and building friendship first",
+                                    "Moderate pace with regular communication",
+                                    "Diving deep quickly to establish emotional connection", 
+                                    "Following intuition rather than a set timeline"
+                                  ].map((pace) => (
+                                    <FormItem key={pace} className="flex items-center space-x-3 space-y-0">
+                                      <FormControl>
+                                        <RadioGroupItem value={pace} />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">
+                                        {pace}
+                                      </FormLabel>
+                                    </FormItem>
+                                  ))}
+                                </RadioGroup>
+                              </FormControl>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 17 && (
+                      <FormField
+                        control={form.control}
+                        name="dealbreakers"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormDescription>Select all that apply</FormDescription>
+                              <div className="grid grid-cols-1 gap-4 mt-4">
+                                {[
+                                  "Different lifestyle habits",
+                                  "Misaligned future goals",
+                                  "Incompatible financial attitudes",
+                                  "Different social needs",
+                                  "Conflicting values or beliefs"
+                                ].map((dealbreaker) => (
+                                  <FormItem 
+                                    key={dealbreaker} 
+                                    className="flex items-center space-x-3 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <Checkbox 
+                                        checked={(field.value || []).includes(dealbreaker)} 
+                                        onCheckedChange={(checked) => {
+                                          if (checked) {
+                                            field.onChange([...(field.value || []), dealbreaker]);
+                                          } else {
+                                            field.onChange((field.value || []).filter((value) => value !== dealbreaker));
+                                          }
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                      {dealbreaker}
+                                    </FormLabel>
+                                  </FormItem>
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 18 && (
                       <div className="flex-1 flex flex-col items-center justify-center text-center">
                         <motion.div 
                           initial={{ scale: 0.8, opacity: 0 }} 
