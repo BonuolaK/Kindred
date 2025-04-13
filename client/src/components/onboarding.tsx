@@ -86,7 +86,7 @@ const steps: Step[] = [
     id: 2,
     title: "Basic Information",
     description: "Tell us about yourself",
-    question: "What's your name?",
+    question: "What's your username?",
     fieldName: "name",
   },
   {

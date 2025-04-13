@@ -214,7 +214,48 @@ export function setupAuth(app: Express) {
     
     try {
       const userId = req.user.id;
-      const updatedUser = await storage.updateUser(userId, req.body);
+      
+      // Check if we need to set onboarding_completed
+      const userData = { ...req.body };
+      
+      // Automatically check if required fields are completed
+      // Required fields: username, gender, interestedGenders, age, bio, location, questionnaire fields
+      const user = await storage.getUser(userId);
+      const requiredFieldsCompleted = user && (
+        // Check for all required fields
+        (userData.username || user.username) && 
+        (userData.gender || user.gender) && 
+        ((userData.interestedGenders && userData.interestedGenders.length > 0) || 
+          (user.interestedGenders && user.interestedGenders.length > 0)) && 
+        (userData.age || user.age) && 
+        (userData.bio || user.bio) && 
+        (userData.location || user.location) &&
+        // Check for questionnaire fields
+        (userData.communicationStyle || user.communicationStyle) &&
+        ((userData.freeTimeActivities && userData.freeTimeActivities.length > 0) || 
+          (user.freeTimeActivities && user.freeTimeActivities.length > 0)) &&
+        (userData.values || user.values) &&
+        (userData.conflictResolution || user.conflictResolution) &&
+        (userData.loveLanguage || user.loveLanguage) &&
+        (userData.relationshipPace || user.relationshipPace)
+      );
+      
+      // Set onboarding_completed if all required fields are present
+      if (requiredFieldsCompleted) {
+        userData.onboardingCompleted = true;
+        console.log(`Setting onboarding_completed to true for user ${userId}`);
+      }
+      
+      // Handle "Flexible Timing" default for callPreferences if not set
+      if (!userData.callPreferences && !user?.callPreferences) {
+        userData.callPreferences = {
+          weekdays: [],
+          weekends: [],
+          notAvailable: []
+        };
+      }
+      
+      const updatedUser = await storage.updateUser(userId, userData);
       
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
