@@ -265,14 +265,14 @@ export function setupSocketServer(httpServer: HttpServer) {
             // Try both potential key formats
             if (userId) {
               // Look for calls where this user is the initiator
-              for (const [key, call] of activeCalls.entries()) {
+              // Use forEach to avoid TypeScript issues with for...of and Map.entries()
+              activeCalls.forEach((call, key) => {
                 if (call.matchId.toString() === statusMatchId.toString() && 
-                  (call.initiator === userId || call.receiver === userId)) {
+                    (call.initiator === userId || call.receiver === userId)) {
                   callKey = key;
                   callData = call;
-                  break;
                 }
-              }
+              });
             }
             
             if (callData) {
@@ -312,8 +312,13 @@ export function setupSocketServer(httpServer: HttpServer) {
       }
     });
     
-    ws.on('close', () => {
-      console.log(`Client disconnected from advanced WebSocket ${userId ? `(User ${userId})` : ''}`);
+    // Handle WebSocket errors
+    ws.on('error', (error) => {
+      console.error(`WebSocket error for client ${userId ? `(User ${userId})` : ''}:`, error);
+    });
+
+    ws.on('close', (code, reason) => {
+      console.log(`Client disconnected from advanced WebSocket ${userId ? `(User ${userId})` : ''} with code ${code} reason: ${reason || 'none'}`);
       
       if (userId) {
         users.delete(userId);
@@ -336,6 +341,9 @@ export function setupSocketServer(httpServer: HttpServer) {
           }
         });
       }
+      
+      // Remove from heartbeat tracking
+      clientHeartbeats.delete(ws);
     });
   });
 
@@ -348,12 +356,12 @@ function cleanupDeadConnection(ws: WebSocket) {
     // Find the user ID for this connection
     let userIdToRemove: number | null = null;
     
-    for (const [id, socket] of users.entries()) {
-      if (socket === ws) {
+    // Use forEach to avoid TypeScript issues with for...of and Map.entries()
+    users.forEach((socket, id) => {
+      if (socket === ws && userIdToRemove === null) {
         userIdToRemove = id;
-        break;
       }
-    }
+    });
     
     // Clean up user registration
     if (userIdToRemove !== null) {

@@ -97,9 +97,14 @@ export function setupWebRTCSignaling(httpServer: HttpServer) {
       }
     });
 
-    ws.on('close', () => {
+    // Handle WebSocket errors
+    ws.on('error', (error) => {
+      log(`WebSocket error for client ${userId ? `userId=${userId}` : 'unregistered'}:`, error);
+    });
+
+    ws.on('close', (code, reason) => {
       if (userId) {
-        log(`Client disconnected: userId=${userId}`);
+        log(`Client disconnected: userId=${userId} with code ${code} reason: ${reason || 'none'}`);
         
         // Remove user from their room
         handleLeaveRoom(userId);
@@ -107,7 +112,7 @@ export function setupWebRTCSignaling(httpServer: HttpServer) {
         // Remove client from connected clients
         connectedClients.delete(userId);
       } else {
-        log('Unregistered client disconnected');
+        log(`Unregistered client disconnected with code ${code} reason: ${reason || 'none'}`);
       }
     });
 
