@@ -20,12 +20,19 @@ export default function LandingPage() {
   
   // Track page view when component mounts
   useEffect(() => {
-    trackEvent('view_landing_page', { source: 'landing' });
+    trackEvent('view_landing_page', { 
+      source: 'landing',
+      timestamp: new Date().toISOString()
+    });
   }, []);
 
   const handleGetStarted = () => {
     // Track sign up click event
-    trackEvent('click_sign_up', { source: 'landing_page', button: 'get_started' });
+    trackEvent('click_sign_up', { 
+      source: 'landing_page', 
+      button: 'get_started',
+      timestamp: new Date().toISOString()
+    });
     navigate("/auth");
   };
   
@@ -49,7 +56,11 @@ export default function LandingPage() {
                 variant="outline" 
                 className="px-4 py-2 text-primary border-primary" 
                 onClick={() => {
-                  trackEvent('click_sign_in', { source: 'landing_page', location: 'header' });
+                  trackEvent('click_sign_in', { 
+                    source: 'landing_page', 
+                    location: 'header',
+                    timestamp: new Date().toISOString()
+                  });
                   navigate("/auth?tab=login");
                 }}
               >
@@ -58,7 +69,11 @@ export default function LandingPage() {
               <Button
                 className="px-4 py-2 bg-primary hover:bg-primary/90"
                 onClick={() => {
-                  trackEvent('click_sign_up', { source: 'landing_page', location: 'header' });
+                  trackEvent('click_sign_up', { 
+                    source: 'landing_page', 
+                    location: 'header',
+                    timestamp: new Date().toISOString()
+                  });
                   navigate("/auth?tab=register");
                 }}
               >
@@ -93,7 +108,11 @@ export default function LandingPage() {
                   size="lg"
                   className="px-8 py-4 border-2 border-primary text-primary hover:bg-gray-100 rounded-xl text-lg"
                   onClick={() => {
-                    trackEvent('click_learn_more', { source: 'landing_page', section: 'hero' });
+                    trackEvent('click_learn_more', { 
+                      source: 'landing_page', 
+                      section: 'hero',
+                      timestamp: new Date().toISOString()
+                    });
                     document.getElementById('how-it-works')?.scrollIntoView({behavior: 'smooth'});
                   }}
                 >

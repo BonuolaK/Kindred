@@ -4,7 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "./hooks/use-auth";
 import AnalyticsTracker from "./components/analytics-tracker";
-import { initAnalytics } from "./lib/analytics";
+import { initAnalytics, trackEvent } from "./lib/analytics";
 import { useEffect } from "react";
 import LandingPage from "@/pages/landing-page";
 import AuthPage from "@/pages/auth-page";
@@ -50,8 +50,39 @@ function Router() {
 
 function AnalyticsInitializer() {
   useEffect(() => {
-    // Initialize analytics system
-    initAnalytics();
+    try {
+      // Initialize analytics system
+      console.log('[App] Initializing analytics in App component');
+      initAnalytics();
+      
+      // Send a test event through our analytics API
+      console.log('[App] Sending test event');
+      trackEvent('app_initialized', { 
+        timestamp: new Date().toISOString(),
+        url: window.location.href
+      });
+      
+      // Try direct PostHog access to verify library loading
+      if (typeof window !== 'undefined') {
+        // Set up an interval to try multiple times to catch when PostHog is loaded
+        const interval = setInterval(() => {
+          if (window.posthog) {
+            console.log('[App] Direct PostHog found in window, sending test');
+            window.posthog.capture('direct_test_from_app', {
+              timestamp: new Date().toISOString(),
+              page: window.location.pathname,
+              method: 'direct_window_access'
+            });
+            clearInterval(interval);
+          }
+        }, 500);
+        
+        // Clean up interval after 10 seconds (20 attempts)
+        setTimeout(() => clearInterval(interval), 10000);
+      }
+    } catch (error) {
+      console.error('[App] Error initializing analytics:', error);
+    }
   }, []);
   
   return null;
