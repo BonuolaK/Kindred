@@ -5,7 +5,7 @@ import { formatDate } from "@/lib/utils";
 import { Match, User } from "@shared/schema";
 import { Lock, Phone, MessageCircle, CalendarClock, Eye, Clock, X, RefreshCw, AlertTriangle } from "lucide-react";
 import UserAvatar from "./user-avatar";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { CallPreferencesDisplay } from "./call-preferences-display";
 import { CompactCallPreferences } from "./compact-call-preferences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -41,7 +41,6 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [isUnmatching, setIsUnmatching] = useState(false);
   const { toast } = useToast();
-  const [, navigate] = useLocation();
   
   // Handle unmatch function
   const handleUnmatch = async () => {
@@ -62,7 +61,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
         });
         
         // Invalidate the matches query to refresh the list
-        queryClient.invalidateQueries(["/api/matches"]);
+        queryClient.invalidateQueries({queryKey: ["/api/matches"]});
         
         // Close the dialog
         setUnmatchDialogOpen(false);
@@ -136,7 +135,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
             <AlertDialogAction 
               onClick={() => {
                 setUpgradeDialogOpen(false);
-                navigate("/profile?tab=subscription");
+                window.location.href = "/profile?tab=subscription";
               }}
               className="bg-primary hover:bg-primary/90"
             >
