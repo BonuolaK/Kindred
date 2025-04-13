@@ -4,11 +4,13 @@ import { useLocation } from "wouter";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { profileSchema } from "@shared/schema";
+import { profileSchema, callPreferencesSchema } from "@shared/schema";
 import { ukCities } from "@/lib/uk-cities";
 import AvatarPlaceholder from "@/components/avatar-placeholder";
 import AvatarSelector from "@/components/avatar-selector";
 import Onboarding from "@/components/onboarding";
+import { CallPreferencesEditor } from "@/components/call-preferences-editor";
+import { CallPreferencesDisplay } from "@/components/call-preferences-display";
 import {
   Form,
   FormControl,
@@ -50,6 +52,7 @@ const extendedProfileSchema = profileSchema.extend({
   age: z.number().min(18, "You must be at least 18 years old").max(120),
   gender: z.string().min(1, "Please select your gender"),
   interestedGenders: z.array(z.string()).min(1, "Please select at least one gender"),
+  callPreferences: callPreferencesSchema.optional(),
 });
 
 type ProfileFormValues = z.infer<typeof extendedProfileSchema>;
@@ -81,6 +84,11 @@ export default function ProfilePage() {
       loveLanguage: user?.loveLanguage || "",
       relationshipPace: user?.relationshipPace || "",
       dealbreakers: user?.dealbreakers || [],
+      callPreferences: user?.callPreferences || {
+        weekdays: [],
+        weekends: [],
+        notAvailable: []
+      },
     },
   });
   
@@ -211,6 +219,15 @@ export default function ProfilePage() {
               <div>
                 <h3 className="text-sm font-medium text-gray-500">About Me</h3>
                 <p className="text-sm">{user?.bio || 'No bio provided'}</p>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Preferred Call Times</h3>
+                {user?.callPreferences ? (
+                  <CallPreferencesDisplay preferences={user.callPreferences} />
+                ) : (
+                  <p className="text-sm">No call preferences set</p>
+                )}
               </div>
             </div>
           </CardContent>

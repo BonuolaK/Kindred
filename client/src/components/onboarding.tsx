@@ -64,6 +64,7 @@ import { ukCities } from "@/lib/uk-cities";
 import { motion, AnimatePresence } from "framer-motion";
 import AvatarSelector from "@/components/avatar-selector";
 import AvatarPlaceholder from "@/components/avatar-placeholder";
+import { CallPreferencesEditor } from "@/components/call-preferences-editor";
 import { cn } from "@/lib/utils";
 
 // Steps for the onboarding process
@@ -263,6 +264,11 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
       loveLanguage: user?.loveLanguage || "",
       relationshipPace: user?.relationshipPace || "",
       dealbreakers: user?.dealbreakers || [],
+      callPreferences: user?.callPreferences || {
+        weekdays: [],
+        weekends: [],
+        notAvailable: []
+      },
       avatar: user?.avatar || "",
       idVerificationImage: user?.idVerificationImage || "",
       idVerificationSkipped: user?.idVerificationSkipped || false,
@@ -1350,6 +1356,35 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                     )}
                     
                     {currentStep === 18 && (
+                      <FormField
+                        control={form.control}
+                        name="callPreferences"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormDescription>
+                                Setting your preferred call times helps matches schedule calls when you're available
+                              </FormDescription>
+                              <FormControl>
+                                <CallPreferencesEditor 
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  className="mt-4"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 19 && (
                       <div className="flex-1 flex flex-col items-center justify-center text-center">
                         <motion.div 
                           initial={{ scale: 0.8, opacity: 0 }} 
