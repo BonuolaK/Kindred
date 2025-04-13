@@ -5,6 +5,9 @@ import { WebSocketServer, WebSocket } from "ws";
 // Store active users and their socket IDs
 const users = new Map<number, WebSocket>();
 
+// Track online users
+const onlineUsers = new Set<number>();
+
 // Store active calls
 const activeCalls = new Map<string, {
   initiator: number;
