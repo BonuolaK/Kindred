@@ -237,44 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Unmatch endpoint
-  app.post("/api/matches/:id/unmatch", async (req, res, next) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    
-    try {
-      const matchId = parseInt(req.params.id);
-      const userId = req.user.id;
-      
-      // Get the match
-      const match = await storage.getMatchById(matchId);
-      if (!match) {
-        return res.status(404).json({ message: "Match not found" });
-      }
-      
-      // Verify that the user is part of the match
-      if (match.userId1 !== userId && match.userId2 !== userId) {
-        return res.status(403).json({ message: "You are not part of this match" });
-      }
-      
-      // Check user's subscription status - only Premium and Elite can unmatch
-      if (req.user.profileType === 'basic') {
-        return res.status(403).json({ 
-          message: "This feature is only available to premium members", 
-          requiresUpgrade: true 
-        });
-      }
-      
-      // Update the match with unmatch information
-      const updatedMatch = await storage.updateMatch(matchId, {
-        unmatched_by: userId,
-        unmatched_date: new Date()
-      });
-      
-      res.status(200).json({ message: "Successfully unmatched", match: updatedMatch });
-    } catch (error) {
-      next(error);
-    }
-  });
+
   
   // Debug endpoint to directly test matching algorithm
   app.get("/api/debug/direct-match-test", async (req, res, next) => {
