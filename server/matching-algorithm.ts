@@ -80,16 +80,44 @@ export class MatchingAlgorithm {
       // Skip self
       if (candidate.id === user.id) return false;
       
-      // Skip if no gender preferences set
-      if (!user.interestedGenders || !candidate.interestedGenders) return false;
+      // For better debugging, log the gender preferences
+      console.log(`Checking gender preferences between ${user.username} and ${candidate.username}:`);
+      console.log(`  User gender: ${user.gender || 'Not specified'}`);
+      console.log(`  Candidate gender: ${candidate.gender || 'Not specified'}`);
+      console.log(`  User interested in: ${user.interestedGenders ? JSON.stringify(user.interestedGenders) : 'Not specified'}`);
+      console.log(`  Candidate interested in: ${candidate.interestedGenders ? JSON.stringify(candidate.interestedGenders) : 'Not specified'}`);
       
-      // Check if user's gender is in candidate's interested genders
-      const candidateInterestedInUser = 
-        candidate.interestedGenders.includes(user.gender || "");
+      // If preferences aren't set, be inclusive rather than exclusive
+      if (!user.interestedGenders || !user.interestedGenders.length) {
+        console.log(`  ${user.username} has no gender preferences set, considering all matches`);
+        return true;
+      }
       
-      // Check if candidate's gender is in user's interested genders
-      const userInterestedInCandidate = 
-        user.interestedGenders.includes(candidate.gender || "");
+      if (!candidate.interestedGenders || !candidate.interestedGenders.length) {
+        console.log(`  ${candidate.username} has no gender preferences set, considering as match`);
+        return true;
+      }
+      
+      // Handle missing gender field more gracefully
+      if (!user.gender) {
+        console.log(`  ${user.username} has no gender specified, skipping mutual check`);
+        // Only check if user is interested in candidate's gender
+        return user.interestedGenders.includes(candidate.gender || "");
+      }
+      
+      if (!candidate.gender) {
+        console.log(`  ${candidate.username} has no gender specified, skipping mutual check`);
+        // Only check if candidate is interested in user's gender
+        return candidate.interestedGenders.includes(user.gender || "");
+      }
+      
+      // Standard mutual interest check
+      const candidateInterestedInUser = candidate.interestedGenders.includes(user.gender);
+      const userInterestedInCandidate = user.interestedGenders.includes(candidate.gender);
+      
+      console.log(`  Candidate interested in user: ${candidateInterestedInUser}`);
+      console.log(`  User interested in candidate: ${userInterestedInCandidate}`);
+      console.log(`  Match: ${candidateInterestedInUser && userInterestedInCandidate}`);
       
       // Must be mutual interest
       return candidateInterestedInUser && userInterestedInCandidate;
@@ -138,8 +166,18 @@ export class MatchingAlgorithm {
     candidateResponse?: string[] | null,
     invert: boolean = false
   ): number | undefined {
-    if (!userResponse || !candidateResponse) return undefined;
-    if (userResponse.length === 0 || candidateResponse.length === 0) return undefined;
+    // Handle null/undefined arrays more gracefully
+    if (!userResponse) userResponse = [];
+    if (!candidateResponse) candidateResponse = [];
+    
+    // If both arrays are empty, they're technically identical
+    if (userResponse.length === 0 && candidateResponse.length === 0) return 1.0;
+    
+    // If one array is empty but the other isn't, there's minimal similarity
+    if (userResponse.length === 0 || candidateResponse.length === 0) return 0.2;
+    
+    // Log for debugging
+    console.log(`Comparing arrays: ${JSON.stringify(userResponse)} and ${JSON.stringify(candidateResponse)}`);
     
     // Calculate Jaccard similarity (intersection over union)
     const intersection = userResponse.filter(item => 
@@ -149,10 +187,14 @@ export class MatchingAlgorithm {
     const union = new Set([...userResponse, ...candidateResponse]);
     
     const similarity = intersection.length / union.size;
+    console.log(`Array similarity: ${similarity} (${intersection.length} common items out of ${union.size} total)`);
     
     // For some metrics like dealbreakers, we want to invert the score
     // More similar dealbreakers = lower compatibility
-    return invert ? 1 - similarity : similarity;
+    const result = invert ? 1 - similarity : similarity;
+    console.log(`Final array score (${invert ? 'inverted' : 'normal'}): ${result}`);
+    
+    return result;
   }
   
   /**

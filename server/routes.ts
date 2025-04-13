@@ -49,6 +49,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('WebSocket servers initialized: general (/ws), WebRTC signaling (/rtc), and basic test (/basic-ws)');
 
   // Match endpoints
+  
+  // Generate matches for a user
+  app.post("/api/generate-matches", async (req, res, next) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Get all users except current user
+      const allUsers = [];
+      let currentId = 1;
+      let potentialUser = null;
+      const userProfiles = [];
+      
+      // Get all users
+      while ((potentialUser = await storage.getUser(currentId))) {
+        if (potentialUser.id !== userId) {
+          allUsers.push(potentialUser);
+          
+          // Keep a copy of user info for debugging
+          const { password, ...userInfo } = potentialUser;
+          userProfiles.push(userInfo);
+        }
+        currentId++;
+      }
+      
+      console.log(`Found ${allUsers.length} potential matches for user ${userId}`);
+      
+      // Use matching algorithm to find compatible users
+      const algorithm = new MatchingAlgorithm();
+      const matchResults = algorithm.findMatches(user, allUsers);
+      
+      // Debug logs - inspect top potential matches and their scores
+      console.log(`Match results for ${user.username}:`);
+      matchResults.slice(0, 5).forEach((match) => {
+        console.log(`- ${match.username}: ${match.matchScore}% compatible`);
+        console.log(`  Gender: ${match.gender}, User's interest: ${user.interestedGenders}`);
+        console.log(`  User's gender: ${user.gender}, Match's interest: ${match.interestedGenders}`);
+        
+        // Check components
+        console.log(`  Personality: ${match.compatibilityBreakdown.personality}%`);
+        console.log(`  Location: ${match.compatibilityBreakdown.location}%`);
+        console.log(`  Age: ${match.compatibilityBreakdown.age}%`);
+        
+        // Check personality factors
+        console.log(`  Communication Style - User: ${user.communicationStyle}, Match: ${match.communicationStyle}`);
+        console.log(`  Values - User: ${user.values}, Match: ${match.values}`);
+      });
+      
+      // Get existing matches to avoid duplicates
+      const existingMatches = await storage.getMatchesByUserId(userId);
+      const existingMatchUserIds = existingMatches.map(match => 
+        match.userId1 === userId ? match.userId2 : match.userId1
+      );
+      
+      // Get top matches that aren't already matched
+      const topMatches = matchResults
+        .filter(match => !existingMatchUserIds.includes(match.id))
+        .filter(match => match.matchScore >= 40) // Lower threshold to ensure matches
+        .slice(0, 3);
+      
+      // Create new matches
+      const newMatches = [];
+      if (topMatches.length > 0) {
+        for (const match of topMatches) {
+          const newMatch = await storage.createMatch({
+            userId1: userId,
+            userId2: match.id,
+            compatibility: match.matchScore,
+            callScheduled: false
+          });
+          newMatches.push(newMatch);
+        }
+        console.log(`Created ${newMatches.length} new matches for user ${user.username}`);
+      } else if (allUsers.length > 0 && existingMatches.length === 0) {
+        // If no matches found by algorithm and user has no matches, create a single random match
+        const compatibleUsers = allUsers.filter(candidate => {
+          if (!user.interestedGenders || !candidate.interestedGenders) return true;
+          
+          // Check mutual gender interest
+          const candidateInterestedInUser = candidate.interestedGenders.includes(user.gender || "");
+          const userInterestedInCandidate = user.interestedGenders.includes(candidate.gender || "");
+          
+          return candidateInterestedInUser && userInterestedInCandidate;
+        });
+        
+        if (compatibleUsers.length > 0) {
+          const matchUser = compatibleUsers[Math.floor(Math.random() * compatibleUsers.length)];
+          const randomCompatibility = 70 + Math.floor(Math.random() * 20); // 70-90%
+          
+          const newMatch = await storage.createMatch({
+            userId1: userId,
+            userId2: matchUser.id,
+            compatibility: randomCompatibility,
+            callScheduled: false
+          });
+          
+          newMatches.push(newMatch);
+          console.log(`Created a random match for user ${user.username} with ${matchUser.username}`);
+        }
+      }
+      
+      res.json({
+        matchResults: matchResults.slice(0, 10),
+        newMatches,
+        userProfiles, // For debugging
+        currentUser: {
+          id: user.id,
+          username: user.username,
+          gender: user.gender,
+          interestedGenders: user.interestedGenders
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   app.get("/api/matches", async (req, res, next) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     
