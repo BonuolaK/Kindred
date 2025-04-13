@@ -249,7 +249,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
   const form = useForm<OnboardingFormValues>({
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
-      name: user?.name || "",
+      username: user?.username || "",
       dateOfBirth: user?.dateOfBirth || "",
       age: user?.age || undefined,
       gender: user?.gender || "",
@@ -273,6 +273,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
       avatar: user?.avatar || "",
       idVerificationImage: user?.idVerificationImage || "",
       idVerificationSkipped: user?.idVerificationSkipped || false,
+      onboardingCompleted: true,
     },
   });
   
@@ -404,7 +405,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                     {currentStep === 2 && (
                       <FormField
                         control={form.control}
-                        name="name"
+                        name="username"
                         render={({ field }) => (
                           <FormItem className="flex-1 flex flex-col justify-center">
                             <motion.div 
@@ -414,13 +415,14 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
                               <FormDescription>
-                                Choose a username that doesn't reveal your real identity to prevent others from finding you on social media.
+                                Choose a username that doesn't reveal your real name – this keeps your identity private and prevents people from finding you on social media.
                               </FormDescription>
                               <FormControl>
                                 <Input 
-                                  placeholder="Your full name" 
+                                  placeholder="Enter a username" 
                                   {...field} 
                                   className="text-lg mt-4"
+                                  defaultValue={user?.username || ""}
                                 />
                               </FormControl>
                               <FormMessage />
@@ -637,7 +639,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                         >
                           <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
                           <FormDescription>
-                            ID verification is required to make and receive calls on Kindred. We take your privacy seriously and only use this to verify your details.
+                            ID verification is required to make and receive calls on Kindred. We take your privacy seriously and only use this to verify your details. You'll need to verify later to make calls if you skip this step.
                           </FormDescription>
                           
                           <div className="mt-6 flex flex-col items-center gap-4">
@@ -707,7 +709,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                                       handleNext();
                                     }}
                                   >
-                                    Skip for now (you'll need to verify later to make calls)
+                                    Skip
                                   </Button>
                                   <FormMessage />
                                 </FormItem>
@@ -738,7 +740,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                                 <div className="mb-6">
                                   <AvatarPlaceholder 
                                     size="xl" 
-                                    name={form.getValues().name} 
+                                    name={form.getValues().username} 
                                     user={{ avatar: field.value }} 
                                   />
                                 </div>
