@@ -8,7 +8,7 @@ import {
   type Note, type InsertNote
 } from "@shared/schema";
 import { IStorage } from "./storage";
-import { eq, and, or, desc, not } from "drizzle-orm";
+import { eq, and, or, desc, not, isNull } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import pg from 'pg';
@@ -123,10 +123,21 @@ export class DatabaseStorage implements IStorage {
 
   async getMatchesByUserId(userId: number): Promise<Match[]> {
     try {
+      // Only get active matches and exclude any where the user initiated an unmatch
       const userMatches = await db
         .select()
         .from(matches)
-        .where(or(eq(matches.userId1, userId), eq(matches.userId2, userId)));
+        .where(
+          and(
+            or(eq(matches.userId1, userId), eq(matches.userId2, userId)),
+            eq(matches.status, 'active'),
+            // Ensure the user is not the one who unmatched (cannevermatch concept)
+            or(
+              isNull(matches.unmatchedBy),
+              not(eq(matches.unmatchedBy, userId))
+            )
+          )
+        );
       return userMatches;
     } catch (error) {
       console.error("Error in getMatchesByUserId:", error);
