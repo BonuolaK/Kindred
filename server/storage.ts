@@ -31,6 +31,7 @@ export interface IStorage {
   
   // Call operations
   getCallLogsByMatchId(matchId: number): Promise<CallLog[]>;
+  getCallLogById(id: number): Promise<CallLog | undefined>;
   createCallLog(callLog: InsertCallLog): Promise<CallLog>;
   updateCallLog(id: number, callLog: Partial<CallLog>): Promise<CallLog | undefined>;
   
@@ -207,6 +208,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.callLogs.values())
       .filter((call) => call.matchId === matchId)
       .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  }
+  
+  async getCallLogById(id: number): Promise<CallLog | undefined> {
+    return this.callLogs.get(id);
   }
   
   async createCallLog(callLogData: InsertCallLog): Promise<CallLog> {
