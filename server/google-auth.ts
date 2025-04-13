@@ -111,9 +111,16 @@ export function setupGoogleAuth(app: Express) {
     return;
   }
 
-  const callbackUrl = process.env.NODE_ENV === 'production'
-    ? 'https://kindred-dating.replit.app/api/auth/google/callback'
-    : 'http://localhost:5000/api/auth/google/callback';
+  // Use the current hostname from the request
+  const currentHost = process.env.REPLIT_DOMAINS ? 
+    process.env.REPLIT_DOMAINS.split(',')[0] :
+    (process.env.NODE_ENV === 'production' ? 'kindred-dating.replit.app' : 'localhost:5000');
+  
+  // Determine protocol based on environment
+  const protocol = process.env.NODE_ENV === 'production' || currentHost.includes('replit') ? 'https' : 'http';
+  
+  // Construct the full callback URL
+  const callbackUrl = `${protocol}://${currentHost}/api/auth/google/callback`;
 
   // Create the Google authentication strategy
   const googleStrategy = new GoogleAuthStrategy(

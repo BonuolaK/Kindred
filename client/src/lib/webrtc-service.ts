@@ -438,8 +438,13 @@ export class WebRTCService {
         }
         
         // Create new WebSocket connection
+        // We're connecting to the current host (explicit to avoid redirect issues)
+        const hostname = window.location.hostname;
+        const port = window.location.port ? `:${window.location.port}` : '';
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/rtc`; // Use /rtc for WebRTC signaling
+        
+        // Build the WebSocket URL with explicit hostname and port
+        const wsUrl = `${protocol}//${hostname}${port}/rtc`; // Use /rtc for WebRTC signaling
         
         console.log(`[WebRTC] Connecting to signaling server at ${wsUrl}`);
         this.socket = new WebSocket(wsUrl);
