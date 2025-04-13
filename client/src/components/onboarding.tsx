@@ -153,6 +153,13 @@ const steps: Step[] = [
   },
   {
     id: 16,
+    title: "Preferred Call Times (Optional)",
+    description: "Set your preferred times for audio calls",
+    question: "When are you typically available for calls?",
+    fieldName: "callPreferences",
+  },
+  {
+    id: 17,
     title: "All Done!",
     description: "Your profile is ready to go",
   },
@@ -175,6 +182,7 @@ const onboardingSchema = z.object({
   loveLanguage: z.string().optional(),
   relationshipPace: z.string().optional(),
   dealbreakers: z.array(z.string()).optional(),
+  // Removed callPreferences from validation schema as it's optional
 });
 
 type OnboardingFormValues = z.infer<typeof onboardingSchema>;
@@ -207,6 +215,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       loveLanguage: user?.loveLanguage || "",
       relationshipPace: user?.relationshipPace || "",
       dealbreakers: user?.dealbreakers || [],
+      callPreferences: user?.callPreferences || "",
     },
   });
   
