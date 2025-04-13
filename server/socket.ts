@@ -1,5 +1,5 @@
 // server/socket.ts
-import { Server as HttpServer } from "http";
+import { Server as HttpServer, IncomingMessage } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 
 // Store active users and their socket IDs
@@ -68,9 +68,16 @@ export function setupSocketServer(httpServer: HttpServer) {
   }, HEARTBEAT_INTERVAL);
 
   // Connected users map: userId -> WebSocket connection
-  wss.on('connection', (ws: WebSocket) => {
+  wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     connectionCount++;
     console.log(`Client connected to WebSocket (total connections: ${connectionCount})`);
+    console.log(`Connection details: URL=${req.url}, Headers:`, {
+      origin: req.headers.origin,
+      host: req.headers.host,
+      upgrade: req.headers.upgrade,
+      connection: req.headers.connection,
+      userAgent: req.headers['user-agent']
+    });
     let userId: number | null = null;
     
     // Initialize heartbeat
@@ -89,6 +96,17 @@ export function setupSocketServer(httpServer: HttpServer) {
         console.error('Error sending pong:', error);
       }
     });
+    
+    // Immediately send a simple welcome message that shouldn't trigger any errors
+    if (ws.readyState === WebSocket.OPEN) {
+      try {
+        const welcomeMsg = JSON.stringify({ type: 'welcome' });
+        console.log('Sending welcome message:', welcomeMsg);
+        ws.send(welcomeMsg);
+      } catch (err) {
+        console.error('Error sending welcome message:', err);
+      }
+    }
     
     ws.on('message', (message) => {
       messageCount++;
