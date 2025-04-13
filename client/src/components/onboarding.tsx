@@ -457,6 +457,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                       const newDate = new Date(year, 0, 1);
                                       field.onChange(newDate.toISOString());
                                       
+                                      // Update the current month view to match the selected year
+                                      setCurrentMonth(newDate);
+                                      
                                       // Switch to date selection
                                       setViewMode('date');
                                     };
@@ -712,14 +715,35 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                 </div>
                                 
                                 <div className="w-full max-w-md">
-                                  <AvatarSelector
-                                    open={true}
-                                    onOpenChange={() => {}}
-                                    onSelect={(emoji) => {
-                                      field.onChange(emoji);
-                                    }}
-                                    currentAvatar={field.value}
-                                  />
+                                  {(() => {
+                                    const [avatarSelectorOpen, setAvatarSelectorOpen] = useState(true);
+                                    
+                                    return (
+                                      <>
+                                        <AvatarSelector
+                                          open={avatarSelectorOpen}
+                                          onOpenChange={setAvatarSelectorOpen}
+                                          onSelect={(emoji) => {
+                                            field.onChange(emoji);
+                                            // After selecting, wait a moment and proceed to next step
+                                            setTimeout(() => {
+                                              handleNext();
+                                            }, 500);
+                                          }}
+                                          currentAvatar={field.value}
+                                        />
+                                        
+                                        {!avatarSelectorOpen && (
+                                          <Button 
+                                            className="mt-4"
+                                            onClick={() => setAvatarSelectorOpen(true)}
+                                          >
+                                            Choose Different Avatar
+                                          </Button>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                               <FormMessage />
