@@ -175,44 +175,48 @@ export default function ProfilePage() {
         <Card className="mb-4">
           <CardContent className="pt-6">
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {user?.gender && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Gender</h3>
-                    <p className="capitalize">{user.gender}</p>
-                  </div>
-                )}
-                
-                {user?.interestedGenders && user.interestedGenders.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Interested in</h3>
-                    <p className="capitalize">
-                      {user.interestedGenders.map(g => g).join(', ')}
-                    </p>
-                  </div>
-                )}
-                
-                {user?.location && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Location</h3>
-                    <p>{user.location}</p>
-                  </div>
-                )}
-                
-                {user?.agePreferenceMin && user?.agePreferenceMax && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Age Preference</h3>
-                    <p>{user.agePreferenceMin} - {user.agePreferenceMax}</p>
-                  </div>
-                )}
+              {/* Debug section */}
+              <div>
+                <h3 className="text-sm font-medium mb-2">Debug - Available User Data:</h3>
+                <pre className="bg-gray-100 p-2 rounded-md text-xs overflow-auto max-h-[200px]">
+                  {JSON.stringify(user, null, 2)}
+                </pre>
               </div>
               
-              {user?.bio && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">About Me</h3>
-                  <p className="text-sm">{user.bio}</p>
+                  <h3 className="text-sm font-medium text-gray-500">Gender</h3>
+                  <p className="capitalize">{user?.gender || 'Not specified'}</p>
                 </div>
-              )}
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Interested in</h3>
+                  <p className="capitalize">
+                    {user?.interestedGenders && user.interestedGenders.length > 0 
+                      ? user.interestedGenders.join(', ')
+                      : 'Not specified'}
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Location</h3>
+                  <p>{user?.location || 'Not specified'}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Age Preference</h3>
+                  <p>
+                    {user?.agePreferenceMin && user?.agePreferenceMax 
+                      ? `${user.agePreferenceMin} - ${user.agePreferenceMax}`
+                      : 'Not specified'}
+                  </p>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">About Me</h3>
+                <p className="text-sm">{user?.bio || 'No bio provided'}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
