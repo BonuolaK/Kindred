@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
 import { AlertTriangle, Mic, MicOff, Phone, PhoneOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { createWebSocketWithHeartbeat, WebSocketWithHeartbeat } from '@/lib/websocket-heartbeat';
 
 // Simple audio call test component that doesn't rely on the WebRTC service
 export default function SimpleRtcTest() {
@@ -17,7 +18,7 @@ export default function SimpleRtcTest() {
   
   const localAudioRef = useRef<HTMLAudioElement>(null);
   const logEnd = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<WebSocket | null>(null);
+  const socketRef = useRef<WebSocketWithHeartbeat | null>(null);
   
   useEffect(() => {
     // Auto scroll logs to bottom
@@ -31,10 +32,10 @@ export default function SimpleRtcTest() {
     setLogs(prev => [...prev, `[${timestamp}] ${message}`]);
   };
   
-  // Test WebSocket connection
+  // Test WebSocket connection with heartbeat support
   const testWebSocketConnection = () => {
     try {
-      addLog('Testing WebSocket connection...');
+      addLog('Testing WebSocket connection with heartbeat support...');
       
       // Close any existing connection
       if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) {
@@ -47,14 +48,25 @@ export default function SimpleRtcTest() {
       
       addLog(`Connecting to ${wsUrl}`);
       
-      socketRef.current = new WebSocket(wsUrl);
+      // Use our enhanced WebSocket with heartbeat
+      socketRef.current = createWebSocketWithHeartbeat(wsUrl);
       
-      socketRef.current.onopen = () => {
+      // Store user ID for reconnection support
+      if (user) {
+        socketRef.current.userId = user.id;
+      }
+      
+      // Set up reconnection callback
+      socketRef.current.onReconnect = () => {
+        addLog('WebSocket reconnected after connection loss');
+      };
+      
+      socketRef.current.addEventListener('open', () => {
         addLog('WebSocket connection established successfully!');
         setWsConnected(true);
         
         // Register with the server
-        if (user && socketRef.current) {
+        if (user && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
           const message = {
             type: 'register',
             userId: user.id
@@ -62,27 +74,36 @@ export default function SimpleRtcTest() {
           socketRef.current.send(JSON.stringify(message));
           addLog(`Sent registration message for user ${user.id}`);
         }
-      };
+      });
       
-      socketRef.current.onclose = (event) => {
+      socketRef.current.addEventListener('close', (event) => {
         addLog(`WebSocket connection closed: code=${event.code}, reason="${event.reason || 'none'}"`);
-        setWsConnected(false);
-      };
+        if (event.code === 1000 || event.code === 1001) {
+          // Normal closure
+          setWsConnected(false);
+        } else {
+          // Will attempt to reconnect automatically
+          addLog('Attempting automatic reconnection...');
+        }
+      });
       
-      socketRef.current.onerror = (error) => {
+      socketRef.current.addEventListener('error', (error) => {
         addLog(`WebSocket error occurred`);
-        setError('WebSocket connection failed');
-        setWsConnected(false);
-      };
+        setError('WebSocket connection error - will attempt to reconnect');
+      });
       
-      socketRef.current.onmessage = (event) => {
+      socketRef.current.addEventListener('message', (event) => {
         try {
           const data = JSON.parse(event.data);
+          // Don't log heartbeat messages to avoid cluttering the log
+          if (data.type === 'ping' || data.type === 'pong') {
+            return;
+          }
           addLog(`Received message: ${JSON.stringify(data).substring(0, 100)}...`);
         } catch (e) {
           addLog(`Received non-JSON message: ${event.data.substring(0, 100)}...`);
         }
-      };
+      });
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);

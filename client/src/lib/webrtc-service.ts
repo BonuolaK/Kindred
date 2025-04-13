@@ -7,6 +7,7 @@
  */
 
 import { queryClient } from './queryClient';
+import { createWebSocketWithHeartbeat, WebSocketWithHeartbeat } from './websocket-heartbeat';
 
 // STUN and TURN server configuration
 const ICE_SERVERS = [
@@ -80,7 +81,7 @@ export type ConnectionState =
  */
 export class WebRTCService {
   // Core WebRTC and signaling
-  private socket: WebSocket | null = null;
+  private socket: WebSocketWithHeartbeat | null = null;
   private peerConnections: Map<number, RTCPeerConnection> = new Map();
   
   // Media streams
@@ -112,7 +113,7 @@ export class WebRTCService {
   /**
    * Get the current WebSocket instance for direct messaging
    */
-  getWebSocketInstance(): WebSocket | null {
+  getWebSocketInstance(): WebSocketWithHeartbeat | null {
     return this.socket;
   }
   
@@ -453,8 +454,13 @@ export class WebRTCService {
         // Build the WebSocket URL with explicit host to handle Replit domains
         const wsUrl = `${protocol}//${host}/rtc`; // Use /rtc for WebRTC signaling
         
-        console.log(`[WebRTC] Connecting to signaling server at ${wsUrl}`);
-        this.socket = new WebSocket(wsUrl);
+        console.log(`[WebRTC] Connecting to signaling server at ${wsUrl} with heartbeat`);
+        this.socket = createWebSocketWithHeartbeat(wsUrl);
+        
+        // Store user ID for reconnection support
+        if (this.userId) {
+          this.socket.userId = this.userId;
+        }
         
         // Set up connection timeout (extend to 15 seconds for Replit)
         const connectionTimeout = setTimeout(() => {
