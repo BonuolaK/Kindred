@@ -215,6 +215,19 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
+  
+  async getCallLogById(id: number): Promise<CallLog | undefined> {
+    try {
+      const [callLog] = await db
+        .select()
+        .from(callLogs)
+        .where(eq(callLogs.id, id));
+      return callLog;
+    } catch (error) {
+      console.error("Error in getCallLogById:", error);
+      return undefined;
+    }
+  }
 
   async createCallLog(callLogData: InsertCallLog): Promise<CallLog> {
     try {

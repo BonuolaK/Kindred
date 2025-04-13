@@ -208,16 +208,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const callId = parseInt(req.params.id, 10);
       
-      // Get all call logs and find the specific one
-      const allCallLogs = await Promise.all([
-        ...Array(10).fill(0).map((_, i) => storage.getCallLogsByMatchId(i + 1))
-      ]);
-      
-      // Flatten the array of arrays
-      const callLogs = allCallLogs.flat();
-      
-      // Find the specific call by ID
-      const call = callLogs.find(log => log.id === callId);
+      // Get call directly by ID using our new method
+      const call = await storage.getCallLogById(callId);
       
       if (!call) {
         return res.status(404).json({ message: "Call not found" });
@@ -242,16 +234,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const callId = parseInt(req.params.id, 10);
       const { status, endTime, duration } = req.body;
       
-      // Get all call logs and find the specific one
-      const allCallLogs = await Promise.all([
-        ...Array(10).fill(0).map((_, i) => storage.getCallLogsByMatchId(i + 1))
-      ]);
-      
-      // Flatten the array of arrays
-      const callLogs = allCallLogs.flat();
-      
-      // Find the specific call by ID
-      const call = callLogs.find(log => log.id === callId);
+      // Get call directly by ID
+      const call = await storage.getCallLogById(callId);
       
       if (!call) {
         return res.status(404).json({ message: "Call not found" });

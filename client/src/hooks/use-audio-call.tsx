@@ -457,7 +457,25 @@ export function useAudioCall(matchId?: number, otherUserId?: number) {
   // Answer an incoming call
   const answerCall = useCallback(async (targetMatchId: number, fromUserId: number, callDay: number) => {
     try {
-      return await joinCall(targetMatchId, fromUserId, targetMatchId, false);
+      console.log("Answering call for match:", targetMatchId, "from user:", fromUserId);
+      
+      // First, fetch the active call for this match
+      const response = await apiRequest('GET', `/api/calls/match/${targetMatchId}/active`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error fetching active call:", errorText);
+        throw new Error("Couldn't find an active call for this match");
+      }
+      
+      const callData = await response.json();
+      console.log("Found active call:", callData);
+      
+      if (!callData.id) {
+        throw new Error("Invalid call data returned from API");
+      }
+      
+      // Now join the actual call with the correct call ID
+      return await joinCall(callData.id, fromUserId, targetMatchId, false);
     } catch (error) {
       console.error('Failed to answer call:', error);
       throw error;
