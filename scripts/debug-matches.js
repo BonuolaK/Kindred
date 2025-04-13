@@ -3,6 +3,21 @@ import { matches, users } from '../shared/schema.js';
 import { eq, or, and, ne } from 'drizzle-orm';
 import { MatchingAlgorithm } from '../server/matching-algorithm.js';
 
+// Helper function to normalize gender text
+function normalizeGender(gender) {
+  if (!gender) return null;
+  
+  const genderText = typeof gender === 'string' ? gender.toLowerCase() : null;
+  
+  if (genderText === 'woman' || genderText === 'women' || genderText === 'female') {
+    return 'female';
+  } else if (genderText === 'man' || genderText === 'men' || genderText === 'male') {
+    return 'male';
+  }
+  
+  return genderText;
+}
+
 async function debugMatches() {
   try {
     // Get Tester99 user
@@ -74,10 +89,56 @@ async function debugMatches() {
       console.log(`  User's gender: ${tester99.gender}, Match's interest: ${match.interestedGenders}`);
     });
     
-    // Get top matches to create
-    const topMatches = matchResults
-      .filter(match => match.matchScore >= 40) // Lower threshold to ensure matches
+    // Create a manual check for gender preference matching
+    const manualMatchResults = allUsers.map(user => {
+      // Check gender compatibility
+      const userGender = normalizeGender(tester99.gender);
+      const candidateGender = normalizeGender(user.gender);
+      
+      // Convert interest arrays to normalized values
+      const userInterests = (tester99.interestedGenders || []).map(g => normalizeGender(g));
+      const candidateInterests = (user.interestedGenders || []).map(g => normalizeGender(g));
+      
+      // Check mutual interest
+      const userInterestedInCandidate = candidateGender && userInterests.some(g => g === candidateGender);
+      const candidateInterestedInUser = userGender && candidateInterests.some(g => g === userGender);
+      
+      // Calculate a simple compatibility score (replacing with actual algorithm if needed)
+      let compatibilityScore = 0;
+      if (userInterestedInCandidate && candidateInterestedInUser) {
+        // If mutual interest, assign a high compatibility score to ensure matching
+        compatibilityScore = 80;
+      }
+      
+      return {
+        ...user,
+        matchScore: compatibilityScore,
+        userInterestedInCandidate,
+        candidateInterestedInUser
+      };
+    });
+    
+    console.log("Manual match results:");
+    manualMatchResults
+      .filter(match => match.matchScore > 0)
+      .slice(0, 5)
+      .forEach(match => {
+        console.log(`- ${match.username}: ${match.matchScore}% compatible`);
+        console.log(`  User interested in candidate: ${match.userInterestedInCandidate}`);
+        console.log(`  Candidate interested in user: ${match.candidateInterestedInUser}`);
+      });
+    
+    // Get top matches to create - use manual results first, then algorithm results as fallback
+    const manualTopMatches = manualMatchResults
+      .filter(match => match.matchScore >= 60) // Matches with mutual interest
       .slice(0, remainingMatches);
+    
+    // If we didn't get enough matches from manual checking, also use the algorithm results
+    const topMatches = manualTopMatches.length >= remainingMatches 
+      ? manualTopMatches 
+      : [...manualTopMatches, ...matchResults
+          .filter(match => match.matchScore >= 40 && !manualTopMatches.some(m => m.id === match.id))
+          .slice(0, remainingMatches - manualTopMatches.length)];
     
     // Create new matches
     if (topMatches.length > 0) {
