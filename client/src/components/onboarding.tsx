@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { format } from "date-fns";
 import {
   Card,
   CardContent,
@@ -32,10 +33,18 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import Logo from "@/components/logo";
-import { Loader2, ArrowRight, ArrowLeft, Check } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, Check, CalendarIcon, Upload, X } from "lucide-react";
 import { ukCities } from "@/lib/uk-cities";
 import { motion, AnimatePresence } from "framer-motion";
+import AvatarSelector from "@/components/avatar-selector";
+import AvatarPlaceholder from "@/components/avatar-placeholder";
 import { cn } from "@/lib/utils";
 
 // Steps for the onboarding process
@@ -62,97 +71,111 @@ const steps: Step[] = [
   },
   {
     id: 3,
-    title: "Basic Information",
-    description: "Tell us about yourself",
-    question: "How old are you?",
-    fieldName: "age",
+    title: "Date of Birth",
+    description: "We need to verify you're 21+",
+    question: "What's your date of birth?",
+    fieldName: "dateOfBirth",
   },
   {
     id: 4,
+    title: "ID Verification",
+    description: "Only verified users can make and receive calls",
+    question: "Please upload a photo of your ID to verify your age",
+    fieldName: "idVerificationImage",
+  },
+  {
+    id: 5,
+    title: "Choose Your Avatar",
+    description: "Select an avatar to represent you",
+    question: "Choose an avatar emoji",
+    fieldName: "avatar",
+  },
+  {
+    id: 6,
     title: "Basic Information",
     description: "Tell us about yourself",
     question: "What's your gender?",
     fieldName: "gender",
   },
   {
-    id: 5,
+    id: 7,
     title: "Basic Information",
     description: "Tell us about yourself",
     question: "Who are you interested in meeting?",
     fieldName: "interestedGenders",
   },
   {
-    id: 6,
+    id: 8,
     title: "Age Preferences",
     description: "What age range are you looking to match with?",
     question: "Select your preferred age range:",
     fieldName: "agePreference",
   },
   {
-    id: 7,
+    id: 9,
     title: "Location",
     description: "Where are you based?",
     question: "Which city do you live in?",
     fieldName: "location",
   },
   {
-    id: 8,
+    id: 10,
     title: "About You",
     description: "Let others know a bit more about you",
     question: "Write a short bio about yourself",
     fieldName: "bio",
   },
   {
-    id: 9,
+    id: 11,
     title: "Communication",
     description: "Help us understand your communication style",
     question: "How would you describe your communication style?",
     fieldName: "communicationStyle",
   },
   {
-    id: 10,
+    id: 12,
     title: "Interests",
     description: "What do you enjoy doing in your free time?",
     question: "Select activities you enjoy",
     fieldName: "freeTimeActivities",
   },
   {
-    id: 11,
+    id: 13,
     title: "Values",
     description: "What's important to you in relationships?",
     question: "What values are most important to you?",
     fieldName: "values",
   },
   {
-    id: 12,
+    id: 14,
     title: "Conflict Resolution",
     description: "How do you handle disagreements?",
     question: "How do you typically resolve conflicts?",
     fieldName: "conflictResolution",
   },
   {
-    id: 13,
+    id: 15,
     title: "Love Language",
     description: "How do you express and receive love?",
     question: "What's your primary love language?",
     fieldName: "loveLanguage",
   },
   {
-    id: 14,
+    id: 16,
     title: "Relationship Pace",
     description: "Everyone moves at their own pace",
     question: "How would you describe your ideal relationship pace?",
     fieldName: "relationshipPace",
   },
   {
-    id: 15,
+    id: 17,
     title: "Deal Breakers",
     description: "What's absolutely non-negotiable for you?",
     question: "Select your deal breakers",
     fieldName: "dealbreakers",
   },
   {
-    id: 16,
+    id: 18,
     title: "All Done!",
     description: "Your profile is ready to go",
   },
@@ -197,6 +220,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
       name: user?.name || "",
+      dateOfBirth: user?.dateOfBirth || "",
       age: user?.age || undefined,
       gender: user?.gender || "",
       interestedGenders: user?.interestedGenders || [],
@@ -211,6 +235,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       loveLanguage: user?.loveLanguage || "",
       relationshipPace: user?.relationshipPace || "",
       dealbreakers: user?.dealbreakers || [],
+      avatar: user?.avatar || "",
+      idVerificationImage: user?.idVerificationImage || "",
+      idVerificationSkipped: user?.idVerificationSkipped || false,
     },
   });
   
@@ -262,7 +289,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           <CardHeader>
             <div className="flex items-center justify-between mb-2">
               <CardTitle className="text-2xl font-heading">{currentStepData.title}</CardTitle>
-              <span className="text-sm text-gray-500">Step {currentStep} of {steps.length}</span>
             </div>
             <CardDescription>{currentStepData.description}</CardDescription>
             
@@ -369,7 +395,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     {currentStep === 3 && (
                       <FormField
                         control={form.control}
-                        name="age"
+                        name="dateOfBirth"
                         render={({ field }) => (
                           <FormItem className="flex-1 flex flex-col justify-center">
                             <motion.div 
@@ -378,20 +404,63 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               transition={{ delay: 0.1 }}
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  placeholder="Your age"
-                                  min={18}
-                                  {...field}
-                                  onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
-                                  value={field.value || ""}
-                                  className="text-lg mt-4"
-                                />
-                              </FormControl>
                               <FormDescription>
-                                You must be at least 18 years old to use Kindred
+                                You must be at least 21 years old to use Kindred
                               </FormDescription>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "w-full pl-3 text-left font-normal mt-4",
+                                        !field.value && "text-muted-foreground"
+                                      )}
+                                    >
+                                      {field.value ? (
+                                        format(new Date(field.value), "PPP")
+                                      ) : (
+                                        <span>Pick a date</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={(date) => {
+                                      if (date) {
+                                        const today = new Date();
+                                        const birthDate = new Date(date);
+                                        const age = today.getFullYear() - birthDate.getFullYear();
+                                        
+                                        // Check if birthday has occurred this year
+                                        const hasBirthdayOccurred = 
+                                          today.getMonth() > birthDate.getMonth() || 
+                                          (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+                                        
+                                        const calculatedAge = hasBirthdayOccurred ? age : age - 1;
+                                        
+                                        field.onChange(date.toISOString());
+                                        
+                                        // Update the age field
+                                        form.setValue("age", calculatedAge);
+                                      } else {
+                                        field.onChange("");
+                                      }
+                                    }}
+                                    disabled={(date) => {
+                                      // Disable dates less than 21 years ago
+                                      const twentyOneYearsAgo = new Date();
+                                      twentyOneYearsAgo.setFullYear(twentyOneYearsAgo.getFullYear() - 21);
+                                      return date > new Date() || date > twentyOneYearsAgo;
+                                    }}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
                               <FormMessage />
                             </motion.div>
                           </FormItem>
@@ -400,46 +469,99 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     )}
                     
                     {currentStep === 4 && (
-                      <FormField
-                        control={form.control}
-                        name="gender"
-                        render={({ field }) => (
-                          <FormItem className="flex-1 flex flex-col justify-center">
-                            <motion.div 
-                              initial={{ y: 10, opacity: 0 }} 
-                              animate={{ y: 0, opacity: 1 }}
-                              transition={{ delay: 0.1 }}
-                            >
-                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormControl>
-                                <RadioGroup
-                                  onValueChange={field.onChange}
-                                  value={field.value || ''}
-                                  className="flex flex-col space-y-3 mt-4"
-                                >
-                                  {["Woman", "Man", "Non-binary", "Other"].map((gender) => (
-                                    <FormItem key={gender} className="flex items-center space-x-3 space-y-0">
-                                      <FormControl>
-                                        <RadioGroupItem value={gender} />
-                                      </FormControl>
-                                      <FormLabel className="font-normal">
-                                        {gender}
-                                      </FormLabel>
-                                    </FormItem>
-                                  ))}
-                                </RadioGroup>
-                              </FormControl>
-                              <FormMessage />
-                            </motion.div>
-                          </FormItem>
-                        )}
-                      />
+                      <div className="flex-1 flex flex-col justify-center">
+                        <motion.div 
+                          initial={{ y: 10, opacity: 0 }} 
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.1 }}
+                        >
+                          <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                          <FormDescription>
+                            ID verification is required to make and receive calls on Kindred. We take your privacy seriously and only use this to verify your age.
+                          </FormDescription>
+                          
+                          <div className="mt-6 flex flex-col items-center gap-4">
+                            <FormField
+                              control={form.control}
+                              name="idVerificationImage"
+                              render={({ field }) => (
+                                <FormItem className="w-full">
+                                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                                    {field.value ? (
+                                      <div className="flex flex-col items-center justify-center">
+                                        <div className="bg-green-100 text-green-800 p-3 rounded-full mb-2">
+                                          <Check className="h-6 w-6" />
+                                        </div>
+                                        <p className="text-sm mb-2">ID uploaded successfully</p>
+                                        <Button 
+                                          variant="destructive" 
+                                          size="sm"
+                                          onClick={() => field.onChange("")}
+                                        >
+                                          <X className="h-4 w-4 mr-2" />
+                                          Remove
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-col items-center justify-center">
+                                        <div className="bg-primary/10 p-3 rounded-full mb-2">
+                                          <Upload className="h-6 w-6 text-primary" />
+                                        </div>
+                                        <p className="text-sm mb-2">Click to upload or drag and drop</p>
+                                        <p className="text-xs text-gray-500 mb-4">ID card, passport or driver's license</p>
+                                        <Button
+                                          type="button"
+                                          onClick={() => {
+                                            // In a real app, this would trigger a file upload
+                                            // For now, we'll just set a placeholder value
+                                            field.onChange("id-verification-image-placeholder");
+                                          }}
+                                        >
+                                          Upload ID
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <div className="flex justify-center items-center w-full">
+                              <div className="h-px w-full bg-gray-200"></div>
+                              <span className="px-4 text-gray-500 text-sm">OR</span>
+                              <div className="h-px w-full bg-gray-200"></div>
+                            </div>
+                            
+                            <FormField
+                              control={form.control}
+                              name="idVerificationSkipped"
+                              render={({ field }) => (
+                                <FormItem className="w-full">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => {
+                                      field.onChange(true);
+                                      handleNext();
+                                    }}
+                                  >
+                                    Skip for now (you'll need to verify later to make calls)
+                                  </Button>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </motion.div>
+                      </div>
                     )}
                     
                     {currentStep === 5 && (
                       <FormField
                         control={form.control}
-                        name="interestedGenders"
+                        name="avatar"
                         render={({ field }) => (
                           <FormItem className="flex-1 flex flex-col justify-center">
                             <motion.div 
@@ -448,30 +570,29 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               transition={{ delay: 0.1 }}
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormDescription>Select all that apply</FormDescription>
-                              <div className="grid grid-cols-1 gap-4 mt-4">
-                                {["Women", "Men", "Non-binary", "Other"].map((gender) => (
-                                  <FormItem 
-                                    key={gender} 
-                                    className="flex items-center space-x-3 space-y-0"
-                                  >
-                                    <FormControl>
-                                      <Checkbox 
-                                        checked={field.value?.includes(gender)} 
-                                        onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            field.onChange([...(field.value || []), gender]);
-                                          } else {
-                                            field.onChange(field.value?.filter((value) => value !== gender));
-                                          }
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                      {gender}
-                                    </FormLabel>
-                                  </FormItem>
-                                ))}
+                              <FormDescription>
+                                This emoji will represent you until you choose to reveal your photo
+                              </FormDescription>
+                              
+                              <div className="mt-8 flex flex-col items-center">
+                                <div className="mb-6">
+                                  <AvatarPlaceholder 
+                                    size="xl" 
+                                    name={form.getValues().name} 
+                                    user={{ avatar: field.value }} 
+                                  />
+                                </div>
+                                
+                                <div className="w-full max-w-md">
+                                  <AvatarSelector
+                                    open={true}
+                                    onOpenChange={() => {}}
+                                    onSelect={(emoji) => {
+                                      field.onChange(emoji);
+                                    }}
+                                    currentAvatar={field.value}
+                                  />
+                                </div>
                               </div>
                               <FormMessage />
                             </motion.div>
