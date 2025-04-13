@@ -126,14 +126,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: () => {
       // Track user logout in PostHog before clearing user data
       if (user?.id) {
-        posthog.capture("user_logout", {
+        trackEvent(ANALYTICS_EVENTS.USER_LOGOUT, {
           user_id: user.id,
           username: user.username
         });
       }
       
       // Reset user identification in PostHog
-      posthog.reset();
+      resetUser();
       
       queryClient.setQueryData(["/api/user"], null);
       queryClient.invalidateQueries();
@@ -145,7 +145,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onError: (error: Error) => {
       // Track logout failure
-      posthog.capture("logout_failed", {
+      trackEvent(ANALYTICS_EVENTS.APP_ERROR, {
+        error_type: "logout_failed",
         error: error.message
       });
       
@@ -166,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(["/api/user"], updatedUser);
       
       // Track profile update in PostHog
-      posthog.capture("profile_updated", {
+      trackEvent(ANALYTICS_EVENTS.PROFILE_UPDATED, {
         $set: {
           // Update user properties in PostHog
           username: updatedUser.username,
@@ -188,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onError: (error: Error) => {
       // Track profile update failure
-      posthog.capture("profile_update_failed", {
+      trackEvent(ANALYTICS_EVENTS.PROFILE_UPDATE_FAILED, {
         error: error.message || "Unable to update profile"
       });
       
