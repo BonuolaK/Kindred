@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { callPreferencesSchema } from "@shared/schema";
 import {
   Card,
   CardContent,
@@ -215,7 +216,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       loveLanguage: user?.loveLanguage || "",
       relationshipPace: user?.relationshipPace || "",
       dealbreakers: user?.dealbreakers || [],
-      callPreferences: user?.callPreferences || "",
     },
   });
   
