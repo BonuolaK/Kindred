@@ -1,63 +1,85 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 
-// Create a type definition for the PostHog object to avoid needing the actual library
-// This will be populated when the library is properly installed
+// Create a type definition for the PostHog object
 type PostHogType = {
   capture: (event: string, properties?: Record<string, any>) => void;
   identify: (distinctId: string | number, properties?: Record<string, any>) => void;
   reset: () => void;
 };
 
+// Create a mock PostHog implementation that will be used if the real one isn't available
+const createMockPostHog = (): PostHogType => {
+  return {
+    capture: (event, properties) => {
+      console.log(`[Mock PostHog] Event captured: ${event}`, properties);
+    },
+    identify: (userId, properties) => {
+      console.log(`[Mock PostHog] User identified: ${userId}`, properties);
+    },
+    reset: () => {
+      console.log('[Mock PostHog] User reset');
+    }
+  };
+};
+
 // Create a context to provide PostHog instance throughout the app
 interface PostHogContextType {
-  posthog: PostHogType | null;
+  posthog: PostHogType;
 }
 
-const PostHogContext = createContext<PostHogContextType>({ posthog: null });
+// Initialize with mock implementation
+const PostHogContext = createContext<PostHogContextType>({ posthog: createMockPostHog() });
 
 interface PostHogProviderProps {
   children: React.ReactNode;
 }
 
-// This provider will initialize PostHog when the library is loaded
+// This provider will initialize PostHog if available, or use the mock implementation
 export const PostHogProvider: React.FC<PostHogProviderProps> = ({ children }) => {
-  const [posthog, setPostHog] = useState<PostHogType | null>(null);
+  const [posthog, setPostHog] = useState<PostHogType>(createMockPostHog());
   const [location] = useLocation();
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    // This function will be called when the component mounts
-    const initPostHog = async () => {
+    // Only try to initialize once
+    if (initialized) return;
+    
+    const initPostHog = () => {
       try {
-        // When posthog-js is properly installed, this import will work
-        const posthogModule = await import('posthog-js');
-        const posthogInstance = posthogModule.default;
-
-        // Initialize PostHog with your project API key
-        posthogInstance.init(import.meta.env.VITE_POSTHOG_API_KEY, {
-          api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://app.posthog.com',
-          // Enable debug mode in development
-          debug: import.meta.env.DEV,
-          // Only capture events in production by default
-          capture_pageview: import.meta.env.PROD,
-          // Disable autocapture to reduce noise
-          autocapture: false,
-          // Don't use cookies if they're not needed
-          disable_cookie: true,
-          // Save memory by persisting events only in localStorage
-          persistence: 'localStorage'
-        });
-
-        setPostHog(posthogInstance);
+        // Check if PostHog is available globally - this approach doesn't rely on imports
+        if (typeof window !== 'undefined') {
+          // Include PostHog via CDN as a fallback if not installed via npm
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/posthog-js@latest/dist/posthog.min.js';
+          script.async = true;
+          script.onload = () => {
+            // @ts-ignore - PostHog should be available on window after script loads
+            if (window.posthog) {
+              // @ts-ignore
+              window.posthog.init(import.meta.env.VITE_POSTHOG_API_KEY, {
+                api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://app.posthog.com',
+                debug: import.meta.env.DEV,
+                capture_pageview: true,
+                autocapture: false,
+                persistence: 'localStorage'
+              });
+              
+              // @ts-ignore
+              setPostHog(window.posthog);
+              console.log('PostHog initialized via CDN');
+            }
+          };
+          document.head.appendChild(script);
+          setInitialized(true);
+        }
       } catch (error) {
         console.error('Failed to initialize PostHog:', error);
       }
     };
 
-    if (!posthog) {
-      initPostHog();
-    }
-  }, []);
+    initPostHog();
+  }, [initialized]);
 
   // Track page views when location changes
   useEffect(() => {

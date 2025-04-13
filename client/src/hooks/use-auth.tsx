@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useEffect } from "react";
 import {
   useQuery,
   useMutation,
@@ -7,6 +7,7 @@ import {
 import { User, InsertUser, loginSchema, registrationSchema } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { identifyUser, resetUser, trackEvent, ANALYTICS_EVENTS } from "@/lib/analytics";
 import { z } from "zod";
 
 type AuthContextType = {
@@ -32,8 +33,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
   } = useQuery<User | null, Error>({
     queryKey: ["/api/user"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
+    queryFn: getQueryFn({ on401: "returnNull" })
   });
+  
+  // Use effect to identify the user in PostHog when user data changes
+  useEffect(() => {
+    if (user?.id) {
+      identifyUser(user.id, {
+        username: user.username,
+        email: user.email,
+        profile_type: user.profileType,
+        account_created: user.createdAt
+      });
+    }
+  }, [user]);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
@@ -42,12 +55,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: User) => {
       queryClient.setQueryData(["/api/user"], user);
+      
+      // Track successful login in PostHog
+      trackEvent(ANALYTICS_EVENTS.USER_LOGIN, {
+        $set: {
+          username: user.username,
+          profile_type: user.profileType,
+        }
+      });
+      
       toast({
         title: "Welcome back!",
         description: "You've successfully logged in.",
       });
     },
     onError: (error: Error) => {
+      // Track failed login attempt
+      trackEvent(ANALYTICS_EVENTS.LOGIN_FAILED, {
+        error: error.message || "Invalid username or password"
+      });
+      
       toast({
         title: "Login failed",
         description: error.message || "Invalid username or password",
@@ -63,12 +90,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: User) => {
       queryClient.setQueryData(["/api/user"], user);
+      
+      // Track successful registration in PostHog
+      trackEvent(ANALYTICS_EVENTS.USER_REGISTERED, {
+        $set: {
+          username: user.username,
+          email: user.email,
+          profile_type: user.profileType || "basic"
+        }
+      });
+      
       toast({
         title: "Account created",
         description: "Welcome to Kindred! Let's complete your profile.",
       });
     },
     onError: (error: Error) => {
+      // Track failed registration
+      trackEvent(ANALYTICS_EVENTS.REGISTRATION_FAILED, {
+        error: error.message || "Unable to create account"
+      });
+      
       toast({
         title: "Registration failed",
         description: error.message || "Unable to create account",
@@ -82,14 +124,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiRequest("POST", "/api/logout");
     },
     onSuccess: () => {
+      // Track user logout in PostHog before clearing user data
+      if (user?.id) {
+        posthog.capture("user_logout", {
+          user_id: user.id,
+          username: user.username
+        });
+      }
+      
+      // Reset user identification in PostHog
+      posthog.reset();
+      
       queryClient.setQueryData(["/api/user"], null);
       queryClient.invalidateQueries();
+      
       toast({
         title: "Logged out",
         description: "You've been successfully logged out.",
       });
     },
     onError: (error: Error) => {
+      // Track logout failure
+      posthog.capture("logout_failed", {
+        error: error.message
+      });
+      
       toast({
         title: "Logout failed",
         description: error.message,
@@ -105,12 +164,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (updatedUser: User) => {
       queryClient.setQueryData(["/api/user"], updatedUser);
+      
+      // Track profile update in PostHog
+      posthog.capture("profile_updated", {
+        $set: {
+          // Update user properties in PostHog
+          username: updatedUser.username,
+          email: updatedUser.email,
+          profile_type: updatedUser.profileType,
+          gender: updatedUser.gender,
+          location: updatedUser.location,
+          has_photo: !!updatedUser.photoUrl,
+          profile_completed: true
+        },
+        // Track which fields were updated (for analytics)
+        updated_fields: Object.keys(updatedUser)
+      });
+      
       toast({
         title: "Profile updated",
         description: "Your profile has been successfully updated.",
       });
     },
     onError: (error: Error) => {
+      // Track profile update failure
+      posthog.capture("profile_update_failed", {
+        error: error.message || "Unable to update profile"
+      });
+      
       toast({
         title: "Update failed",
         description: error.message || "Unable to update profile",

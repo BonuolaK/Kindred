@@ -50,8 +50,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router />
-        <Toaster />
+        <PostHogProvider>
+          <Router />
+          <Toaster />
+        </PostHogProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
