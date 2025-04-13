@@ -226,11 +226,12 @@ type OnboardingFormValues = z.infer<typeof onboardingSchema>;
 
 type OnboardingProps = {
   onComplete: () => void;
+  initialStep?: number;
 };
 
-export default function Onboarding({ onComplete }: OnboardingProps) {
+export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingProps) {
   const { user, updateProfileMutation } = useAuth();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(initialStep);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   
   // Form with defaults from user if available

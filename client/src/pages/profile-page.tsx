@@ -108,10 +108,13 @@ export default function ProfilePage() {
   // Handle onboarding completion
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
+    // Reload the user data
+    window.location.reload();
   };
   
   if (showOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
+    // Return onboarding component with initial step set to name (step 2)
+    return <Onboarding onComplete={handleOnboardingComplete} initialStep={2} />;
   }
   
   return (
@@ -175,25 +178,17 @@ export default function ProfilePage() {
         <Card className="mb-4">
           <CardContent className="pt-6">
             <div className="space-y-4">
-              {/* Debug section */}
-              <div>
-                <h3 className="text-sm font-medium mb-2">Debug - Available User Data:</h3>
-                <pre className="bg-gray-100 p-2 rounded-md text-xs overflow-auto max-h-[200px]">
-                  {JSON.stringify(user, null, 2)}
-                </pre>
-              </div>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Gender</h3>
-                  <p className="capitalize">{user?.gender || 'Not specified'}</p>
+                  <p className="capitalize">{user?.gender ? user.gender : 'Not specified'}</p>
                 </div>
                 
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Interested in</h3>
                   <p className="capitalize">
-                    {user?.interestedGenders && user.interestedGenders.length > 0 
-                      ? user.interestedGenders.join(', ')
+                    {user?.interestedGenders && Array.isArray(user.interestedGenders) && user.interestedGenders.length > 0 
+                      ? user.interestedGenders.map(g => g).join(', ')
                       : 'Not specified'}
                   </p>
                 </div>
