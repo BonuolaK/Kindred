@@ -1370,7 +1370,14 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                       Previous
                     </Button>
                   ) : (
-                    <div></div> // Empty div to maintain flex layout
+                    <Button
+                      type="button"
+                      onClick={() => window.history.back()}
+                      variant="outline"
+                    >
+                      <ChevronLeft className="mr-2 h-4 w-4" />
+                      Back
+                    </Button>
                   )}
                   
                   <Button 
