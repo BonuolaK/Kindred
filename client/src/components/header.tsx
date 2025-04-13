@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Logo from "./logo";
-import { UserCircle, Menu, LogOut, Settings } from "lucide-react";
+import { UserCircle, Menu, LogOut, Settings, MessageCircle } from "lucide-react";
 
 export default function Header() {
   const [location, navigate] = useLocation();
@@ -52,6 +52,13 @@ export default function Header() {
           </Button>
           <Button
             variant="ghost"
+            className={location.includes("/chat") ? "text-primary" : "text-gray-600 hover:text-primary"}
+            onClick={() => navigate("/chats")}
+          >
+            Chats
+          </Button>
+          <Button
+            variant="ghost"
             className={location === "/profile" ? "text-primary" : "text-gray-600 hover:text-primary"}
             onClick={() => navigate("/profile")}
           >
@@ -69,6 +76,10 @@ export default function Header() {
             <DropdownMenuItem onClick={() => navigate("/profile")}>
               <UserCircle className="mr-2 h-4 w-4" />
               <span>Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/chats")}>
+              <MessageCircle className="mr-2 h-4 w-4" />
+              <span>Chats</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/settings")}>
               <Settings className="mr-2 h-4 w-4" />
