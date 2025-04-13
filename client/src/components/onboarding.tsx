@@ -387,6 +387,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               transition={{ delay: 0.1 }}
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormDescription>
+                                Choose a username that doesn't reveal your real identity to prevent others from finding you on social media.
+                              </FormDescription>
                               <FormControl>
                                 <Input 
                                   placeholder="Your full name" 
@@ -608,7 +611,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         >
                           <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
                           <FormDescription>
-                            ID verification is required to make and receive calls on Kindred. We take your privacy seriously and only use this to verify your age.
+                            ID verification is required to make and receive calls on Kindred. We take your privacy seriously and only use this to verify your details.
                           </FormDescription>
                           
                           <div className="mt-6 flex flex-col items-center gap-4">
@@ -1023,11 +1026,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
                               <FormControl>
-                                <RadioGroup
-                                  onValueChange={(value: string) => field.onChange(value)}
-                                  value={typeof field.value === 'string' ? field.value : ''}
-                                  className="flex flex-col space-y-3 mt-4"
-                                >
+                                <div className="grid grid-cols-1 gap-4 mt-4">
                                   {[
                                     "Outdoor activities and nature",
                                     "Reading and learning new things",
@@ -1036,16 +1035,28 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                     "Sports and fitness",
                                     "Movies, TV shows, and entertainment"
                                   ].map((activity) => (
-                                    <FormItem key={activity} className="flex items-center space-x-3 space-y-0">
+                                    <FormItem 
+                                      key={activity} 
+                                      className="flex items-center space-x-3 space-y-0"
+                                    >
                                       <FormControl>
-                                        <RadioGroupItem value={activity} />
+                                        <Checkbox 
+                                          checked={(field.value || []).includes(activity)} 
+                                          onCheckedChange={(checked) => {
+                                            if (checked) {
+                                              field.onChange([...(field.value || []), activity]);
+                                            } else {
+                                              field.onChange((field.value || []).filter((value) => value !== activity));
+                                            }
+                                          }}
+                                        />
                                       </FormControl>
                                       <FormLabel className="font-normal">
                                         {activity}
                                       </FormLabel>
                                     </FormItem>
                                   ))}
-                                </RadioGroup>
+                                </div>
                               </FormControl>
                               <FormMessage />
                             </motion.div>
