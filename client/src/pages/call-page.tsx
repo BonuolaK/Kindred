@@ -37,6 +37,15 @@ export default function CallPage() {
     refetchInterval: 5000 // Refresh data every 5 seconds
   });
   
+  // Debug match data
+  useEffect(() => {
+    if (match) {
+      console.log("Match data loaded:", match);
+      console.log("Other user data:", match.otherUser);
+      console.log("Current user:", user);
+    }
+  }, [match, user]);
+  
   // Handle call ended
   const handleCallEnded = () => {
     toast({
