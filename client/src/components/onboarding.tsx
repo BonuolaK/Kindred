@@ -288,12 +288,46 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
       if (!result) return;
     }
     
-    if (currentStep < steps.length) {
-      setDirection("forward");
-      setCurrentStep(currentStep + 1);
-    } else {
+    // Check if all required fields are filled for the final step
+    if (currentStep === steps.length) {
       // Submit the form on the last step
       onSubmit(form.getValues());
+    } else {
+      // Move to next step
+      setDirection("forward");
+      setCurrentStep(currentStep + 1);
+      
+      // Check if all required fields are completed to auto-complete the onboarding
+      const currentFormData = form.getValues();
+      const requiredFieldsFilled = 
+        currentFormData.username && 
+        currentFormData.gender && 
+        currentFormData.interestedGenders?.length > 0 && 
+        currentFormData.age >= 21 && 
+        currentFormData.bio && 
+        currentFormData.location && 
+        currentFormData.freeTimeActivities?.length > 0 &&
+        currentFormData.values && 
+        currentFormData.conflictResolution && 
+        currentFormData.loveLanguage && 
+        currentFormData.relationshipPace && 
+        currentFormData.dealbreakers?.length > 0;
+        
+      if (requiredFieldsFilled) {
+        // All required fields are filled, so set completion flag and submit
+        const formDataWithCompletionFlag = {
+          ...currentFormData,
+          onboardingCompleted: true as boolean
+        };
+        
+        updateProfileMutation.mutate(formDataWithCompletionFlag, {
+          onSuccess: () => {
+            // Move to the last step to show completion message
+            setCurrentStep(steps.length);
+            setTimeout(() => onComplete(), 2000); // Show completion message for 2 seconds before completing
+          }
+        });
+      }
     }
   };
   
@@ -305,7 +339,28 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
   };
   
   const onSubmit = (data: OnboardingFormValues) => {
-    updateProfileMutation.mutate(data, {
+    // Check if all required fields are filled
+    const requiredFieldsFilled = 
+      data.username && 
+      data.gender && 
+      data.interestedGenders?.length > 0 && 
+      data.age >= 21 && 
+      data.bio && 
+      data.location && 
+      data.freeTimeActivities?.length > 0 &&
+      data.values && 
+      data.conflictResolution && 
+      data.loveLanguage && 
+      data.relationshipPace && 
+      data.dealbreakers?.length > 0;
+      
+    // Set onboarding completed flag
+    const formDataWithCompletionFlag = {
+      ...data,
+      onboardingCompleted: requiredFieldsFilled as boolean
+    };
+    
+    updateProfileMutation.mutate(formDataWithCompletionFlag, {
       onSuccess: () => {
         onComplete();
       }
@@ -1371,7 +1426,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
                               <FormDescription>
-                                Setting your preferred call times helps matches schedule calls when you're available
+                                Setting your preferred call times helps matches schedule calls when you're available. You can skip this to show as "Flexible Timing – always available for calls".
                               </FormDescription>
                               <FormControl>
                                 <CallPreferencesEditor 
@@ -1380,6 +1435,23 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                                   className="mt-4"
                                 />
                               </FormControl>
+                              
+                              <div className="flex justify-center mt-6">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    field.onChange({
+                                      weekdays: [],
+                                      weekends: [],
+                                      notAvailable: []
+                                    });
+                                    handleNext();
+                                  }}
+                                >
+                                  Skip (Flexible Timing)
+                                </Button>
+                              </div>
                               <FormMessage />
                             </motion.div>
                           </FormItem>
