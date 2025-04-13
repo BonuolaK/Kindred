@@ -1,0 +1,89 @@
+🔧 Common Causes of WebSocket 1006 and Fixes
+1. CORS/Origin Rejection
+If your server checks for allowed origins and the client isn’t on the list, the handshake will silently fail.
+
+✅ Fix: Make sure your server is explicitly allowing connections from your frontend’s origin. Example in Node.js:
+
+js
+Copy
+Edit
+const wss = new WebSocket.Server({ verifyClient: (info, done) => {
+  const allowed = info.origin === 'https://your-frontend.com';
+  done(allowed, 401, 'Unauthorized');
+}});
+2. Missing Upgrade Headers in Proxy (NGINX/Apache)
+When using reverse proxies (like NGINX), you must forward the correct headers for WebSocket to upgrade properly.
+
+✅ Fix for NGINX:
+
+nginx
+Copy
+Edit
+location /socket {
+    proxy_pass http://localhost:3000;  # Your WebSocket server
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+}
+✅ Check that you're using wss:// if your site is HTTPS, and make sure the proxy is forwarding SSL properly.
+
+3. Port Mismatch or Service Not Running
+Your frontend might be trying to connect to a port or endpoint that isn’t listening.
+
+✅ Fix: Check the port and ensure the server is listening:
+
+bash
+Copy
+Edit
+lsof -i :3000  # Replace with your WS port
+4. TLS/SSL Certificate Problem
+If using wss:// and your certificate is expired, invalid, or self-signed, the browser will silently drop the connection.
+
+✅ Fix: Use a trusted SSL cert (e.g., Let’s Encrypt). Verify:
+
+bash
+Copy
+Edit
+openssl s_client -connect yourdomain.com:443
+5. Backend Crash or Bad Handshake
+Your WebSocket server might throw an exception during the handshake and close the connection without warning.
+
+✅ Fix:
+
+Check your server logs for uncaught errors.
+
+Wrap your handlers with try/catch.
+
+Add logging to connection, error, and close events.
+
+👨‍💻 Add Logging to Diagnose
+Client-side
+
+js
+Copy
+Edit
+socket.onclose = (event) => {
+  console.error('WebSocket closed:', event.code, event.reason);
+};
+socket.onerror = (error) => {
+  console.error('WebSocket error:', error);
+};
+Server-side
+
+js
+Copy
+Edit
+ws.on('close', (code, reason) => {
+  console.log('Client disconnected:', code, reason.toString());
+});
+ws.on('error', (err) => {
+  console.error('WebSocket error:', err);
+});
+Bonus Tip: Test with wscat
+bash
+Copy
+Edit
+npx wscat -c wss://yourdomain.com/socket
+If it connects and disconnects immediately → it’s a server or proxy issue.
+

@@ -24,7 +24,15 @@ const log = (message: string, data?: any) => {
 export function setupWebRTCSignaling(httpServer: HttpServer) {
   const wss = new WebSocketServer({ 
     server: httpServer, 
-    path: '/rtc'  // Use /rtc specifically for WebRTC signaling
+    path: '/rtc',  // Use /rtc specifically for WebRTC signaling
+    perMessageDeflate: false, // Disable compression for better reliability
+    // Explicitly verify and accept clients from our origin
+    verifyClient: (info, cb) => {
+      // In development, we accept all connections
+      // Note: In production, we would check against allowed origins
+      log(`Connection attempt from origin: ${info.origin}`);
+      cb(true); // Accept all clients in development
+    }
   });
 
   log('WebRTC signaling server initialized on path: /rtc');

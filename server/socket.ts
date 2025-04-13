@@ -37,7 +37,14 @@ export function setupSocketServer(httpServer: HttpServer) {
     path: '/ws',  // Match the path used in the client
     // Increase timeouts for more stability in Replit
     clientTracking: true,
-    perMessageDeflate: false // Disable compression for reliability
+    perMessageDeflate: false, // Disable compression for reliability
+    // Explicitly verify and accept clients from our origin
+    verifyClient: (info, cb) => {
+      // In development, we accept all connections
+      // Note: In production, we would check against allowed origins
+      console.log(`[WS] Connection attempt from origin: ${info.origin}`);
+      cb(true); // Accept all clients in development
+    }
   });
   console.log('WebSocket server initialized on path: /ws');
   
