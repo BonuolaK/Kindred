@@ -47,29 +47,53 @@ export const PostHogProvider: React.FC<PostHogProviderProps> = ({ children }) =>
     
     const initPostHog = () => {
       try {
-        // Check if PostHog is available globally - this approach doesn't rely on imports
+        // Always load PostHog from CDN to ensure consistent behavior
         if (typeof window !== 'undefined') {
-          // Include PostHog via CDN as a fallback if not installed via npm
+          // Remove any existing script to avoid duplicates
+          const existingScript = document.getElementById('posthog-script');
+          if (existingScript) {
+            existingScript.remove();
+          }
+          
+          // Include PostHog via CDN
           const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/posthog-js@latest/dist/posthog.min.js';
+          script.id = 'posthog-script';
+          script.src = 'https://cdn.jsdelivr.net/npm/posthog-js@1.62.1/dist/posthog.min.js';
           script.async = true;
           script.onload = () => {
             // @ts-ignore - PostHog should be available on window after script loads
             if (window.posthog) {
+              console.log('PostHog script loaded from CDN');
+              
+              // Initialize with our key and host
+              const apiKey = import.meta.env.VITE_POSTHOG_API_KEY;
+              const apiHost = import.meta.env.VITE_POSTHOG_HOST || 'https://app.posthog.com';
+              
+              console.log(`Initializing PostHog with host: ${apiHost}`);
+              
               // @ts-ignore
-              window.posthog.init(import.meta.env.VITE_POSTHOG_API_KEY, {
-                api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://app.posthog.com',
-                debug: import.meta.env.DEV,
+              window.posthog.init(apiKey, {
+                api_host: apiHost,
+                debug: true, // Enable debug mode to see what's happening
                 capture_pageview: true,
                 autocapture: false,
-                persistence: 'localStorage'
+                persistence: 'localStorage',
+                loaded: (posthogInstance: any) => {
+                  console.log('PostHog successfully loaded and initialized');
+                }
               });
               
               // @ts-ignore
               setPostHog(window.posthog);
-              console.log('PostHog initialized via CDN');
+            } else {
+              console.error('PostHog object not available after script load');
             }
           };
+          
+          script.onerror = (error) => {
+            console.error('Failed to load PostHog script:', error);
+          };
+          
           document.head.appendChild(script);
           setInitialized(true);
         }

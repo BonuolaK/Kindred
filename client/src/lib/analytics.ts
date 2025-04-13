@@ -59,19 +59,68 @@ export const ANALYTICS_EVENTS = {
 };
 
 /**
+ * Ensure PostHog is loaded from CDN 
+ * This helps when the package isn't available via npm
+ */
+export function ensurePostHogLoaded(callback?: () => void) {
+  if (typeof window === 'undefined') return;
+  
+  // If PostHog is already available, just call the callback
+  if ('posthog' in window) {
+    if (callback) callback();
+    return;
+  }
+  
+  // Otherwise, load it from CDN
+  try {
+    const existingScript = document.getElementById('posthog-script');
+    if (existingScript) {
+      if (callback) callback();
+      return;
+    }
+    
+    const script = document.createElement('script');
+    script.id = 'posthog-script';
+    script.src = 'https://cdn.jsdelivr.net/npm/posthog-js@1.62.1/dist/posthog.min.js';
+    script.async = true;
+    
+    script.onload = () => {
+      // Initialize PostHog
+      const apiKey = import.meta.env.VITE_POSTHOG_API_KEY;
+      const apiHost = import.meta.env.VITE_POSTHOG_HOST || 'https://app.posthog.com';
+      
+      // @ts-ignore
+      window.posthog?.init(apiKey, {
+        api_host: apiHost,
+        debug: import.meta.env.DEV,
+        capture_pageview: true,
+        persistence: 'localStorage',
+      });
+      
+      if (callback) callback();
+    };
+    
+    document.head.appendChild(script);
+  } catch (error) {
+    console.error('[Analytics] Failed to load PostHog:', error);
+  }
+}
+
+/**
  * Track an event with PostHog
  * This function safely accesses the window.posthog object if available
  */
 export function trackEvent(eventName: string, properties?: Record<string, any>) {
-  if (typeof window !== 'undefined' && 'posthog' in window) {
+  ensurePostHogLoaded(() => {
     try {
       // @ts-ignore - PostHog is attached to window but TypeScript doesn't know about it
-      window.posthog.capture(eventName, properties);
+      window.posthog?.capture(eventName, properties);
+      console.log(`[Analytics] Event tracked: ${eventName}`, properties);
     } catch (error) {
       // Silently fail if PostHog is not available or fails
       console.log(`[Analytics] Unable to track event: ${eventName}`);
     }
-  }
+  });
 }
 
 /**
@@ -79,15 +128,18 @@ export function trackEvent(eventName: string, properties?: Record<string, any>) 
  * This function safely accesses the window.posthog object if available
  */
 export function identifyUser(userId: string | number, properties?: Record<string, any>) {
-  if (typeof window !== 'undefined' && 'posthog' in window && userId) {
+  if (!userId) return;
+  
+  ensurePostHogLoaded(() => {
     try {
       // @ts-ignore - PostHog is attached to window but TypeScript doesn't know about it
-      window.posthog.identify(userId, properties);
+      window.posthog?.identify(userId, properties);
+      console.log(`[Analytics] User identified: ${userId}`, properties);
     } catch (error) {
       // Silently fail if PostHog is not available or fails
       console.log(`[Analytics] Unable to identify user: ${userId}`);
     }
-  }
+  });
 }
 
 /**
@@ -95,15 +147,16 @@ export function identifyUser(userId: string | number, properties?: Record<string
  * This function safely accesses the window.posthog object if available
  */
 export function resetUser() {
-  if (typeof window !== 'undefined' && 'posthog' in window) {
+  ensurePostHogLoaded(() => {
     try {
       // @ts-ignore - PostHog is attached to window but TypeScript doesn't know about it
-      window.posthog.reset();
+      window.posthog?.reset();
+      console.log('[Analytics] User reset');
     } catch (error) {
       // Silently fail if PostHog is not available or fails
       console.log('[Analytics] Unable to reset user');
     }
-  }
+  });
 }
 
 /**
@@ -111,15 +164,16 @@ export function resetUser() {
  * This function safely accesses the window.posthog object if available
  */
 export function trackPageView(path: string) {
-  if (typeof window !== 'undefined' && 'posthog' in window) {
+  ensurePostHogLoaded(() => {
     try {
       // @ts-ignore - PostHog is attached to window but TypeScript doesn't know about it
-      window.posthog.capture('$pageview', { path });
+      window.posthog?.capture('$pageview', { path });
+      console.log(`[Analytics] Page view tracked: ${path}`);
     } catch (error) {
       // Silently fail if PostHog is not available or fails
       console.log(`[Analytics] Unable to track page view: ${path}`);
     }
-  }
+  });
 }
 
 /**
@@ -127,16 +181,48 @@ export function trackPageView(path: string) {
  * This function safely accesses the window.posthog object if available
  */
 export function trackError(errorType: string, errorDetails: Record<string, any>) {
-  if (typeof window !== 'undefined' && 'posthog' in window) {
+  ensurePostHogLoaded(() => {
     try {
       // @ts-ignore - PostHog is attached to window but TypeScript doesn't know about it
-      window.posthog.capture('error', {
+      window.posthog?.capture('error', {
         error_type: errorType,
         ...errorDetails
       });
+      console.log(`[Analytics] Error tracked: ${errorType}`, errorDetails);
     } catch (error) {
       // Silently fail if PostHog is not available or fails
       console.log(`[Analytics] Unable to track error: ${errorType}`);
     }
-  }
+  });
+}
+
+/**
+ * Initialize analytics system - call this in your main app component
+ */
+export function initAnalytics() {
+  ensurePostHogLoaded(() => {
+    console.log('[Analytics] PostHog initialized successfully');
+    
+    // Track initial page view
+    const path = window.location.pathname;
+    trackPageView(path);
+    
+    // Add error tracking
+    window.addEventListener('error', (event) => {
+      trackError('uncaught_error', {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        error: event.error?.toString()
+      });
+    });
+    
+    // Add promise rejection tracking
+    window.addEventListener('unhandledrejection', (event) => {
+      trackError('unhandled_promise_rejection', {
+        reason: event.reason?.toString() || 'Unknown promise rejection reason'
+      });
+    });
+  });
 }
