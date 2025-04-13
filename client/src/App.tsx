@@ -48,11 +48,21 @@ function Router() {
   );
 }
 
+function AnalyticsInitializer() {
+  useEffect(() => {
+    // Initialize analytics system
+    initAnalytics();
+  }, []);
+  
+  return null;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <PostHogProvider>
+          <AnalyticsInitializer />
           <Router />
           <Toaster />
         </PostHogProvider>

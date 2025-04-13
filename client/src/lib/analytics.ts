@@ -79,30 +79,68 @@ export function ensurePostHogLoaded(callback?: () => void) {
       return;
     }
     
+    console.log('[Analytics] Loading PostHog from CDN...');
+    
+    // Create a mock posthog object to use while loading
+    // @ts-ignore
+    window.posthog = {
+      capture: (event: string, properties?: Record<string, any>) => {
+        console.log(`[Mock PostHog] Event captured: ${event}`, properties);
+      },
+      identify: (userId: string | number, properties?: Record<string, any>) => {
+        console.log(`[Mock PostHog] User identified: ${userId}`, properties);
+      },
+      reset: () => {
+        console.log('[Mock PostHog] User reset');
+      }
+    };
+    
     const script = document.createElement('script');
     script.id = 'posthog-script';
-    script.src = 'https://cdn.jsdelivr.net/npm/posthog-js@1.62.1/dist/posthog.min.js';
+    // Use a more reliable CDN URL
+    script.src = 'https://unpkg.com/posthog-js@latest/dist/posthog.min.js';
+    script.crossOrigin = 'anonymous';
     script.async = true;
     
     script.onload = () => {
+      console.log('[Analytics] PostHog script loaded successfully');
+      
       // Initialize PostHog
       const apiKey = import.meta.env.VITE_POSTHOG_API_KEY;
       const apiHost = import.meta.env.VITE_POSTHOG_HOST || 'https://app.posthog.com';
       
-      // @ts-ignore
-      window.posthog?.init(apiKey, {
-        api_host: apiHost,
-        debug: import.meta.env.DEV,
-        capture_pageview: true,
-        persistence: 'localStorage',
-      });
+      console.log(`[Analytics] Initializing PostHog with host: ${apiHost}`);
       
+      try {
+        // @ts-ignore
+        window.posthog.init(apiKey, {
+          api_host: apiHost,
+          debug: true,
+          capture_pageview: true,
+          persistence: 'localStorage',
+          loaded: () => {
+            console.log('[Analytics] PostHog successfully initialized');
+            if (callback) callback();
+          }
+        });
+      } catch (initError) {
+        console.error('[Analytics] Failed to initialize PostHog:', initError);
+        // Still call the callback to continue app execution
+        if (callback) callback();
+      }
+    };
+    
+    script.onerror = (error) => {
+      console.error('[Analytics] Failed to load PostHog script:', error);
+      // Call the callback anyway to continue app execution
       if (callback) callback();
     };
     
     document.head.appendChild(script);
   } catch (error) {
     console.error('[Analytics] Failed to load PostHog:', error);
+    // Call the callback anyway to continue app execution
+    if (callback) callback();
   }
 }
 
