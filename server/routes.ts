@@ -376,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateMatch(matchId, { 
         status: 'unmatched',
         unmatchedBy: userId,
-        unmatchedDate: new Date().toISOString()
+        unmatchedDate: new Date()
       });
       
       res.json({ message: "Successfully unmatched", matchId });

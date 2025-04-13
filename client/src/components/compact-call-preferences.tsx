@@ -7,7 +7,7 @@ type CallPreferences = z.infer<typeof callPreferencesSchema>;
 type Day = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 type CompactCallPreferencesProps = {
-  preferences: CallPreferences | undefined;
+  preferences: CallPreferences | undefined | null;
   className?: string;
 };
 

@@ -62,7 +62,9 @@ export const matches = pgTable("matches", {
   scheduledCallTime: timestamp("scheduled_call_time"),
   isChatUnlocked: boolean("is_chat_unlocked").default(false),
   arePhotosRevealed: boolean("are_photos_revealed").default(false),
-  status: text("status").default("active").notNull(), // active, declined, completed
+  status: text("status").default("active").notNull(), // active, declined, completed, unmatched
+  unmatchedBy: integer("unmatched_by"), // ID of the user who initiated the unmatch
+  unmatchedDate: timestamp("unmatched_date"), // When the unmatch occurred
 });
 
 export const messages = pgTable("messages", {

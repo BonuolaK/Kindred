@@ -63,21 +63,54 @@ export class MatchingAlgorithm {
    * Main matching function - returns array of potential matches with scores
    */
   findMatches(user: User, candidates: User[]) {
+    // Define preferred age range if specified
+    // Default to 21-40 if age is not set (ensures 21+ minimum)
+    const defaultUserAge = (user.age !== null && user.age !== undefined) ? user.age : 30;
+    const userMinAge = user.agePreferenceMin || Math.max(21, defaultUserAge - 5);
+    const userMaxAge = user.agePreferenceMax || (defaultUserAge + 5);
+    
     // Filter candidates by gender preference first (critical requirement)
     const genderFilteredCandidates = this.filterByGenderPreference(user, candidates);
     
-    // Define preferred age range if specified
-    const userMinAge = user.agePreferenceMin || (user.age - 5);
-    const userMaxAge = user.agePreferenceMax || (user.age + 5);
+    console.log(`Age Preference Check: User ${user.username} prefers ages ${userMinAge}-${userMaxAge}`);
     
     // Filter candidates by age preference (another critical requirement)
     const ageFilteredCandidates = genderFilteredCandidates.filter(candidate => {
       // If no age is provided for candidate, we'll allow them (for testing/admin accounts)
-      if (!candidate.age) return true;
+      if (!candidate.age) {
+        console.log(`Age Preference Skip: Candidate ${candidate.username} has no age specified, including`);
+        return true;
+      }
       
       // Check if candidate age is within user's preferred range
-      return candidate.age >= userMinAge && candidate.age <= userMaxAge;
+      const ageInRange = candidate.age >= userMinAge && candidate.age <= userMaxAge;
+      
+      console.log(`Age Preference Check: Candidate ${candidate.username} (age: ${candidate.age}) ${ageInRange ? 'IS' : 'is NOT'} within user's preferred range ${userMinAge}-${userMaxAge}`);
+      
+      // Additional validation: check mutual age preference
+      if (ageInRange) {
+        // Also check if user's age is within candidate's preferred range
+        const candidateMinAge = candidate.agePreferenceMin || Math.max(21, candidate.age - 5);
+        const candidateMaxAge = candidate.agePreferenceMax || (candidate.age + 5);
+        
+        // If user has no age specified, assume they're within range (for admin accounts)
+        if (!user.age) {
+          console.log(`Age Preference Skip: User ${user.username} has no age specified, assuming in range`);
+          return true;
+        }
+        
+        const userInCandidateRange = user.age >= candidateMinAge && user.age <= candidateMaxAge;
+        
+        console.log(`Age Preference Mutual Check: User ${user.username} (age: ${user.age}) ${userInCandidateRange ? 'IS' : 'is NOT'} within candidate's preferred range ${candidateMinAge}-${candidateMaxAge}`);
+        
+        // Only include matches where both users are within each other's age preferences
+        return userInCandidateRange;
+      }
+      
+      return false;
     });
+    
+    console.log(`Age Preference Results: ${ageFilteredCandidates.length} candidates remain after age filtering`);
     
     // Calculate match scores for remaining candidates
     const scoredCandidates = ageFilteredCandidates.map(candidate => {
