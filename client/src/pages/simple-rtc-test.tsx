@@ -56,9 +56,16 @@ export default function SimpleRtcTest() {
         socketRef.current.userId = user.id;
       }
       
-      // Set up reconnection callback
+      // Set up reconnection callback and handle socket replacement
       socketRef.current.onReconnect = () => {
         addLog('WebSocket reconnected after connection loss');
+      };
+      
+      // Add a reference listener to handle socket replacement during reconnection
+      const handleSocketReplacement = (newSocket: WebSocketWithHeartbeat) => {
+        addLog('WebSocket was replaced with a new connection');
+        socketRef.current = newSocket;
+        setWsConnected(true);
       };
       
       socketRef.current.addEventListener('open', () => {

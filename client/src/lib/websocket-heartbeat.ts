@@ -130,6 +130,7 @@ function stopHeartbeat(ws: WebSocketWithHeartbeat): void {
 
 /**
  * Attempt to reconnect a WebSocket connection
+ * This will create a completely new WebSocket and return it (replacing the old one)
  */
 function attemptReconnect(
   ws: WebSocketWithHeartbeat,
@@ -151,49 +152,69 @@ function attemptReconnect(
       // Check if we're already reconnected
       if (ws.readyState === WebSocket.OPEN) return;
       
-      // Instead of creating a recursive chain of websockets, use the same instance
-      // but create a new underlying connection
-      const oldUserId = ws.userId;
-      const oldRoomId = ws.roomId;
-      const oldReconnectAttempts = ws.reconnectAttempts;
-      const oldOnReconnect = ws.onReconnect;
+      // Instead of patching the existing instance, create a new connection
+      console.log('[WebSocket] Creating a new connection for reconnect');
       
-      // Create and initialize a new WebSocket connection
-      const rawWs = new WebSocket(url, protocols);
+      // Create a completely new WebSocket connection with heartbeat
+      const newWs = createWebSocketWithHeartbeat(url, protocols);
       
-      // Copy the raw WebSocket properties to our existing wrapper
-      Object.getOwnPropertyNames(rawWs).forEach(prop => {
-        if (prop !== 'addEventListener' && prop !== 'removeEventListener') {
-          try {
-            // @ts-ignore - dynamically copying properties
-            ws[prop] = rawWs[prop];
-          } catch (e) {
-            // Some properties might be read-only
-          }
-        }
+      // Copy over the important state
+      newWs.userId = ws.userId;
+      newWs.roomId = ws.roomId;
+      newWs.reconnectAttempts = ws.reconnectAttempts;
+      newWs.onReconnect = ws.onReconnect;
+      
+      // Copy all event listeners from the old socket to the new one
+      const eventTypes = ['open', 'message', 'close', 'error'];
+      
+      // Save a reference to the old socket's event listeners
+      const oldListeners: {[key: string]: EventListenerOrEventListenerObject[]} = {};
+      
+      // For each event type, get all listeners
+      eventTypes.forEach(type => {
+        // We can't directly access the listeners, so we'll create a dummy event
+        // and intercept it to get the listeners
+        oldListeners[type] = [];
+        
+        // Create a one-time interceptor to capture listeners
+        const interceptor = (e: Event) => {
+          e.stopImmediatePropagation();
+          // @ts-ignore - accessing private property
+          const listeners = ws.listeners?.[type] || [];
+          oldListeners[type] = [...listeners];
+        };
+        
+        // Add the interceptor first, so it will be called before other listeners
+        ws.addEventListener(type, interceptor, { once: true, capture: true });
+        
+        // Trigger a fake event to capture listeners
+        const fakeEvent = new Event(type);
+        ws.dispatchEvent(fakeEvent);
+        
+        // Add all captured listeners to the new socket
+        oldListeners[type].forEach(listener => {
+          newWs.addEventListener(type, listener);
+        });
       });
       
-      // Restore our tracking properties
-      ws.userId = oldUserId;
-      ws.roomId = oldRoomId;
-      ws.reconnectAttempts = oldReconnectAttempts;
-      ws.onReconnect = oldOnReconnect;
-      ws.heartbeatEnabled = true;
-      ws.heartbeatInterval = null;
-      ws.heartbeatTimeout = null;
+      // Close the old socket
+      try {
+        ws.close();
+      } catch (error) {
+        console.error('[WebSocket] Error closing old socket:', error);
+      }
       
-      // Add listeners to the new raw websocket but have them call our wrapper's listeners
-      rawWs.onopen = (event) => {
+      // Re-register user if we have a user ID when the connection opens
+      newWs.addEventListener('open', () => {
         console.log('[WebSocket] Reconnection successful');
-        startHeartbeat(ws);
         
         // Re-register user if we have a user ID
-        if (ws.userId) {
-          console.log(`[WebSocket] Re-registering user ${ws.userId} after reconnection`);
+        if (newWs.userId) {
+          console.log(`[WebSocket] Re-registering user ${newWs.userId} after reconnection`);
           try {
-            ws.send(JSON.stringify({
+            newWs.send(JSON.stringify({
               type: 'register',
-              userId: ws.userId
+              userId: newWs.userId
             }));
           } catch (error) {
             console.error('[WebSocket] Error re-registering user:', error);
@@ -201,46 +222,13 @@ function attemptReconnect(
         }
         
         // Call the reconnect callback if available
-        if (ws.onReconnect) {
-          ws.onReconnect();
+        if (newWs.onReconnect) {
+          newWs.onReconnect();
         }
-        
-        // Forward the event to any listeners on our wrapper
-        const openEvent = new Event('open');
-        ws.dispatchEvent(openEvent);
-      };
+      }, { once: true });
       
-      rawWs.onmessage = (event) => {
-        // Create a simpler message event to avoid TypeScript readonly array issues
-        const messageEvent = new MessageEvent('message', {
-          data: event.data,
-          origin: event.origin || '',
-          lastEventId: event.lastEventId || ''
-        });
-        ws.dispatchEvent(messageEvent);
-      };
-      
-      rawWs.onclose = (event) => {
-        const closeEvent = new CloseEvent('close', {
-          wasClean: event.wasClean,
-          code: event.code,
-          reason: event.reason
-        });
-        stopHeartbeat(ws);
-        // Don't trigger reconnection from here, as it would be recursive
-        ws.dispatchEvent(closeEvent);
-        
-        // If still not at max attempts, try again only for abnormal closures
-        if (event.code !== 1000 && event.code !== 1001 && 
-            ws.reconnectAttempts < MAX_RECONNECTION_ATTEMPTS) {
-          attemptReconnect(ws, url, protocols);
-        }
-      };
-      
-      rawWs.onerror = (event) => {
-        const errorEvent = new Event('error');
-        ws.dispatchEvent(errorEvent);
-      };
+      // Return the new WebSocket
+      return newWs;
       
     } catch (error) {
       console.error('[WebSocket] Error during reconnection attempt:', error);

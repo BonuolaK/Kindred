@@ -260,7 +260,15 @@ export function setupSocketServer(httpServer: HttpServer) {
             
             // Find the call in our active calls map
             let callKey = '';
-            let callData = null;
+            let callData: {
+              initiator: number;
+              receiver: number;
+              matchId: number;
+              callId?: number;
+              callDay: number;
+              startTime: number;
+              status: 'pending' | 'connecting' | 'active' | 'completed' | 'missed' | 'rejected';
+            } | null = null;
             
             // Try both potential key formats
             if (userId) {
@@ -369,7 +377,8 @@ function cleanupDeadConnection(ws: WebSocket) {
       console.log(`Cleaned up registration for user ${userIdToRemove}`);
       
       // End any active calls involving this user
-      for (const [key, call] of activeCalls.entries()) {
+      // Use forEach to avoid TypeScript issues with for...of and Map.entries()
+      activeCalls.forEach((call, key) => {
         if (call.initiator === userIdToRemove || call.receiver === userIdToRemove) {
           const otherUserId = call.initiator === userIdToRemove ? call.receiver : call.initiator;
           const otherUserWs = users.get(otherUserId);
@@ -384,7 +393,7 @@ function cleanupDeadConnection(ws: WebSocket) {
           activeCalls.delete(key);
           console.log(`Cleaned up call ${key} for disconnected user ${userIdToRemove}`);
         }
-      }
+      });
     }
     
     // Remove heartbeat tracking
