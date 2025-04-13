@@ -8,6 +8,7 @@ import { profileSchema } from "@shared/schema";
 import { ukCities } from "@/lib/uk-cities";
 import AvatarPlaceholder from "@/components/avatar-placeholder";
 import AvatarSelector from "@/components/avatar-selector";
+import Onboarding from "@/components/onboarding";
 import {
   Form,
   FormControl,
@@ -60,6 +61,7 @@ export default function ProfilePage() {
   const [step, setStep] = useState(1);
   const totalSteps = 3;
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   
   // Default values from user
   const form = useForm<ProfileFormValues>({
@@ -103,19 +105,71 @@ export default function ProfilePage() {
     }
   };
   
+  // Handle onboarding completion
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+  };
+  
+  if (showOnboarding) {
+    return <Onboarding onComplete={handleOnboardingComplete} />;
+  }
+  
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
       <Header />
       
       <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="font-heading font-bold text-2xl md:text-3xl text-gray-900">
-            {user?.name ? `${user.name}'s Profile` : 'Complete Your Profile'}
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Help us find your most compatible matches
-          </p>
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8">
+          <div 
+            className="cursor-pointer"
+            onClick={() => setDialogOpen(true)}
+          >
+            <AvatarPlaceholder
+              name={user?.username || user?.name || ""}
+              user={{ avatar: user?.avatar }}
+              size="xl"
+              showPhoto={false}
+            />
+          </div>
+          <div>
+            <h1 className="font-heading font-bold text-2xl md:text-3xl text-gray-900">
+              {user?.name ? `${user.name}'s Profile` : 'Complete Your Profile'}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Help us find your most compatible matches
+            </p>
+            <div className="flex items-center gap-3 mt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDialogOpen(true)}
+              >
+                Change Avatar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowOnboarding(true)}
+              >
+                Update Profile
+              </Button>
+            </div>
+          </div>
         </div>
+        
+        <AvatarSelector
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          currentAvatar={user?.avatar || ""}
+          onSelect={(emoji) => {
+            // Update user avatar
+            updateProfileMutation.mutate({ avatar: emoji }, {
+              onSuccess: () => {
+                setDialogOpen(false);
+              }
+            });
+          }}
+        />
         
         <Tabs defaultValue="profile" className="mb-8">
           <TabsList className="grid w-full grid-cols-2">
