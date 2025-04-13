@@ -431,9 +431,19 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                     <div className="flex justify-between pb-2">
                                       <Select
                                         onValueChange={(value) => {
+                                          const year = parseInt(value);
                                           const currentDate = field.value ? new Date(field.value) : new Date();
-                                          currentDate.setFullYear(parseInt(value));
-                                          field.onChange(currentDate.toISOString());
+                                          currentDate.setFullYear(year);
+                                          
+                                          // Update month view to January of the selected year
+                                          const calendarApi = document.querySelector('.rdp');
+                                          if (calendarApi) {
+                                            const januaryOfYear = new Date(year, 0, 1);
+                                            // Reset to January of the selected year
+                                            field.onChange(januaryOfYear.toISOString());
+                                          } else {
+                                            field.onChange(currentDate.toISOString());
+                                          }
                                         }}
                                         value={field.value 
                                           ? new Date(field.value).getFullYear().toString() 
@@ -457,6 +467,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                     
                                     <Calendar
                                       mode="single"
+                                      month={field.value ? new Date(field.value) : undefined}
                                       selected={field.value ? new Date(field.value) : undefined}
                                       onSelect={(date) => {
                                         if (date) {
