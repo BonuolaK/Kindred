@@ -1528,25 +1528,51 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                 </AnimatePresence>
                 
                 <div className="flex justify-between pt-4">
-                  {currentStep > 1 ? (
-                    <Button 
-                      type="button" 
-                      onClick={handlePrevious}
-                      variant="outline"
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Previous
-                    </Button>
-                  ) : (
+                  <div className="flex gap-2">
+                    {currentStep > 1 ? (
+                      <Button 
+                        type="button" 
+                        onClick={handlePrevious}
+                        variant="outline"
+                      >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Previous
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        onClick={() => window.history.back()}
+                        variant="outline"
+                      >
+                        <ChevronLeft className="mr-2 h-4 w-4" />
+                        Back
+                      </Button>
+                    )}
+                    
+                    {/* Exit button to save current progress and return to profile */}
                     <Button
                       type="button"
-                      onClick={() => window.history.back()}
-                      variant="outline"
+                      variant="ghost"
+                      onClick={() => {
+                        // Save current progress without marking onboarding as complete
+                        const currentData = form.getValues();
+                        updateProfileMutation.mutate(currentData, {
+                          onSuccess: () => {
+                            toast({
+                              title: "Progress saved",
+                              description: "Your profile updates have been saved.",
+                            });
+                            // Return to profile page
+                            onComplete();
+                          }
+                        });
+                      }}
+                      disabled={updateProfileMutation.isPending}
                     >
-                      <ChevronLeft className="mr-2 h-4 w-4" />
-                      Back
+                      <X className="mr-2 h-4 w-4" />
+                      Exit & Save
                     </Button>
-                  )}
+                  </div>
                   
                   <Button 
                     type="button" 
