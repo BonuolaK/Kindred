@@ -185,8 +185,8 @@ const steps: Step[] = [
   },
   {
     id: 18,
-    title: "All Done!",
-    description: "Your profile is ready to go",
+    title: "Profile Complete!",
+    description: "Thanks for taking the time to fill out your profile",
   },
 ];
 
@@ -1013,7 +1013,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     {currentStep === 12 && (
                       <FormField
                         control={form.control}
-                        name="conflictResolution"
+                        name="freeTimeActivities"
                         render={({ field }) => (
                           <FormItem className="flex-1 flex flex-col justify-center">
                             <motion.div 
@@ -1024,22 +1024,24 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
                               <FormControl>
                                 <RadioGroup
-                                  onValueChange={field.onChange}
-                                  value={field.value || ''}
+                                  onValueChange={(value: string) => field.onChange(value)}
+                                  value={typeof field.value === 'string' ? field.value : ''}
                                   className="flex flex-col space-y-3 mt-4"
                                 >
                                   {[
-                                    "Address issues immediately and directly",
-                                    "Take time to process before discussing",
-                                    "Prefer to compromise and find middle ground", 
-                                    "Focus on understanding the other person's perspective first"
-                                  ].map((style) => (
-                                    <FormItem key={style} className="flex items-center space-x-3 space-y-0">
+                                    "Outdoor activities and nature",
+                                    "Reading and learning new things",
+                                    "Socializing with friends and family", 
+                                    "Arts, music, and creative hobbies",
+                                    "Sports and fitness",
+                                    "Movies, TV shows, and entertainment"
+                                  ].map((activity) => (
+                                    <FormItem key={activity} className="flex items-center space-x-3 space-y-0">
                                       <FormControl>
-                                        <RadioGroupItem value={style} />
+                                        <RadioGroupItem value={activity} />
                                       </FormControl>
                                       <FormLabel className="font-normal">
-                                        {style}
+                                        {activity}
                                       </FormLabel>
                                     </FormItem>
                                   ))}
