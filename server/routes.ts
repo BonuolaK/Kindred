@@ -339,6 +339,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Unmatch with a user
+  app.post("/api/matches/:id/unmatch", async (req, res, next) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const userId = req.user.id;
+      const matchId = parseInt(req.params.id, 10);
+      
+      // Get current user to check profile type
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Only Premium and Elite users can unmatch
+      if (user.profileType === 'basic') {
+        return res.status(403).json({ 
+          message: "Only Premium and Elite members can unmatch. Please upgrade your account.",
+          requiresUpgrade: true
+        });
+      }
+      
+      const match = await storage.getMatchById(matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+      
+      // Verify that the requesting user is part of the match
+      if (match.userId1 !== userId && match.userId2 !== userId) {
+        return res.status(403).json({ message: "Not authorized to unmatch this connection" });
+      }
+      
+      // Delete the match by updating its status
+      await storage.updateMatch(matchId, { 
+        status: 'unmatched',
+        unmatchedBy: userId,
+        unmatchedDate: new Date().toISOString()
+      });
+      
+      res.json({ message: "Successfully unmatched", matchId });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   // Call endpoints
   
   // Create a new call

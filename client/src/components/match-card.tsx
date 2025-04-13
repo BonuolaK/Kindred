@@ -33,13 +33,70 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
-                onClick={() => alert("This feature is only available to premium members. Upgrade your plan to swap matches.")}
+                onClick={() => {
+                  // Get the user from the API
+                  fetch('/api/user')
+                    .then(res => res.json())
+                    .then(currentUser => {
+                      // If user is Basic, show upgrade prompt
+                      if (currentUser.profileType === 'basic') {
+                        alert("This feature is only available to premium members. Upgrade your plan to swap matches.");
+                      } else {
+                        // For Premium and Elite, show confirmation dialog
+                        const confirmUnmatch = window.confirm(`Are you sure you want to unmatch with ${otherUser.username}?`);
+                        
+                        if (confirmUnmatch) {
+                          // Create a modal to show the unmatch is in progress
+                          const unmatchModal = document.createElement('div');
+                          unmatchModal.id = 'unmatch-modal';
+                          unmatchModal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center';
+                          unmatchModal.innerHTML = `
+                            <div class="bg-white rounded-lg p-4 max-w-sm w-full text-center">
+                              <p class="mb-4">Unmatching...</p>
+                              <div class="w-8 h-8 border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mx-auto"></div>
+                            </div>
+                          `;
+                          document.body.appendChild(unmatchModal);
+                          
+                          // Call the API to unmatch
+                          fetch(`/api/matches/${match.id}/unmatch`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json'
+                            }
+                          })
+                          .then(res => {
+                            // Remove the modal
+                            document.getElementById('unmatch-modal')?.remove();
+                            
+                            if (res.ok) {
+                              // Success, refresh the matches list
+                              window.location.reload();
+                            } else {
+                              // Show error
+                              alert("Failed to unmatch. Please try again later.");
+                            }
+                          })
+                          .catch(err => {
+                            // Remove the modal
+                            document.getElementById('unmatch-modal')?.remove();
+                            console.error(err);
+                            alert("An error occurred. Please try again later.");
+                          });
+                        }
+                      }
+                    })
+                    .catch(err => {
+                      console.error(err);
+                      alert("Could not verify account type. Please try again later.");
+                    });
+                }}
               >
                 <X className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Swap/Unmatch (Premium Feature)</p>
+              <p>Unmatch</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -91,7 +148,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
         
         <div className="w-full mb-3">
           <div className="flex justify-between items-center">
-            <CompactCallPreferences preferences={otherUser.callPreferences} />
+            <CompactCallPreferences preferences={otherUser.callPreferences || undefined} />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -123,7 +180,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
                       
                       // Render the detailed preferences into the modal
                       const contentElement = document.getElementById('call-preferences-content');
-                      if (contentElement && otherUser.callPreferences) {
+                      if (contentElement) {
                         const detailedPreferences = document.createElement('div');
                         detailedPreferences.className = 'text-sm';
                         contentElement.innerHTML = '';
@@ -131,36 +188,82 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
                         
                         // This is a hacky approach since we can't directly render React components here
                         // In a real app, you'd use a proper React modal
-                        const weekdays = otherUser.callPreferences.weekdays?.map(slot => 
-                          `<span class="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-700 mr-2 mb-2">
-                            Weekdays: ${slot.start.replace(/:\d\d$/, '')} - ${slot.end.replace(/:\d\d$/, '')}
-                          </span>`
-                        ).join('') || '';
                         
-                        const weekends = otherUser.callPreferences.weekends?.map(slot => 
-                          `<span class="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-700 mr-2 mb-2">
-                            Weekends: ${slot.start.replace(/:\d\d$/, '')} - ${slot.end.replace(/:\d\d$/, '')}
-                          </span>`
-                        ).join('') || '';
-                        
-                        const unavailable = otherUser.callPreferences.notAvailable?.map(day => 
-                          `<span class="inline-block bg-red-100 rounded-full px-3 py-1 text-sm font-medium text-red-700 mr-2 mb-2">
-                            ${day.charAt(0).toUpperCase() + day.slice(1)}
-                          </span>`
-                        ).join('') || '';
-                        
-                        detailedPreferences.innerHTML = `
-                          <div class="mb-4">
-                            <h4 class="font-medium mb-2">Available Times</h4>
-                            <div class="flex flex-wrap">${weekdays}${weekends}</div>
-                          </div>
-                          ${unavailable ? `
-                          <div>
-                            <h4 class="font-medium mb-2">Unavailable Days</h4>
-                            <div class="flex flex-wrap">${unavailable}</div>
-                          </div>
-                          ` : ''}
-                        `;
+                        // If user has no preferences, show default "Available anytime" view
+                        if (!otherUser.callPreferences || 
+                            (!otherUser.callPreferences.weekdays?.length && 
+                             !otherUser.callPreferences.weekends?.length && 
+                             !otherUser.callPreferences.notAvailable?.length)) {
+                          
+                          detailedPreferences.innerHTML = `
+                            <div class="mb-4">
+                              <div class="flex items-center mb-3">
+                                <div class="h-3 w-3 rounded-full bg-green-500 mr-2"></div>
+                                <span class="text-sm font-medium">Available anytime</span>
+                              </div>
+                              <p class="text-gray-500 text-xs italic mb-3">This user hasn't set specific preferences yet</p>
+                              
+                              <h4 class="font-medium mb-2">Standard Availability</h4>
+                              <div class="flex flex-wrap">
+                                <span class="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-700 mr-2 mb-2">
+                                  Weekdays: 9AM - 9PM
+                                </span>
+                                <span class="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-700 mr-2 mb-2">
+                                  Weekends: 9AM - 9PM
+                                </span>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 class="font-medium mb-2">Available Days</h4>
+                              <div class="flex flex-wrap">
+                                <span class="inline-block bg-green-100 rounded-full px-3 py-1 text-sm font-medium text-green-700 mr-2 mb-2">
+                                  All days
+                                </span>
+                              </div>
+                            </div>
+                          `;
+                        } else {
+                          // Otherwise show the actual preferences
+                          const weekdays = otherUser.callPreferences.weekdays?.map(slot => 
+                            `<span class="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-700 mr-2 mb-2">
+                              Weekdays: ${slot.start.replace(/:\d\d$/, '')} - ${slot.end.replace(/:\d\d$/, '')}
+                            </span>`
+                          ).join('') || '';
+                          
+                          const weekends = otherUser.callPreferences.weekends?.map(slot => 
+                            `<span class="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-700 mr-2 mb-2">
+                              Weekends: ${slot.start.replace(/:\d\d$/, '')} - ${slot.end.replace(/:\d\d$/, '')}
+                            </span>`
+                          ).join('') || '';
+                          
+                          const unavailable = otherUser.callPreferences.notAvailable?.map(day => 
+                            `<span class="inline-block bg-red-100 rounded-full px-3 py-1 text-sm font-medium text-red-700 mr-2 mb-2">
+                              ${day.charAt(0).toUpperCase() + day.slice(1)}
+                            </span>`
+                          ).join('') || '';
+                          
+                          detailedPreferences.innerHTML = `
+                            <div class="mb-4">
+                              <h4 class="font-medium mb-2">Available Times</h4>
+                              <div class="flex flex-wrap">${weekdays || "No weekday preferences set"}${weekends || "No weekend preferences set"}</div>
+                            </div>
+                            ${unavailable ? `
+                            <div>
+                              <h4 class="font-medium mb-2">Unavailable Days</h4>
+                              <div class="flex flex-wrap">${unavailable}</div>
+                            </div>
+                            ` : `
+                            <div>
+                              <h4 class="font-medium mb-2">Available Days</h4>
+                              <div class="flex flex-wrap">
+                                <span class="inline-block bg-green-100 rounded-full px-3 py-1 text-sm font-medium text-green-700 mr-2 mb-2">
+                                  All days
+                                </span>
+                              </div>
+                            </div>
+                            `}
+                          `;
+                        }
                       }
                     }}
                   >

@@ -104,12 +104,13 @@ function formatTimeRange(preferences: CallPreferences): string {
 }
 
 export function CompactCallPreferences({ preferences, className }: CompactCallPreferencesProps) {
+  // If no preferences or empty preferences, show "Available anytime"
   if (!preferences || 
       (!preferences.weekdays?.length && !preferences.weekends?.length && !preferences.notAvailable?.length)) {
     return (
-      <div className={cn("text-xs text-muted-foreground flex items-center gap-1", className)}>
-        <Clock className="h-3 w-3" />
-        <span>Flexible availability</span>
+      <div className={cn("flex items-center gap-2", className)}>
+        <div className={cn("h-2.5 w-2.5 rounded-full bg-green-500")} />
+        <span className="text-xs font-medium">Available anytime</span>
       </div>
     );
   }
