@@ -29,9 +29,6 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
             Matched on {formatDate(match.matchDate)}
           </CardDescription>
         </div>
-        <Badge variant="outline" className="bg-purple-100 text-purple-800 hover:bg-purple-200">
-          {match.compatibility}% Match
-        </Badge>
       </CardHeader>
       
       <CardContent className="p-4 flex flex-col items-center">

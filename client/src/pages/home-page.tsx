@@ -12,7 +12,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Match } from "@shared/schema";
 import { MatchCard } from "@/components/match-card";
-import { Loader2, PhoneCall, Heart, MessageCircle, Settings, User } from "lucide-react";
+import { Loader2, PhoneCall, Heart, MessageCircle, Settings, User, CrownIcon, ArrowUpCircle } from "lucide-react";
+import { getMaxMatches, getSubscriptionName } from "@/lib/subscription-limits";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -22,7 +23,8 @@ export default function HomePage() {
   // Check if profile is complete to show onboarding if needed
   useEffect(() => {
     if (user) {
-      // Check for the needsOnboarding flag from Google Auth
+      // Check for the needsOnboarding flag from session
+      // @ts-ignore - The needsOnboarding flag is added by the server
       if (user.needsOnboarding) {
         setShowOnboarding(true);
         return;
@@ -103,6 +105,28 @@ export default function HomePage() {
             </TabsList>
             
             <TabsContent value="matches" className="mt-6">
+              {/* Subscription information */}
+              <div className="mb-4 bg-purple-50 p-4 rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CrownIcon className="h-5 w-5 text-purple-700" />
+                  <div>
+                    <h3 className="font-medium">{getSubscriptionName(user?.profileType)}</h3>
+                    <p className="text-sm text-gray-600">
+                      {matches && matches.length} of {getMaxMatches(user?.profileType)} matches available
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="bg-white"
+                  onClick={() => navigate("/profile/subscription")}
+                >
+                  <ArrowUpCircle className="h-4 w-4 mr-2" />
+                  Upgrade
+                </Button>
+              </div>
+              
               {isLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -110,8 +134,38 @@ export default function HomePage() {
               ) : matches && matches.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {matches.map((match) => (
-                    <MatchCard key={match.id} match={match} />
+                    <MatchCard key={match.id} match={match} currentUserId={user?.id || 0} />
                   ))}
+                  
+                  {matches.length < getMaxMatches(user?.profileType) ? (
+                    <Card className="flex flex-col items-center justify-center p-6 border-dashed">
+                      <Heart className="h-12 w-12 text-gray-300 mb-4" />
+                      <h3 className="font-heading font-semibold text-lg mb-2 text-center">Find More Matches</h3>
+                      <p className="text-gray-600 mb-4 text-center text-sm">
+                        You have {getMaxMatches(user?.profileType) - (matches.length || 0)} matches remaining on your plan
+                      </p>
+                      <Button 
+                        onClick={() => navigate("/matches")}
+                        variant="default"
+                      >
+                        Find Matches
+                      </Button>
+                    </Card>
+                  ) : (
+                    <Card className="flex flex-col items-center justify-center p-6 border-dashed">
+                      <CrownIcon className="h-12 w-12 text-yellow-400 mb-4" />
+                      <h3 className="font-heading font-semibold text-lg mb-2 text-center">Upgrade for More</h3>
+                      <p className="text-gray-600 mb-4 text-center text-sm">
+                        Upgrade your plan to receive more high-quality matches
+                      </p>
+                      <Button 
+                        onClick={() => navigate("/profile/subscription")}
+                        variant="default"
+                      >
+                        Upgrade Now
+                      </Button>
+                    </Card>
+                  )}
                 </div>
               ) : (
                 <Card>
