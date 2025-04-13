@@ -111,16 +111,18 @@ export function setupGoogleAuth(app: Express) {
     return;
   }
 
-  // Use the current hostname from the request
-  const currentHost = process.env.REPLIT_DOMAINS ? 
-    process.env.REPLIT_DOMAINS.split(',')[0] :
-    (process.env.NODE_ENV === 'production' ? 'kindred-dating.replit.app' : 'localhost:5000');
+  // Use the Replit domain for callback URL
+  const domain = process.env.REPLIT_DOMAINS ? 
+    process.env.REPLIT_DOMAINS.split(',')[0] : 
+    'localhost:5000';
   
-  // Determine protocol based on environment
-  const protocol = process.env.NODE_ENV === 'production' || currentHost.includes('replit') ? 'https' : 'http';
+  // Always use HTTPS for Replit domains
+  const protocol = domain.includes('replit.dev') || domain.includes('replit.app') ? 'https' : 'http';
   
   // Construct the full callback URL
-  const callbackUrl = `${protocol}://${currentHost}/api/auth/google/callback`;
+  const callbackUrl = `${protocol}://${domain}/api/auth/google/callback`;
+  
+  console.log('Google OAuth callback URL:', callbackUrl);
 
   // Create the Google authentication strategy
   const googleStrategy = new GoogleAuthStrategy(

@@ -11,7 +11,8 @@ import MatchesPage from "@/pages/matches-page";
 import ConversationPage from "@/pages/conversation-page";
 import CallPage from "@/pages/call-page";
 import SocketTestPage from "@/pages/socket-test";
-import RTCTestPage from "@/pages/rtc-test-page";
+import RTCTestPage from "@/pages/rtc-test";
+import RtcTestPageOld from "@/pages/rtc-test-page";
 import NotFound from "@/pages/not-found";
 import { ProtectedRoute } from "./lib/protected-route";
 
@@ -27,6 +28,7 @@ function Router() {
       <ProtectedRoute path="/call/:id" component={CallPage} />
       <ProtectedRoute path="/socket-test" component={SocketTestPage} />
       <ProtectedRoute path="/rtc-test" component={RTCTestPage} />
+      <ProtectedRoute path="/rtc-test-old" component={RtcTestPageOld} />
       <Route component={NotFound} />
     </Switch>
   );
