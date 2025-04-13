@@ -4,30 +4,17 @@ import { WebSocketServer, WebSocket } from "ws";
 
 /**
  * A basic WebSocket server with minimal functionality for testing
+ * Deliberately designed with minimal options for maximum compatibility
  */
 export function setupBasicWebSocketServer(httpServer: HttpServer) {
-  // Initialize a simple WebSocket server with advanced diagnostics
-  // This server is specifically designed to troubleshoot WebSocket issues
+  // Create a very simple WebSocket server with no protocol negotiations
+  // or subprotocols to eliminate protocol-related issues
   const wss = new WebSocketServer({ 
     server: httpServer, 
     path: '/basic-ws',
     // Use minimal options to avoid potential issues
     clientTracking: true,
     perMessageDeflate: false, // Disable compression for better reliability
-    // Handle protocol negotiation - log and accept the first protocol or default to none
-    handleProtocols: (protocols: string[], request) => {
-      // Log protocols for debugging
-      console.log(`[Basic WS] Client requested protocols:`, protocols);
-      
-      // Accept any protocol if provided
-      if (protocols && protocols.length > 0) {
-        console.log(`[Basic WS] Accepting protocol: ${protocols[0]}`);
-        return protocols[0];
-      }
-      
-      console.log(`[Basic WS] No protocol specified, accepting connection without protocol`);
-      return false;
-    },
     // Explicitly verify and accept clients from our origin
     verifyClient: (info, cb) => {
       // Log full verification info for debugging

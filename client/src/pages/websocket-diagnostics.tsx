@@ -7,33 +7,38 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
+// Define the valid endpoint types
+type EndpointType = 'basic' | 'main' | 'rtc';
+type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
 export default function WebSocketDiagnostics() {
-  const [activeTab, setActiveTab] = useState("basic");
-  const [status, setStatus] = useState<{[key: string]: "disconnected" | "connecting" | "connected" | "error"}>({
+  const [activeTab, setActiveTab] = useState<EndpointType>("basic");
+  
+  // Use strongly typed state objects
+  const [status, setStatus] = useState<Record<EndpointType, ConnectionStatus>>({
     basic: "disconnected",
     main: "disconnected", 
     rtc: "disconnected"
   });
-  const [logs, setLogs] = useState<{[key: string]: string[]}>({
+  
+  const [logs, setLogs] = useState<Record<EndpointType, string[]>>({
     basic: [],
     main: [],
     rtc: []
   });
-  const [errors, setErrors] = useState<{[key: string]: string | null}>({
+  
+  const [errors, setErrors] = useState<Record<EndpointType, string | null>>({
     basic: null,
     main: null,
     rtc: null
   });
   
   // WebSocket references
-  const wsRefs = useRef<{[key: string]: WebSocket | null}>({
+  const wsRefs = useRef<Record<EndpointType, WebSocket | null>>({
     basic: null,
     main: null,
     rtc: null
   });
-  
-  // Define valid endpoint types to fix TypeScript errors
-  type EndpointType = 'basic' | 'main' | 'rtc';
   
   // Connection configuration
   const endpoints: Record<EndpointType, string> = {
@@ -45,9 +50,10 @@ export default function WebSocketDiagnostics() {
   // Close connections on unmount
   useEffect(() => {
     return () => {
-      Object.keys(wsRefs.current).forEach(key => {
-        if (wsRefs.current[key] && wsRefs.current[key]?.readyState === WebSocket.OPEN) {
-          wsRefs.current[key]?.close();
+      (Object.keys(wsRefs.current) as EndpointType[]).forEach(key => {
+        const ws = wsRefs.current[key];
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close();
         }
       });
     };
@@ -73,8 +79,9 @@ export default function WebSocketDiagnostics() {
   const connect = (type: EndpointType) => {
     try {
       // Close existing connection if any
-      if (wsRefs.current[type] && wsRefs.current[type]?.readyState !== WebSocket.CLOSED) {
-        wsRefs.current[type]?.close();
+      const existingWs = wsRefs.current[type];
+      if (existingWs && existingWs.readyState !== WebSocket.CLOSED) {
+        existingWs.close();
       }
       
       // Reset error state
@@ -89,37 +96,10 @@ export default function WebSocketDiagnostics() {
       const wsUrl = `${protocol}//${window.location.host}${endpoints[type]}`;
       addLog(type, `WebSocket URL: ${wsUrl}`);
       
-      // Create WebSocket instance with diagnostic instrumentation
+      // Create WebSocket instance
       const ws = new WebSocket(wsUrl);
       
-      // Instrument the WebSocket with a proxy to catch all exceptions
-      const wsProxy = new Proxy(ws, {
-        get: (target, prop) => {
-          const value = Reflect.get(target, prop);
-          if (typeof value === 'function') {
-            return function(...args: any[]) {
-              try {
-                return value.apply(this === wsProxy ? target : this, args);
-              } catch (err) {
-                addLog(type, `Error in WebSocket.${String(prop)}: ${err}`);
-                console.error(`[${type}] Error in WebSocket.${String(prop)}:`, err);
-                return undefined;
-              }
-            };
-          }
-          return value;
-        },
-        set: (target, prop, value) => {
-          try {
-            return Reflect.set(target, prop, value);
-          } catch (err) {
-            addLog(type, `Error setting WebSocket.${String(prop)}: ${err}`);
-            console.error(`[${type}] Error setting WebSocket.${String(prop)}:`, err);
-            return false;
-          }
-        }
-      });
-      
+      // Store the WebSocket
       wsRefs.current[type] = ws;
       
       // Set up event listeners
@@ -127,19 +107,21 @@ export default function WebSocketDiagnostics() {
         addLog(type, "Connection established");
         addLog(type, `Event details: ${JSON.stringify({
           type: event.type,
-          target: { readyState: ws.readyState }
+          readyState: ws.readyState
         })}`);
         setStatus(prev => ({ ...prev, [type]: "connected" }));
         
         // Send a simple test message
         setTimeout(() => {
           try {
-            ws.send(JSON.stringify({ 
-              type: "ping", 
-              timestamp: Date.now(),
-              client: "diagnostics"
-            }));
-            addLog(type, "Sent ping message");
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ 
+                type: "ping", 
+                timestamp: Date.now(),
+                client: "diagnostics"
+              }));
+              addLog(type, "Sent ping message");
+            }
           } catch (err) {
             addLog(type, `Error sending ping: ${err}`);
             setErrors(prev => ({ ...prev, [type]: `Error sending ping: ${err}` }));
@@ -183,8 +165,7 @@ export default function WebSocketDiagnostics() {
         try {
           addLog(type, `Error details: ${JSON.stringify({
             type: event.type,
-            target: { readyState: ws.readyState },
-            isTrusted: (event as any).isTrusted
+            readyState: ws.readyState
           })}`);
         } catch (err) {
           addLog(type, `Error serializing error event: ${err}`);
@@ -219,11 +200,12 @@ export default function WebSocketDiagnostics() {
   };
   
   // Disconnect from a WebSocket endpoint
-  const disconnect = (type: string) => {
-    if (wsRefs.current[type]) {
+  const disconnect = (type: EndpointType) => {
+    const ws = wsRefs.current[type];
+    if (ws) {
       try {
         addLog(type, "Manually closing connection...");
-        wsRefs.current[type]?.close(1000, "User initiated disconnect");
+        ws.close(1000, "User initiated disconnect");
         wsRefs.current[type] = null;
       } catch (err) {
         addLog(type, `Error closing connection: ${err}`);
@@ -231,7 +213,7 @@ export default function WebSocketDiagnostics() {
     }
   };
   
-  const getStatusVariant = (status: string): "default" | "destructive" | "outline" | "secondary" => {
+  const getStatusVariant = (status: ConnectionStatus): "default" | "destructive" | "outline" | "secondary" => {
     switch (status) {
       case "connected": return "default";
       case "connecting": return "secondary";
@@ -247,7 +229,7 @@ export default function WebSocketDiagnostics() {
           <CardTitle className="text-2xl">WebSocket Diagnostics</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab}>
+          <Tabs defaultValue="basic" value={activeTab} onValueChange={(value) => setActiveTab(value as EndpointType)}>
             <TabsList className="grid grid-cols-3 mb-6">
               <TabsTrigger value="basic">
                 Basic WebSocket
@@ -269,7 +251,7 @@ export default function WebSocketDiagnostics() {
               </TabsTrigger>
             </TabsList>
             
-            {Object.keys(endpoints).map(type => (
+            {(Object.keys(endpoints) as EndpointType[]).map(type => (
               <TabsContent key={type} value={type} className="space-y-4">
                 <div className="flex justify-between">
                   <div className="space-y-2">
