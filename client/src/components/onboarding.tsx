@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import Logo from "@/components/logo";
 import { Loader2, ArrowRight, ArrowLeft, Check } from "lucide-react";
 import { ukCities } from "@/lib/uk-cities";
@@ -888,6 +889,47 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     {currentStep === 14 && (
                       <FormField
                         control={form.control}
+                        name="relationshipPace"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormDescription className="mb-4">
+                                Choose what works best for you
+                              </FormDescription>
+                              <div className="space-y-4 mt-4">
+                                {[
+                                  "I prefer to take things slow and build connection gradually",
+                                  "I'm open to following the natural flow of the relationship",
+                                  "I like to establish connection quickly and see where it leads",
+                                  "I want to ensure we're compatible before investing too much time"
+                                ].map((pace) => (
+                                  <FormItem key={pace} className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                      <RadioGroup value={field.value} onValueChange={field.onChange}>
+                                        <div className="flex items-center space-x-2">
+                                          <RadioGroupItem value={pace} id={pace} />
+                                          <Label htmlFor={pace}>{pace}</Label>
+                                        </div>
+                                      </RadioGroup>
+                                    </FormControl>
+                                  </FormItem>
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 15 && (
+                      <FormField
+                        control={form.control}
                         name="dealbreakers"
                         render={({ field }) => (
                           <FormItem className="flex-1 flex flex-col justify-center">
@@ -939,7 +981,90 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       />
                     )}
                     
-                    {currentStep === 15 && (
+                    {currentStep === 16 && (
+                      <div className="flex-1 flex flex-col justify-center">
+                        <motion.div 
+                          initial={{ y: 10, opacity: 0 }} 
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.1 }}
+                          className="text-center"
+                        >
+                          <FormLabel className="text-xl font-heading mb-2 block">{currentStepData.question}</FormLabel>
+                          <FormDescription className="mb-6 block">
+                            This is optional. You can always update this later.
+                          </FormDescription>
+                          
+                          <div className="space-y-6 max-w-lg mx-auto">
+                            <div 
+                              className="bg-white rounded-xl shadow-sm p-6 text-center hover:bg-primary/5 transition-colors border-2 border-primary cursor-pointer" 
+                              onClick={() => {
+                                // Set flexible timing as default value
+                                form.setValue("callPreferences", {
+                                  preference: "flexible",
+                                  description: "I'm flexible with my availability"
+                                });
+                                handleNext();
+                              }}
+                            >
+                              <h4 className="font-heading font-semibold text-lg mb-2">I'm Flexible</h4>
+                              <p className="text-gray-600 text-sm">
+                                I don't have specific time preferences and can coordinate with my matches.
+                              </p>
+                            </div>
+                            
+                            <div 
+                              className="bg-white rounded-xl shadow-sm p-6 text-center hover:bg-primary/5 transition-colors cursor-pointer" 
+                              onClick={() => {
+                                form.setValue("callPreferences", {
+                                  preference: "weekday_evenings",
+                                  description: "I prefer weekday evenings (6pm-10pm)"
+                                });
+                                handleNext();
+                              }}
+                            >
+                              <h4 className="font-heading font-semibold text-lg mb-2">Weekday Evenings</h4>
+                              <p className="text-gray-600 text-sm">
+                                I prefer to schedule calls on weekday evenings (6pm-10pm).
+                              </p>
+                            </div>
+                            
+                            <div 
+                              className="bg-white rounded-xl shadow-sm p-6 text-center hover:bg-primary/5 transition-colors cursor-pointer" 
+                              onClick={() => {
+                                form.setValue("callPreferences", {
+                                  preference: "weekends",
+                                  description: "I prefer weekends"
+                                });
+                                handleNext();
+                              }}
+                            >
+                              <h4 className="font-heading font-semibold text-lg mb-2">Weekends</h4>
+                              <p className="text-gray-600 text-sm">
+                                I prefer scheduling calls on weekends when I have more free time.
+                              </p>
+                            </div>
+
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              className="w-full" 
+                              onClick={() => {
+                                // Default to flexible timing when skipped
+                                form.setValue("callPreferences", {
+                                  preference: "flexible",
+                                  description: "I'm flexible with my availability"
+                                });
+                                handleNext();
+                              }}
+                            >
+                              Skip for now
+                            </Button>
+                          </div>
+                        </motion.div>
+                      </div>
+                    )}
+                    
+                    {currentStep === 17 && (
                       <div className="flex-1 flex flex-col justify-center items-center text-center py-8">
                         <motion.div 
                           initial={{ scale: 0.8, opacity: 0 }} 
