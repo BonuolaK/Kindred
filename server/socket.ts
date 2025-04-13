@@ -285,7 +285,9 @@ export function setupSocketServer(httpServer: HttpServer) {
             
             // Find the call in our active calls map
             let callKey = '';
-            let callData: {
+            
+            // Define proper call data structure
+            interface CallData {
               initiator: number;
               receiver: number;
               matchId: number;
@@ -293,17 +295,19 @@ export function setupSocketServer(httpServer: HttpServer) {
               callDay: number;
               startTime: number;
               status: 'pending' | 'connecting' | 'active' | 'completed' | 'missed' | 'rejected';
-            } | null = null;
+            }
+            
+            let callData: CallData | null = null;
             
             // Try both potential key formats
             if (userId) {
               // Look for calls where this user is the initiator
               // Use forEach to avoid TypeScript issues with for...of and Map.entries()
-              activeCalls.forEach((call, key) => {
+              activeCalls.forEach((call: any, key: string) => {
                 if (call.matchId.toString() === statusMatchId.toString() && 
                     (call.initiator === userId || call.receiver === userId)) {
                   callKey = key;
-                  callData = call;
+                  callData = call as CallData;
                 }
               });
             }
