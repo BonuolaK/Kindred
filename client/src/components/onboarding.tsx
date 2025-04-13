@@ -86,8 +86,8 @@ const steps: Step[] = [
     id: 2,
     title: "Basic Information",
     description: "Tell us about yourself",
-    question: "What's your name?",
-    fieldName: "name",
+    question: "What's your username?",
+    fieldName: "username",
   },
   {
     id: 3,
@@ -210,7 +210,7 @@ const steps: Step[] = [
 
 // Basic validation schema
 const onboardingSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
+  username: z.string().min(2, "Username must be at least 2 characters").min(1, "Username is required"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
   age: z.number().min(21, "You must be at least 21 years old to use Kindred").max(120),
   gender: z.string().min(1, "Please select your gender"),
@@ -218,18 +218,19 @@ const onboardingSchema = z.object({
   agePreferenceMin: z.number().min(21, "Minimum age must be at least 21").max(120).optional(),
   agePreferenceMax: z.number().min(21, "Maximum age must be at least 21").max(120).optional(),
   location: z.string().min(1, "Please select your location"),
-  bio: z.string().optional(),
+  bio: z.string().min(1, "Bio is required"),
   communicationStyle: z.string().optional(),
-  freeTimeActivities: z.array(z.string()).optional(),
-  values: z.string().optional(),
-  conflictResolution: z.string().optional(),
-  loveLanguage: z.string().optional(),
-  relationshipPace: z.string().optional(),
-  dealbreakers: z.array(z.string()).optional(),
+  freeTimeActivities: z.array(z.string()).min(1, "Please select at least one activity"),
+  values: z.string().min(1, "Please select your values"),
+  conflictResolution: z.string().min(1, "Please select your conflict resolution style"),
+  loveLanguage: z.string().min(1, "Please select your love language"),
+  relationshipPace: z.string().min(1, "Please select your relationship pace"),
+  dealbreakers: z.array(z.string()).min(1, "Please select at least one dealbreaker"),
   callPreferences: callPreferencesSchema.optional(),
   avatar: z.string().optional(),
   idVerificationImage: z.string().optional(),
   idVerificationSkipped: z.boolean().optional(),
+  onboardingCompleted: z.boolean().optional(),
 });
 
 type OnboardingFormValues = z.infer<typeof onboardingSchema>;
