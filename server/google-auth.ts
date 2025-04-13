@@ -111,13 +111,24 @@ export function setupGoogleAuth(app: Express) {
     return;
   }
 
-  // Use the Replit domain for callback URL
-  const domain = process.env.REPLIT_DOMAINS ? 
-    process.env.REPLIT_DOMAINS.split(',')[0] : 
-    'localhost:5000';
+  // Use custom domain, production domain, or Replit domain for callback URL
+  const prodDomain = 'www.getkindred.app';
   
-  // Always use HTTPS for Replit domains
-  const protocol = domain.includes('replit.dev') || domain.includes('replit.app') ? 'https' : 'http';
+  // Allow manual override through environment variable
+  const domain = process.env.AUTH_CALLBACK_DOMAIN || 
+    (process.env.NODE_ENV === 'production' ? 
+      prodDomain : 
+      (process.env.REPLIT_DOMAINS ? 
+        process.env.REPLIT_DOMAINS.split(',')[0] : 
+        'localhost:5000'));
+  
+  // Always use HTTPS for production, custom, and Replit domains
+  const protocol = domain === prodDomain || 
+    domain === 'www.getkindred.app' || 
+    domain.includes('replit.dev') || 
+    domain.includes('replit.app') || 
+    domain.includes('https://') ? 
+    'https' : 'http';
   
   // Construct the full callback URL
   const callbackUrl = `${protocol}://${domain}/api/auth/google/callback`;
