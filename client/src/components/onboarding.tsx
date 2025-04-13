@@ -184,7 +184,7 @@ const onboardingSchema = z.object({
   loveLanguage: z.string().optional(),
   relationshipPace: z.string().optional(),
   dealbreakers: z.array(z.string()).optional(),
-  // Removed callPreferences from validation schema as it's optional
+  callPreferences: z.any().optional(), // Added callPreferences as optional with any type
 });
 
 type OnboardingFormValues = z.infer<typeof onboardingSchema>;
@@ -217,6 +217,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       loveLanguage: user?.loveLanguage || "",
       relationshipPace: user?.relationshipPace || "",
       dealbreakers: user?.dealbreakers || [],
+      callPreferences: user?.callPreferences || undefined,
     },
   });
   
@@ -999,7 +1000,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               className="bg-white rounded-xl shadow-sm p-6 text-center hover:bg-primary/5 transition-colors border-2 border-primary cursor-pointer" 
                               onClick={() => {
                                 // Set flexible timing as default value
-                                form.setValue("callPreferences", {
+                                form.setValue("callPreferences" as any, {
                                   preference: "flexible",
                                   description: "I'm flexible with my availability"
                                 });
@@ -1015,7 +1016,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                             <div 
                               className="bg-white rounded-xl shadow-sm p-6 text-center hover:bg-primary/5 transition-colors cursor-pointer" 
                               onClick={() => {
-                                form.setValue("callPreferences", {
+                                form.setValue("callPreferences" as any, {
                                   preference: "weekday_evenings",
                                   description: "I prefer weekday evenings (6pm-10pm)"
                                 });
@@ -1031,7 +1032,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                             <div 
                               className="bg-white rounded-xl shadow-sm p-6 text-center hover:bg-primary/5 transition-colors cursor-pointer" 
                               onClick={() => {
-                                form.setValue("callPreferences", {
+                                form.setValue("callPreferences" as any, {
                                   preference: "weekends",
                                   description: "I prefer weekends"
                                 });
@@ -1050,7 +1051,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               className="w-full" 
                               onClick={() => {
                                 // Default to flexible timing when skipped
-                                form.setValue("callPreferences", {
+                                form.setValue("callPreferences" as any, {
                                   preference: "flexible",
                                   description: "I'm flexible with my availability"
                                 });
