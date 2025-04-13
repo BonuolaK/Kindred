@@ -23,19 +23,72 @@ const pendingOffers = new Map<string, any>();
 let connectionCount = 0;
 let messageCount = 0;
 
+// Keep track of client heartbeats
+const clientHeartbeats = new Map<WebSocket, number>();
+
+// Set up heartbeat interval (ms)
+const HEARTBEAT_INTERVAL = 20000; // 20 seconds
+const CLIENT_TIMEOUT = 60000; // 60 seconds without heartbeat = disconnect
+
 export function setupSocketServer(httpServer: HttpServer) {
-  // Create WebSocket server
+  // Create WebSocket server with more resilient settings for Replit environment
   const wss = new WebSocketServer({ 
     server: httpServer, 
-    path: '/ws'  // Match the path used in the client
+    path: '/ws',  // Match the path used in the client
+    // Increase timeouts for more stability in Replit
+    clientTracking: true,
+    perMessageDeflate: false // Disable compression for reliability
   });
   console.log('WebSocket server initialized on path: /ws');
+  
+  // Set up server heartbeat to detect and clean up dead connections
+  setInterval(() => {
+    const now = Date.now();
+    
+    wss.clients.forEach((ws: WebSocket) => {
+      // Check if client has been responsive
+      const lastHeartbeat = clientHeartbeats.get(ws);
+      
+      if (lastHeartbeat && now - lastHeartbeat > CLIENT_TIMEOUT) {
+        console.log('Client timed out - terminating connection');
+        cleanupDeadConnection(ws);
+        return;
+      }
+      
+      // Send ping to check if client is still alive
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.ping();
+        } catch (err) {
+          console.log('Error sending ping, terminating connection', err);
+          cleanupDeadConnection(ws);
+        }
+      }
+    });
+  }, HEARTBEAT_INTERVAL);
 
   // Connected users map: userId -> WebSocket connection
   wss.on('connection', (ws: WebSocket) => {
     connectionCount++;
     console.log(`Client connected to WebSocket (total connections: ${connectionCount})`);
     let userId: number | null = null;
+    
+    // Initialize heartbeat
+    clientHeartbeats.set(ws, Date.now());
+    
+    // Handle pong responses (client responds to ping)
+    ws.on('pong', () => {
+      clientHeartbeats.set(ws, Date.now());
+    });
+    
+    // Handle heartbeat messages from client
+    ws.on('ping', () => {
+      try {
+        ws.pong();
+      } catch (error) {
+        console.error('Error sending pong:', error);
+      }
+    });
     
     ws.on('message', (message) => {
       messageCount++;
@@ -289,9 +342,64 @@ export function setupSocketServer(httpServer: HttpServer) {
   return wss;
 }
 
+// Helper function to clean up a dead connection
+function cleanupDeadConnection(ws: WebSocket) {
+  try {
+    // Find the user ID for this connection
+    let userIdToRemove: number | null = null;
+    
+    for (const [id, socket] of users.entries()) {
+      if (socket === ws) {
+        userIdToRemove = id;
+        break;
+      }
+    }
+    
+    // Clean up user registration
+    if (userIdToRemove !== null) {
+      users.delete(userIdToRemove);
+      console.log(`Cleaned up registration for user ${userIdToRemove}`);
+      
+      // End any active calls involving this user
+      for (const [key, call] of activeCalls.entries()) {
+        if (call.initiator === userIdToRemove || call.receiver === userIdToRemove) {
+          const otherUserId = call.initiator === userIdToRemove ? call.receiver : call.initiator;
+          const otherUserWs = users.get(otherUserId);
+          
+          if (otherUserWs) {
+            sendToClient(otherUserWs, {
+              type: 'call:ended',
+              from: userIdToRemove
+            });
+          }
+          
+          activeCalls.delete(key);
+          console.log(`Cleaned up call ${key} for disconnected user ${userIdToRemove}`);
+        }
+      }
+    }
+    
+    // Remove heartbeat tracking
+    clientHeartbeats.delete(ws);
+    
+    // Terminate the connection
+    ws.terminate();
+    
+    connectionCount = Math.max(0, connectionCount - 1);
+    console.log(`Cleaned up dead connection (remaining connections: ${connectionCount})`);
+  } catch (error) {
+    console.error('Error cleaning up dead connection:', error);
+  }
+}
+
 // Helper function to send messages to WebSocket clients
 function sendToClient(ws: WebSocket, data: any) {
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(data));
+    try {
+      ws.send(JSON.stringify(data));
+    } catch (error) {
+      console.error('Error sending message to client:', error);
+      cleanupDeadConnection(ws);
+    }
   }
 }
