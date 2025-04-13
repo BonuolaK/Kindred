@@ -856,7 +856,15 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                       min={21}
                                       max={100}
                                       {...field}
-                                      onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                                      onChange={(e) => {
+                                        const value = parseInt(e.target.value);
+                                        // Enforce minimum age of 21
+                                        if (value < 21) {
+                                          field.onChange(21);
+                                        } else {
+                                          field.onChange(value || undefined);
+                                        }
+                                      }}
                                       value={field.value || ""}
                                     />
                                   </FormControl>
@@ -877,7 +885,15 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                       min={21}
                                       max={100}
                                       {...field}
-                                      onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                                      onChange={(e) => {
+                                        const value = parseInt(e.target.value);
+                                        // Enforce minimum age of 21
+                                        if (value < 21) {
+                                          field.onChange(21);
+                                        } else {
+                                          field.onChange(value || undefined);
+                                        }
+                                      }}
                                       value={field.value || ""}
                                     />
                                   </FormControl>
