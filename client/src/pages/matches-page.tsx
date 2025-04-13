@@ -8,7 +8,7 @@ import MatchCard from "@/components/match-card";
 import UserAvatar from "@/components/user-avatar";
 import Header from "@/components/header";
 import MobileNav from "@/components/mobile-nav";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
@@ -209,24 +209,8 @@ export default function MatchesPage() {
           </div>
           
           <Tabs defaultValue="grid" className="w-full">
-            <div className="flex justify-center mb-4">
-              <TabsList>
-                <TabsTrigger value="grid">
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    <span className="hidden sm:inline">Grid View</span>
-                  </div>
-                </TabsTrigger>
-                <TabsTrigger value="list">
-                  <div className="flex items-center gap-1">
-                    <Filter className="h-4 w-4" />
-                    <span className="hidden sm:inline">List View</span>
-                  </div>
-                </TabsTrigger>
-              </TabsList>
-            </div>
           
-            <TabsContent value="grid" className="mt-0">
+            <div className="mt-4">
               {isLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
                   {[...Array(6)].map((_, i) => (
@@ -246,10 +230,10 @@ export default function MatchesPage() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <h3 className="text-lg font-medium mb-2">No matches found</h3>
+                  <h3 className="text-lg font-medium mb-2">Ready to find your Kindred spirit?</h3>
                   <p className="text-muted-foreground mb-6">
                     {filterValue === "all"
-                      ? "You don't have any matches yet. Complete your profile to increase your chances of matching."
+                      ? "Your perfect match is just a click away! Make sure your profile is complete to discover your most compatible connections."
                       : "No matches found with the selected filter. Try a different filter."}
                   </p>
                   {filterValue === "all" && (
@@ -263,65 +247,7 @@ export default function MatchesPage() {
                   )}
                 </div>
               )}
-            </TabsContent>
-            
-            <TabsContent value="list" className="mt-0">
-              {isLoading ? (
-                <div className="space-y-4 animate-pulse">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="bg-background border rounded-lg h-24"></div>
-                  ))}
-                </div>
-              ) : filteredMatches.length > 0 ? (
-                <div className="space-y-4">
-                  {filteredMatches.map(match => (
-                    <div key={match.id} className="border rounded-lg p-4 flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="relative w-16 h-16">
-                          <div className="absolute inset-0">
-                            <UserAvatar user={match.otherUser} showPhoto={match.arePhotosRevealed || false} size="md" />
-                          </div>
-                        </div>
-                        <div>
-                          <h3 className="font-medium">{match.otherUser.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Matched on {formatDate(match.matchDate)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleScheduleCall(match.id)}
-                          disabled={!!match.callScheduled}
-                        >
-                          {match.callScheduled ? "Scheduled" : "Schedule Call"}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <h3 className="text-lg font-medium mb-2">No matches found</h3>
-                  <p className="text-muted-foreground mb-6">
-                    {filterValue === "all"
-                      ? "You don't have any matches yet. Complete your profile to increase your chances of matching."
-                      : "No matches found with the selected filter. Try a different filter."}
-                  </p>
-                  {filterValue === "all" && (
-                    <Button
-                      onClick={() => generateMatchesMutation.mutate()}
-                      disabled={generateMatchesMutation.isPending}
-                      className="mx-auto"
-                    >
-                      {generateMatchesMutation.isPending ? "Finding Matches..." : "Find Matches"}
-                    </Button>
-                  )}
-                </div>
-              )}
-            </TabsContent>
+            </div>
           </Tabs>
         </div>
       </main>
