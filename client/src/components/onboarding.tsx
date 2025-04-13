@@ -5,6 +5,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import {
+  ChevronLeft,
+  Check,
+  X,
+  Upload,
+  CalendarIcon,
+  Loader2,
+  ArrowRight,
+  ArrowLeft
+} from "lucide-react";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -40,7 +50,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import Logo from "@/components/logo";
-import { Loader2, ArrowRight, ArrowLeft, Check, CalendarIcon, Upload, X } from "lucide-react";
 import { ukCities } from "@/lib/uk-cities";
 import { motion, AnimatePresence } from "framer-motion";
 import AvatarSelector from "@/components/avatar-selector";
@@ -427,78 +436,115 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                   </FormControl>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
-                                  <div className="flex flex-col space-y-4 p-2">
-                                    <div className="flex justify-between pb-2">
-                                      <Select
-                                        onValueChange={(value) => {
-                                          const year = parseInt(value);
-                                          const currentDate = field.value ? new Date(field.value) : new Date();
-                                          currentDate.setFullYear(year);
-                                          
-                                          // Update month view to January of the selected year
-                                          const calendarApi = document.querySelector('.rdp');
-                                          if (calendarApi) {
-                                            const januaryOfYear = new Date(year, 0, 1);
-                                            // Reset to January of the selected year
-                                            field.onChange(januaryOfYear.toISOString());
-                                          } else {
-                                            field.onChange(currentDate.toISOString());
-                                          }
-                                        }}
-                                        value={field.value 
-                                          ? new Date(field.value).getFullYear().toString() 
-                                          : (new Date().getFullYear() - 21).toString()}
-                                      >
-                                        <SelectTrigger className="w-[120px]">
-                                          <SelectValue placeholder="Year" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {Array.from({ length: 80 }, (_, i) => {
-                                            const year = new Date().getFullYear() - 21 - i;
-                                            return (
-                                              <SelectItem key={year} value={year.toString()}>
-                                                {year}
-                                              </SelectItem>
-                                            );
-                                          })}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
+                                  {(() => {
+                                    // Use separate local state for year, month, day selection
+                                    const [selectedYear, setSelectedYear] = useState(
+                                      field.value ? new Date(field.value).getFullYear() : new Date().getFullYear() - 21
+                                    );
+                                    const [selectedMonth, setSelectedMonth] = useState(
+                                      field.value ? new Date(field.value).getMonth() : 0
+                                    );
+                                    const [viewMode, setViewMode] = useState<'year' | 'date'>('year');
+                                    const [defaultDate] = useState(
+                                      field.value ? new Date(field.value) : new Date(new Date().getFullYear() - 21, 0, 1)
+                                    );
                                     
-                                    <Calendar
-                                      mode="single"
-                                      month={field.value ? new Date(field.value) : undefined}
-                                      selected={field.value ? new Date(field.value) : undefined}
-                                      onSelect={(date) => {
-                                        if (date) {
-                                          const today = new Date();
-                                          const birthDate = new Date(date);
-                                          const age = today.getFullYear() - birthDate.getFullYear();
+                                    const handleYearSelect = (year: number) => {
+                                      setSelectedYear(year);
+                                      // Create a date with the selected year and current month
+                                      const newDate = new Date(defaultDate);
+                                      newDate.setFullYear(year);
+                                      newDate.setMonth(selectedMonth);
+                                      // Update the field value
+                                      field.onChange(newDate.toISOString());
+                                      // Switch to date selection
+                                      setViewMode('date');
+                                    };
+                                    
+                                    // Render the year selection grid
+                                    const renderYearSelection = () => {
+                                      const currentYear = new Date().getFullYear();
+                                      const years = Array.from({ length: 80 }, (_, i) => currentYear - 21 - i);
+                                      
+                                      return (
+                                        <div className="p-3">
+                                          <div className="mb-2 text-center font-semibold">Select Year</div>
+                                          <div className="grid grid-cols-4 gap-2">
+                                            {years.map(year => (
+                                              <Button
+                                                key={year}
+                                                variant={year === selectedYear ? "default" : "outline"}
+                                                className="h-10"
+                                                onClick={() => handleYearSelect(year)}
+                                              >
+                                                {year}
+                                              </Button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    };
+                                    
+                                    // Render the calendar for date selection
+                                    const renderDateSelection = () => {
+                                      return (
+                                        <div className="flex flex-col space-y-2 p-2">
+                                          <div className="flex items-center justify-between">
+                                            <Button 
+                                              variant="outline" 
+                                              size="sm"
+                                              onClick={() => setViewMode('year')}
+                                            >
+                                              <ChevronLeft className="mr-1 h-4 w-4" />
+                                              Back to Years
+                                            </Button>
+                                            <div className="font-medium">
+                                              {selectedYear}
+                                            </div>
+                                          </div>
                                           
-                                          // Check if birthday has occurred this year
-                                          const hasBirthdayOccurred = 
-                                            today.getMonth() > birthDate.getMonth() || 
-                                            (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
-                                          
-                                          const calculatedAge = hasBirthdayOccurred ? age : age - 1;
-                                          
-                                          field.onChange(date.toISOString());
-                                          
-                                          // Update the age field
-                                          form.setValue("age", calculatedAge);
-                                        } else {
-                                          field.onChange("");
-                                        }
-                                      }}
-                                      disabled={(date) => {
-                                        // Disable dates less than 21 years ago
-                                        const twentyOneYearsAgo = new Date();
-                                        twentyOneYearsAgo.setFullYear(twentyOneYearsAgo.getFullYear() - 21);
-                                        return date > new Date() || date > twentyOneYearsAgo;
-                                      }}
-                                      initialFocus
-                                    />
-                                  </div>
+                                          <Calendar
+                                            mode="single"
+                                            month={new Date(selectedYear, selectedMonth)}
+                                            defaultMonth={new Date(selectedYear, selectedMonth)}
+                                            selected={field.value ? new Date(field.value) : undefined}
+                                            onSelect={(date) => {
+                                              if (date) {
+                                                const today = new Date();
+                                                const birthDate = new Date(date);
+                                                const age = today.getFullYear() - birthDate.getFullYear();
+                                                
+                                                // Check if birthday has occurred this year
+                                                const hasBirthdayOccurred = 
+                                                  today.getMonth() > birthDate.getMonth() || 
+                                                  (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+                                                
+                                                const calculatedAge = hasBirthdayOccurred ? age : age - 1;
+                                                
+                                                // Update selected month when date is selected
+                                                setSelectedMonth(date.getMonth());
+                                                field.onChange(date.toISOString());
+                                                
+                                                // Update the age field
+                                                form.setValue("age", calculatedAge);
+                                              } else {
+                                                field.onChange("");
+                                              }
+                                            }}
+                                            disabled={(date) => {
+                                              // Disable dates less than 21 years ago
+                                              const twentyOneYearsAgo = new Date();
+                                              twentyOneYearsAgo.setFullYear(twentyOneYearsAgo.getFullYear() - 21);
+                                              return date > new Date() || date > twentyOneYearsAgo;
+                                            }}
+                                            initialFocus
+                                          />
+                                        </div>
+                                      );
+                                    };
+                                    
+                                    return viewMode === 'year' ? renderYearSelection() : renderDateSelection();
+                                  })()}
                                 </PopoverContent>
                               </Popover>
                               <FormMessage />
