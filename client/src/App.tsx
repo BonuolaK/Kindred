@@ -3,9 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "./hooks/use-auth";
-import { PostHogProvider } from "./lib/posthog";
-import { useEffect } from "react";
-import { initAnalytics } from "./lib/analytics";
+import { PostHogProvider } from "./lib/PostHogProvider";
 import LandingPage from "@/pages/landing-page";
 import AuthPage from "@/pages/auth-page";
 import HomePage from "@/pages/home-page";
@@ -48,21 +46,11 @@ function Router() {
   );
 }
 
-function AnalyticsInitializer() {
-  useEffect(() => {
-    // Initialize analytics system
-    initAnalytics();
-  }, []);
-  
-  return null;
-}
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <PostHogProvider>
-          <AnalyticsInitializer />
           <Router />
           <Toaster />
         </PostHogProvider>
