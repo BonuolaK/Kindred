@@ -3,12 +3,25 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { Match, User } from "@shared/schema";
-import { Lock, Phone, MessageCircle, CalendarClock, Eye, Clock, X, RefreshCw } from "lucide-react";
+import { Lock, Phone, MessageCircle, CalendarClock, Eye, Clock, X, RefreshCw, AlertTriangle } from "lucide-react";
 import UserAvatar from "./user-avatar";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { CallPreferencesDisplay } from "./call-preferences-display";
 import { CompactCallPreferences } from "./compact-call-preferences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useState } from "react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type MatchCardProps = {
   match: Match & { otherUser?: User };
@@ -23,8 +36,116 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
   const isPhotoRevealed = match.arePhotosRevealed || false;
   const isChatUnlocked = match.isChatUnlocked || false;
   
+  // State for unmatch dialog
+  const [unmatchDialogOpen, setUnmatchDialogOpen] = useState(false);
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [isUnmatching, setIsUnmatching] = useState(false);
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+  
+  // Handle unmatch function
+  const handleUnmatch = async () => {
+    try {
+      setIsUnmatching(true);
+      
+      const response = await apiRequest("POST", `/api/matches/${match.id}/unmatch`);
+      
+      if (response.ok) {
+        // Get the response data
+        const data = await response.json();
+        
+        // Show success toast
+        toast({
+          title: "Successfully unmatched",
+          description: `You have unmatched with ${otherUser.username}.`,
+          variant: "default",
+        });
+        
+        // Invalidate the matches query to refresh the list
+        queryClient.invalidateQueries(["/api/matches"]);
+        
+        // Close the dialog
+        setUnmatchDialogOpen(false);
+      } else {
+        // Check if it's a premium-required error
+        if (response.status === 403) {
+          const data = await response.json();
+          if (data.requiresUpgrade) {
+            setUpgradeDialogOpen(true);
+            setUnmatchDialogOpen(false);
+          } else {
+            throw new Error(data.message || "You don't have permission to unmatch.");
+          }
+        } else {
+          throw new Error("Failed to unmatch. Please try again later.");
+        }
+      }
+    } catch (error) {
+      console.error("Unmatch error:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUnmatching(false);
+    }
+  };
+  
   return (
     <Card className="overflow-hidden transition-all duration-300 hover:shadow-md border-gray-200 shadow-sm bg-gradient-to-b from-white to-gray-50 relative">
+      {/* Unmatch confirmation dialog */}
+      <AlertDialog open={unmatchDialogOpen} onOpenChange={setUnmatchDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Unmatch</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to unmatch with {otherUser.username}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUnmatching}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleUnmatch();
+              }}
+              disabled={isUnmatching}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {isUnmatching ? "Unmatching..." : "Unmatch"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Upgrade required dialog */}
+      <AlertDialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Premium Feature
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Unmatching is only available for Premium and Elite members. Upgrade your account to access this feature.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                setUpgradeDialogOpen(false);
+                navigate("/profile?tab=subscription");
+              }}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Upgrade Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
       <div className="absolute top-2 right-2 z-10">
         <TooltipProvider>
           <Tooltip>
@@ -33,64 +154,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
-                onClick={() => {
-                  // Get the user from the API
-                  fetch('/api/user')
-                    .then(res => res.json())
-                    .then(currentUser => {
-                      // If user is Basic, show upgrade prompt
-                      if (currentUser.profileType === 'basic') {
-                        alert("This feature is only available to premium members. Upgrade your plan to swap matches.");
-                      } else {
-                        // For Premium and Elite, show confirmation dialog
-                        const confirmUnmatch = window.confirm(`Are you sure you want to unmatch with ${otherUser.username}?`);
-                        
-                        if (confirmUnmatch) {
-                          // Create a modal to show the unmatch is in progress
-                          const unmatchModal = document.createElement('div');
-                          unmatchModal.id = 'unmatch-modal';
-                          unmatchModal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center';
-                          unmatchModal.innerHTML = `
-                            <div class="bg-white rounded-lg p-4 max-w-sm w-full text-center">
-                              <p class="mb-4">Unmatching...</p>
-                              <div class="w-8 h-8 border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mx-auto"></div>
-                            </div>
-                          `;
-                          document.body.appendChild(unmatchModal);
-                          
-                          // Call the API to unmatch
-                          fetch(`/api/matches/${match.id}/unmatch`, {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json'
-                            }
-                          })
-                          .then(res => {
-                            // Remove the modal
-                            document.getElementById('unmatch-modal')?.remove();
-                            
-                            if (res.ok) {
-                              // Success, refresh the matches list
-                              window.location.reload();
-                            } else {
-                              // Show error
-                              alert("Failed to unmatch. Please try again later.");
-                            }
-                          })
-                          .catch(err => {
-                            // Remove the modal
-                            document.getElementById('unmatch-modal')?.remove();
-                            console.error(err);
-                            alert("An error occurred. Please try again later.");
-                          });
-                        }
-                      }
-                    })
-                    .catch(err => {
-                      console.error(err);
-                      alert("Could not verify account type. Please try again later.");
-                    });
-                }}
+                onClick={() => setUnmatchDialogOpen(true)}
               >
                 <X className="h-4 w-4" />
               </Button>
