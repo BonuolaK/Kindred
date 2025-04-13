@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Logo from "@/components/logo";
 import Footer from "@/components/footer";
 import { Heart, Link, PhoneCall, MessageCircle, Clock } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 export default function LandingPage() {
   const [, navigate] = useLocation();
@@ -17,7 +18,14 @@ export default function LandingPage() {
     }
   }, [user, isLoading, navigate]);
   
+  // Track page view when component mounts
+  useEffect(() => {
+    trackEvent('view_landing_page', { source: 'landing' });
+  }, []);
+
   const handleGetStarted = () => {
+    // Track sign up click event
+    trackEvent('click_sign_up', { source: 'landing_page', button: 'get_started' });
     navigate("/auth");
   };
   
@@ -40,13 +48,19 @@ export default function LandingPage() {
               <Button 
                 variant="outline" 
                 className="px-4 py-2 text-primary border-primary" 
-                onClick={() => navigate("/auth?tab=login")}
+                onClick={() => {
+                  trackEvent('click_sign_in', { source: 'landing_page', location: 'header' });
+                  navigate("/auth?tab=login");
+                }}
               >
                 Sign In
               </Button>
               <Button
                 className="px-4 py-2 bg-primary hover:bg-primary/90"
-                onClick={() => navigate("/auth?tab=register")}
+                onClick={() => {
+                  trackEvent('click_sign_up', { source: 'landing_page', location: 'header' });
+                  navigate("/auth?tab=register");
+                }}
               >
                 Sign Up
               </Button>
@@ -78,7 +92,10 @@ export default function LandingPage() {
                   variant="outline"
                   size="lg"
                   className="px-8 py-4 border-2 border-primary text-primary hover:bg-gray-100 rounded-xl text-lg"
-                  onClick={() => document.getElementById('how-it-works')?.scrollIntoView({behavior: 'smooth'})}
+                  onClick={() => {
+                    trackEvent('click_learn_more', { source: 'landing_page', section: 'hero' });
+                    document.getElementById('how-it-works')?.scrollIntoView({behavior: 'smooth'});
+                  }}
                 >
                   Learn More
                 </Button>
