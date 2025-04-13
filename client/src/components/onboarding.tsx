@@ -12,7 +12,8 @@ import {
   CalendarIcon,
   Loader2,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  ChevronUp
 } from "lucide-react";
 import {
   Card,
@@ -49,6 +50,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import Logo from "@/components/logo";
 import { ukCities } from "@/lib/uk-cities";
 import { motion, AnimatePresence } from "framer-motion";
@@ -852,25 +861,33 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Minimum Age</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      placeholder="Min age"
-                                      min={21}
-                                      max={100}
-                                      {...field}
-                                      onChange={(e) => {
-                                        const value = parseInt(e.target.value);
-                                        // Enforce minimum age of 21
-                                        if (value < 21) {
-                                          field.onChange(21);
-                                        } else {
-                                          field.onChange(value || undefined);
-                                        }
-                                      }}
-                                      value={field.value || ""}
-                                    />
-                                  </FormControl>
+                                  <Select
+                                    onValueChange={(value) => {
+                                      const numValue = parseInt(value);
+                                      field.onChange(numValue);
+                                      
+                                      // Ensure max age is not less than min age
+                                      const currentMax = form.getValues("agePreferenceMax");
+                                      if (currentMax && numValue > currentMax) {
+                                        form.setValue("agePreferenceMax", numValue);
+                                      }
+                                    }}
+                                    defaultValue={field.value?.toString() || "21"}
+                                    value={field.value?.toString() || "21"}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select minimum age" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {Array.from({ length: 80 }, (_, i) => i + 21).map((age) => (
+                                        <SelectItem key={age} value={age.toString()}>
+                                          {age}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -881,25 +898,36 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Maximum Age</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      placeholder="Max age"
-                                      min={21}
-                                      max={100}
-                                      {...field}
-                                      onChange={(e) => {
-                                        const value = parseInt(e.target.value);
-                                        // Enforce minimum age of 21
-                                        if (value < 21) {
-                                          field.onChange(21);
-                                        } else {
-                                          field.onChange(value || undefined);
-                                        }
-                                      }}
-                                      value={field.value || ""}
-                                    />
-                                  </FormControl>
+                                  <Select
+                                    onValueChange={(value) => {
+                                      const numValue = parseInt(value);
+                                      field.onChange(numValue);
+                                      
+                                      // Ensure min age is not greater than max age
+                                      const currentMin = form.getValues("agePreferenceMin");
+                                      if (currentMin && numValue < currentMin) {
+                                        form.setValue("agePreferenceMin", numValue);
+                                      }
+                                    }}
+                                    defaultValue={field.value?.toString() || "100"}
+                                    value={field.value?.toString() || "100"}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select maximum age" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {Array.from({ length: 80 }, (_, i) => i + 21).map((age) => (
+                                        <SelectItem key={age} value={age.toString()}>
+                                          {age}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormDescription>
+                                    Maximum age must be greater than or equal to minimum age
+                                  </FormDescription>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -922,18 +950,43 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                             >
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
                               <FormControl>
-                                <Select onValueChange={field.onChange} value={field.value || ''}>
-                                  <SelectTrigger className="mt-4">
-                                    <SelectValue placeholder="Select your city" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {ukCities.map((city) => (
-                                      <SelectItem key={city} value={city}>
-                                        {city}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      role="combobox"
+                                      className="w-full justify-between mt-4"
+                                    >
+                                      {field.value || "Select your city"}
+                                      <ChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[300px] p-0">
+                                    <Command>
+                                      <CommandInput placeholder="Search for a city..." className="h-9" />
+                                      <CommandEmpty>No city found.</CommandEmpty>
+                                      <CommandGroup>
+                                        <CommandList>
+                                          {ukCities.map((city) => (
+                                            <CommandItem
+                                              key={city}
+                                              value={city}
+                                              onSelect={() => {
+                                                field.onChange(city);
+                                              }}
+                                              className="cursor-pointer"
+                                            >
+                                              {city}
+                                              {field.value === city && (
+                                                <Check className="ml-auto h-4 w-4" />
+                                              )}
+                                            </CommandItem>
+                                          ))}
+                                        </CommandList>
+                                      </CommandGroup>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
                               </FormControl>
                               <FormMessage />
                             </motion.div>

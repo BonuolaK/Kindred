@@ -66,8 +66,21 @@ export class MatchingAlgorithm {
     // Filter candidates by gender preference first (critical requirement)
     const genderFilteredCandidates = this.filterByGenderPreference(user, candidates);
     
+    // Define preferred age range if specified
+    const userMinAge = user.agePreferenceMin || (user.age - 5);
+    const userMaxAge = user.agePreferenceMax || (user.age + 5);
+    
+    // Filter candidates by age preference (another critical requirement)
+    const ageFilteredCandidates = genderFilteredCandidates.filter(candidate => {
+      // If no age is provided for candidate, we'll allow them (for testing/admin accounts)
+      if (!candidate.age) return true;
+      
+      // Check if candidate age is within user's preferred range
+      return candidate.age >= userMinAge && candidate.age <= userMaxAge;
+    });
+    
     // Calculate match scores for remaining candidates
-    const scoredCandidates = genderFilteredCandidates.map(candidate => {
+    const scoredCandidates = ageFilteredCandidates.map(candidate => {
       const personalityScore = this.calculatePersonalityScore(user, candidate);
       const locationScore = this.calculateLocationScore(user, candidate);
       const ageScore = this.calculateAgeScore(user, candidate);
