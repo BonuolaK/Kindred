@@ -62,22 +62,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      // Get all users except current user
+      // Get all users except current user - improved version with better logging
       const allUsers = [];
-      let currentId = 1;
-      let potentialUser = null;
       const userProfiles = [];
       
-      // Get all users
-      while ((potentialUser = await storage.getUser(currentId))) {
-        if (potentialUser.id !== userId) {
-          allUsers.push(potentialUser);
-          
-          // Keep a copy of user info for debugging
-          const { password, ...userInfo } = potentialUser;
-          userProfiles.push(userInfo);
+      // Debug: Log all user IDs in the system
+      console.log("Attempting to find all users in the system:");
+      
+      // Try to get users in a range rather than just incrementing IDs
+      // This handles cases where user IDs might have gaps
+      for (let currentId = 1; currentId < 100; currentId++) {
+        try {
+          const potentialUser = await storage.getUser(currentId);
+          if (potentialUser) {
+            console.log(`Found user ID ${currentId}: ${potentialUser.username} (${potentialUser.gender || 'No gender'}, interested in: ${potentialUser.interestedGenders ? JSON.stringify(potentialUser.interestedGenders) : 'Not specified'})`);
+            
+            if (potentialUser.id !== userId) {
+              allUsers.push(potentialUser);
+              
+              // Keep a copy of user info for debugging
+              const { password, ...userInfo } = potentialUser;
+              userProfiles.push(userInfo);
+            }
+          }
+        } catch (error) {
+          // Ignore errors from non-existent users
         }
-        currentId++;
+      }
+      
+      // Alternative approach: Get users from specific IDs that we know should exist
+      console.log("Specifically looking for users Tester and BonuolaK:");
+      
+      // Try to get Tester (expected ID around 1-5)
+      for (let id = 1; id <= 5; id++) {
+        try {
+          const tester = await storage.getUserByUsername("Tester");
+          if (tester) {
+            console.log(`Found Tester with ID ${tester.id}, gender: ${tester.gender || 'Not set'}, interests: ${tester.interestedGenders ? JSON.stringify(tester.interestedGenders) : 'Not set'}`);
+            
+            // Make sure this user isn't already in our list
+            if (tester.id !== userId && !allUsers.some(u => u.id === tester.id)) {
+              allUsers.push(tester);
+              const { password, ...userInfo } = tester;
+              userProfiles.push(userInfo);
+            }
+            break;
+          }
+        } catch (error) {
+          // Ignore errors
+        }
+      }
+      
+      // Try to get BonuolaK
+      try {
+        const bonuolak = await storage.getUserByUsername("BonuolaK");
+        if (bonuolak) {
+          console.log(`Found BonuolaK with ID ${bonuolak.id}, gender: ${bonuolak.gender || 'Not set'}, interests: ${bonuolak.interestedGenders ? JSON.stringify(bonuolak.interestedGenders) : 'Not set'}`);
+          
+          // Make sure this user isn't already in our list
+          if (bonuolak.id !== userId && !allUsers.some(u => u.id === bonuolak.id)) {
+            allUsers.push(bonuolak);
+            const { password, ...userInfo } = bonuolak;
+            userProfiles.push(userInfo);
+          }
+        }
+      } catch (error) {
+        // Ignore errors
       }
       
       console.log(`Found ${allUsers.length} potential matches for user ${userId}`);

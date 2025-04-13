@@ -111,10 +111,32 @@ export class MatchingAlgorithm {
         return candidate.interestedGenders.includes(user.gender || "");
       }
       
-      // Standard mutual interest check
-      const candidateInterestedInUser = candidate.interestedGenders.includes(user.gender);
-      const userInterestedInCandidate = user.interestedGenders.includes(candidate.gender);
+      // Normalize gender values for case-insensitive comparison
+      const normalizeGender = (gender: string): string => {
+        const g = gender.toLowerCase();
+        
+        // Map different formats to standard values
+        if (g === 'man' || g === 'male' || g === 'men') return 'male';
+        if (g === 'woman' || g === 'female' || g === 'women') return 'female';
+        if (g === 'non-binary' || g === 'nonbinary' || g === 'non binary') return 'non-binary';
+        
+        return g;
+      };
       
+      const normalizedUserGender = normalizeGender(user.gender);
+      const normalizedCandidateGender = normalizeGender(candidate.gender);
+      
+      // Normalize the interest arrays
+      const normalizedUserInterests = user.interestedGenders.map(g => normalizeGender(g));
+      const normalizedCandidateInterests = candidate.interestedGenders.map(g => normalizeGender(g));
+      
+      // Standard mutual interest check with normalized values
+      const candidateInterestedInUser = normalizedCandidateInterests.includes(normalizedUserGender);
+      const userInterestedInCandidate = normalizedUserInterests.includes(normalizedCandidateGender);
+      
+      console.log(`  Normalized user gender: ${normalizedUserGender}, candidate gender: ${normalizedCandidateGender}`);
+      console.log(`  Normalized user interests: ${JSON.stringify(normalizedUserInterests)}`);
+      console.log(`  Normalized candidate interests: ${JSON.stringify(normalizedCandidateInterests)}`);
       console.log(`  Candidate interested in user: ${candidateInterestedInUser}`);
       console.log(`  User interested in candidate: ${userInterestedInCandidate}`);
       console.log(`  Match: ${candidateInterestedInUser && userInterestedInCandidate}`);
