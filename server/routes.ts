@@ -222,6 +222,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Debug endpoint to directly test matching algorithm
+  app.get("/api/debug/direct-match-test", async (req, res, next) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      // Import the direct match test
+      const { testDirectMatch } = require('./direct-match-test');
+      
+      // Run the test
+      await testDirectMatch();
+      
+      res.json({ message: "Direct match test complete. Check server logs for results." });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   app.get("/api/matches", async (req, res, next) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     
