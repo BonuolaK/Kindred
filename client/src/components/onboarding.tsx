@@ -982,8 +982,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
                               <FormControl>
                                 <RadioGroup
-                                  onValueChange={field.onChange}
-                                  value={field.value || ''}
+                                  onValueChange={(value: string) => field.onChange(value)}
+                                  value={typeof field.value === 'string' ? field.value : ''}
                                   className="flex flex-col space-y-3 mt-4"
                                 >
                                   {[
@@ -1068,8 +1068,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
                               <FormControl>
                                 <RadioGroup
-                                  onValueChange={field.onChange}
-                                  value={field.value || ''}
+                                  onValueChange={(value: string) => field.onChange(value)}
+                                  value={typeof field.value === 'string' ? field.value : ''}
                                   className="flex flex-col space-y-3 mt-4"
                                 >
                                   {[
@@ -1111,8 +1111,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
                               <FormControl>
                                 <RadioGroup
-                                  onValueChange={field.onChange}
-                                  value={field.value || ''}
+                                  onValueChange={(value: string) => field.onChange(value)}
+                                  value={typeof field.value === 'string' ? field.value : ''}
                                   className="flex flex-col space-y-3 mt-4"
                                 >
                                   {[
