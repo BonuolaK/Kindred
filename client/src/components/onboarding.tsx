@@ -273,7 +273,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
       avatar: user?.avatar || "",
       idVerificationImage: user?.idVerificationImage || "",
       idVerificationSkipped: user?.idVerificationSkipped || false,
-      onboardingCompleted: true,
+      onboardingCompleted: false,
     },
   });
   
@@ -297,36 +297,39 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
       setDirection("forward");
       setCurrentStep(currentStep + 1);
       
-      // Check if all required fields are completed to auto-complete the onboarding
-      const currentFormData = form.getValues();
-      const requiredFieldsFilled = 
-        currentFormData.username && 
-        currentFormData.gender && 
-        currentFormData.interestedGenders?.length > 0 && 
-        currentFormData.age >= 21 && 
-        currentFormData.bio && 
-        currentFormData.location && 
-        currentFormData.freeTimeActivities?.length > 0 &&
-        currentFormData.values && 
-        currentFormData.conflictResolution && 
-        currentFormData.loveLanguage && 
-        currentFormData.relationshipPace && 
-        currentFormData.dealbreakers?.length > 0;
-        
-      if (requiredFieldsFilled) {
-        // All required fields are filled, so set completion flag and submit
-        const formDataWithCompletionFlag = {
-          ...currentFormData,
-          onboardingCompleted: true as boolean
-        };
-        
-        updateProfileMutation.mutate(formDataWithCompletionFlag, {
-          onSuccess: () => {
-            // Move to the last step to show completion message
-            setCurrentStep(steps.length);
-            setTimeout(() => onComplete(), 2000); // Show completion message for 2 seconds before completing
-          }
-        });
+      // Only check for auto-completion at specific milestones
+      // For example, after completing key fields like "bio" (step 10)
+      if (currentStep === 16) { // After relationship pace
+        const currentFormData = form.getValues();
+        const requiredFieldsFilled = 
+          currentFormData.username && 
+          currentFormData.gender && 
+          currentFormData.interestedGenders?.length > 0 && 
+          currentFormData.age >= 21 && 
+          currentFormData.bio && 
+          currentFormData.location && 
+          currentFormData.freeTimeActivities?.length > 0 &&
+          currentFormData.values && 
+          currentFormData.conflictResolution && 
+          currentFormData.loveLanguage && 
+          currentFormData.relationshipPace && 
+          currentFormData.dealbreakers?.length > 0;
+          
+        if (requiredFieldsFilled) {
+          // All required fields are filled, so set completion flag and submit
+          const formDataWithCompletionFlag = {
+            ...currentFormData,
+            onboardingCompleted: true as boolean
+          };
+          
+          updateProfileMutation.mutate(formDataWithCompletionFlag, {
+            onSuccess: () => {
+              // Move to the last step to show completion message
+              setCurrentStep(steps.length);
+              setTimeout(() => onComplete(), 2000); // Show completion message for 2 seconds before completing
+            }
+          });
+        }
       }
     }
   };
@@ -477,7 +480,6 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                                   placeholder="Enter a username" 
                                   {...field} 
                                   className="text-lg mt-4"
-                                  defaultValue={user?.username || ""}
                                 />
                               </FormControl>
                               <FormMessage />
