@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { callPreferencesSchema } from "@shared/schema";
 import { format } from "date-fns";
 import {
   ChevronLeft,
@@ -194,6 +195,13 @@ const steps: Step[] = [
   },
   {
     id: 18,
+    title: "Preferred Call Times",
+    description: "Set your preferred times for audio calls",
+    question: "When are you typically available for calls?",
+    fieldName: "callPreferences",
+  },
+  {
+    id: 19,
     title: "Profile Complete!",
     description: "Thanks for taking the time to fill out your profile",
   },
@@ -217,6 +225,7 @@ const onboardingSchema = z.object({
   loveLanguage: z.string().optional(),
   relationshipPace: z.string().optional(),
   dealbreakers: z.array(z.string()).optional(),
+  callPreferences: callPreferencesSchema.optional(),
   avatar: z.string().optional(),
   idVerificationImage: z.string().optional(),
   idVerificationSkipped: z.boolean().optional(),
