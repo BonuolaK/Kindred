@@ -171,6 +171,52 @@ export default function ProfilePage() {
           }}
         />
         
+        {/* Profile summary card */}
+        <Card className="mb-4">
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {user?.gender && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Gender</h3>
+                    <p className="capitalize">{user.gender}</p>
+                  </div>
+                )}
+                
+                {user?.interestedGenders && user.interestedGenders.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Interested in</h3>
+                    <p className="capitalize">
+                      {user.interestedGenders.map(g => g).join(', ')}
+                    </p>
+                  </div>
+                )}
+                
+                {user?.location && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Location</h3>
+                    <p>{user.location}</p>
+                  </div>
+                )}
+                
+                {user?.agePreferenceMin && user?.agePreferenceMax && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Age Preference</h3>
+                    <p>{user.agePreferenceMin} - {user.agePreferenceMax}</p>
+                  </div>
+                )}
+              </div>
+              
+              {user?.bio && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">About Me</h3>
+                  <p className="text-sm">{user.bio}</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        
         <Tabs defaultValue="profile" className="mb-8">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="profile">Profile Information</TabsTrigger>
