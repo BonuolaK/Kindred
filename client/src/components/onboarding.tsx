@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { callPreferencesSchema } from "@shared/schema";
 import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
+import { useToast, toast } from "@/hooks/use-toast";
 import {
   ChevronLeft,
   Check,
