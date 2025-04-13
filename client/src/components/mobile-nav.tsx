@@ -23,20 +23,34 @@ export default function MobileNav({ activeTab }: MobileNavProps) {
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-50">
-      <div className="flex justify-around items-center py-3">
+      <div className="flex justify-around items-center py-4">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             className={cn(
-              "flex flex-col items-center",
+              "flex flex-col items-center px-4 py-1 rounded-lg transition-all",
               (activeTab === tab.id || location === tab.path)
-                ? "text-primary"
-                : "text-gray-500"
+                ? "text-primary bg-primary/10 font-medium"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
             )}
             onClick={() => navigate(tab.path)}
           >
-            {tab.icon}
-            <span className="text-xs mt-1">{tab.label}</span>
+            <div className={cn(
+              "mb-1 p-1.5 rounded-full",
+              (activeTab === tab.id || location === tab.path) 
+                ? "bg-primary/10"
+                : "bg-transparent"
+            )}>
+              {tab.icon}
+            </div>
+            <span className={cn(
+              "text-xs font-medium",
+              (activeTab === tab.id || location === tab.path)
+                ? "opacity-100"
+                : "opacity-90"
+            )}>
+              {tab.label}
+            </span>
           </button>
         ))}
       </div>

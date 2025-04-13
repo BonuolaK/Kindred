@@ -1,0 +1,46 @@
+Optimize the Kindred dating app UI with the following improvements:
+
+1. Profile Cards Enhancement:
+   - Add more visual hierarchy to match cards by using subtle shadows and better spacing
+   - Increase profile photo size for better visibility
+   - Make the "I love fish and chips" bio text more prominent to highlight personality
+   - Add a subtle background color or gradient to distinguish between different profiles
+   - Include a "Preferred Call Times" section on each profile card with a simple visual indicator (e.g., small clock icon with time ranges)
+   - Add an X/refresh icon in the top right corner of each match card for the swap/unmatch feature
+
+2. Navigation Improvements:
+   - Make the currently selected tab more distinctive (Matches is selected but barely highlighted)
+   - Increase spacing between bottom navigation icons for easier tapping
+   - Add labels below all navigation icons for clarity
+
+3. Action Buttons:
+   - Make the Call/Chat/View buttons more visually appealing with subtle colors that align with the brand
+   - Increase button size slightly for better tappability on mobile
+   - Add hover/active states for better interaction feedback
+   - Enhance the Call button to show compatibility with the user's preferred call times (e.g., "Available Now" or "Prefers Evening Calls")
+
+4. Subscription Elements:
+   - Make the "Upgrade" button more prominent with brand colors
+   - Enhance the "Basic Plan" indicator with a more polished design that clearly shows limitations
+   - Consider adding a brief benefit for upgrading (e.g., "Unlock unlimited matches")
+
+5. Header Optimization:
+   - Refine the welcome message area to be more engaging
+   - Consider adding a quick action button for finding new matches
+
+6. Preferred Call Times Feature:
+   - Design an intuitive time selection interface for users to set weekday and weekend availability
+   - Display preferred call times on profiles using a clean, scannable format (e.g., "Weekdays: 7-9 PM, Weekends: 2-5 PM")
+   - Use color coding to indicate current availability status (green for "Available Now", amber for "Available Soon", gray for "Unavailable")
+   - Add a small calendar view option to see weekly availability at a glance
+   - Include a "Schedule Call" option that automatically suggests times within both users' preferred windows
+
+7. Match Swap/Unmatch Feature:
+   - Implement a refresh/X icon in the top right corner of each match card
+   - For premium users: When clicked, replace the current match with a new potential match if available; otherwise, unmatch
+   - For basic plan users: When clicked, display an "Upgrade to Premium" modal explaining this feature is only available to premium members
+   - Add a subtle animation for the card replacement to provide visual feedback
+   - Include a small undo button that appears briefly after swapping/unmatching
+   - Implement a confirmation dialog before unmatching to prevent accidental removals
+
+Implement these changes while maintaining the app's purple brand color and overall minimalist aesthetic. Ensure all elements follow accessibility guidelines with sufficient contrast ratios.
