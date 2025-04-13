@@ -23,7 +23,18 @@ export default function CallPage() {
   const queryClient = useQueryClient();
   const parsedMatchId = parseInt(id || "0", 10);
   
-  const [matchDetails, setMatchDetails] = useState<Match & { otherUser?: Partial<User> }>();
+  // Define a proper type for matchDetails including strong typing for otherUser
+  type MatchWithOtherUser = Match & { 
+    otherUser: { 
+      id: number; 
+      username: string; 
+      name?: string;
+      avatar?: string;
+      [key: string]: any;
+    } 
+  };
+  
+  const [matchDetails, setMatchDetails] = useState<MatchWithOtherUser>();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   
