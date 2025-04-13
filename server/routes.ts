@@ -7,6 +7,9 @@ import { MatchingAlgorithm, canReceiveNewMatch, getMaxMatchesAllowed } from "./m
 import { setupSocketServer } from "./socket";
 import { setupWebRTCSignaling } from "./webrtc-signaling";
 import { setupBasicWebSocketServer } from "./basic-ws";
+import { db } from "./db";
+import { matches } from "@shared/schema";
+import { and, eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
