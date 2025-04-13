@@ -196,7 +196,7 @@ const steps: Step[] = [
   },
   {
     id: 18,
-    title: "Preferred Call Times",
+    title: "Preferred Call Times (Optional)",
     description: "Set your preferred times for audio calls",
     question: "When are you typically available for calls?",
     fieldName: "callPreferences",
@@ -210,7 +210,7 @@ const steps: Step[] = [
 
 // Basic validation schema
 const onboardingSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
+  name: z.string().min(2, "Username must be at least 2 characters"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
   age: z.number().min(21, "You must be at least 21 years old to use Kindred").max(120),
   gender: z.string().min(1, "Please select your gender"),
@@ -218,13 +218,13 @@ const onboardingSchema = z.object({
   agePreferenceMin: z.number().min(21, "Minimum age must be at least 21").max(120).optional(),
   agePreferenceMax: z.number().min(21, "Maximum age must be at least 21").max(120).optional(),
   location: z.string().min(1, "Please select your location"),
-  bio: z.string().optional(),
-  communicationStyle: z.string().optional(),
-  freeTimeActivities: z.array(z.string()).optional(),
-  values: z.string().optional(),
-  conflictResolution: z.string().optional(),
-  loveLanguage: z.string().optional(),
-  relationshipPace: z.string().optional(),
+  bio: z.string().min(3, "Bio is required"),
+  communicationStyle: z.string().min(1, "Please select your communication style"),
+  freeTimeActivities: z.array(z.string()).min(1, "Please select at least one activity"),
+  values: z.string().min(1, "Please select your values"),
+  conflictResolution: z.string().min(1, "Please select your conflict resolution style"),
+  loveLanguage: z.string().min(1, "Please select your love language"),
+  relationshipPace: z.string().min(1, "Please select your relationship pace"),
   dealbreakers: z.array(z.string()).optional(),
   callPreferences: callPreferencesSchema.optional(),
   avatar: z.string().optional(),
@@ -417,7 +417,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                               </FormDescription>
                               <FormControl>
                                 <Input 
-                                  placeholder="Your full name" 
+                                  placeholder="Choose a username" 
                                   {...field} 
                                   className="text-lg mt-4"
                                 />
@@ -1356,10 +1356,11 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                     )}
                     
                     {currentStep === 18 && (
-                      <FormField
-                        control={form.control}
-                        name="callPreferences"
-                        render={({ field }) => (
+                      <div>
+                        <FormField
+                          control={form.control}
+                          name="callPreferences"
+                          render={({ field }) => (
                           <FormItem className="flex-1 flex flex-col justify-center">
                             <motion.div 
                               initial={{ y: 10, opacity: 0 }} 
@@ -1381,7 +1382,28 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                             </motion.div>
                           </FormItem>
                         )}
-                      />
+                        />
+                        
+                        <div className="mt-6">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => {
+                              // Set default empty call preferences
+                              form.setValue("callPreferences", {
+                                weekdays: [],
+                                weekends: [],
+                                notAvailable: []
+                              });
+                              // Move to next step
+                              handleNext();
+                            }}
+                          >
+                            Skip for now (Flexible Timing)
+                          </Button>
+                        </div>
+                      </div>
                     )}
                     
                     {currentStep === 19 && (
