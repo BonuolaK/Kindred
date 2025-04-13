@@ -9,14 +9,8 @@ export default defineConfig({
     react(),
     runtimeErrorOverlay(),
     themePlugin(),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
-      ? [
-          await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer(),
-          ),
-        ]
-      : []),
+    // Cartographer disabled in production
+    ...(process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined ? [] : []),
   ],
   resolve: {
     alias: {
