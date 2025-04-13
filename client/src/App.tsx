@@ -13,6 +13,7 @@ import CallPage from "@/pages/call-page";
 import SocketTestPage from "@/pages/socket-test";
 import RTCTestPage from "@/pages/rtc-test";
 import SimpleRtcTest from "@/pages/simple-rtc-test";
+import SimpleWsTest from "@/pages/simple-ws-test";
 import RtcTestPageOld from "@/pages/rtc-test-page";
 import NotFound from "@/pages/not-found";
 import { ProtectedRoute } from "./lib/protected-route";
@@ -30,6 +31,7 @@ function Router() {
       <ProtectedRoute path="/socket-test" component={SocketTestPage} />
       <ProtectedRoute path="/rtc-test" component={RTCTestPage} />
       <ProtectedRoute path="/simple-rtc-test" component={SimpleRtcTest} />
+      <Route path="/simple-ws-test" component={SimpleWsTest} />
       <ProtectedRoute path="/rtc-test-old" component={RtcTestPageOld} />
       <Route component={NotFound} />
     </Switch>

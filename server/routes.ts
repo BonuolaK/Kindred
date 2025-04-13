@@ -6,6 +6,7 @@ import { storage } from "./storage";
 import { MatchingAlgorithm, canReceiveNewMatch } from "./matching-algorithm";
 import { setupSocketServer } from "./socket";
 import { setupWebRTCSignaling } from "./webrtc-signaling";
+import { setupBasicWebSocketServer } from "./basic-ws";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
@@ -40,9 +41,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup WebRTC signaling server
   const rtcWss = setupWebRTCSignaling(httpServer);
+
+  // Setup Basic WebSocket server (for testing)
+  const basicWss = setupBasicWebSocketServer(httpServer);
   
   // Debug log to confirm setup
-  console.log('WebSocket servers initialized: general (/ws) and WebRTC signaling (/rtc)');
+  console.log('WebSocket servers initialized: general (/ws), WebRTC signaling (/rtc), and basic test (/basic-ws)');
 
   // Match endpoints
   app.get("/api/matches", async (req, res, next) => {
