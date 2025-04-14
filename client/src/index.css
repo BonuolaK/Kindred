@@ -50,7 +50,12 @@
   }
 
   .gradient-bg {
-    background: linear-gradient(135deg, #B81D5B 0%, #552586 100%);
+    background: linear-gradient(135deg, #9B1D54 0%, #552586 100%);
+  }
+  
+  /* Custom form fields with light pink background and burgundy border */
+  .kindred-form-field {
+    @apply bg-[#FFF0F5] border-[#9B1D54] focus-within:border-[#9B1D54] focus-within:ring-[#9B1D54]/20;
   }
 
   /* Custom fonts */
