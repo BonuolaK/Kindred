@@ -213,11 +213,11 @@ const steps: Step[] = [
 const onboardingSchema = z.object({
   username: z.string().min(2, "Username must be at least 2 characters").min(1, "Username is required"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
-  age: z.number().min(21, "You must be at least 21 years old to use Kindred").max(120),
+  age: z.number().min(21, "You must be at least 21 years old to use Kindred").max(65),
   gender: z.string().min(1, "Please select your gender"),
   interestedGenders: z.array(z.string()).min(1, "Please select at least one gender"),
-  agePreferenceMin: z.number().min(21, "Minimum age must be at least 21").max(120).optional(),
-  agePreferenceMax: z.number().min(21, "Maximum age must be at least 21").max(120).optional(),
+  agePreferenceMin: z.number().min(21, "Minimum age must be at least 21").max(65).optional(),
+  agePreferenceMax: z.number().min(21, "Maximum age must be at least 21").max(65).optional(),
   location: z.string().min(1, "Please select your location"),
   bio: z.string().min(1, "Bio is required"),
   communicationStyle: z.string().optional(),
@@ -1039,8 +1039,8 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                                         form.setValue("agePreferenceMin", numValue);
                                       }
                                     }}
-                                    defaultValue={field.value?.toString() || "100"}
-                                    value={field.value?.toString() || "100"}
+                                    defaultValue={field.value?.toString() || "65"}
+                                    value={field.value?.toString() || "65"}
                                   >
                                     <FormControl>
                                       <SelectTrigger>
