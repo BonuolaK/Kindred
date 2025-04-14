@@ -142,7 +142,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
                 setUpgradeDialogOpen(false);
                 window.location.href = "/profile?tab=subscription";
               }}
-              className="bg-primary hover:bg-primary/90"
+              className="bg-[#9B1D54] hover:bg-[#9B1D54]/90"
             >
               Upgrade Now
             </AlertDialogAction>

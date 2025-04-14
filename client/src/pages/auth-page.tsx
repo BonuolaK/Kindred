@@ -256,7 +256,7 @@ export default function AuthPage() {
       </div>
       
       {/* Right side - Hero Section */}
-      <div className="hidden md:flex md:flex-1 bg-gradient-to-br from-primary to-secondary text-white items-center justify-center p-8">
+      <div className="hidden md:flex md:flex-1 bg-gradient-to-br from-[#9B1D54] to-secondary text-white items-center justify-center p-8">
         <div className="max-w-md space-y-6">
           <h1 className="text-4xl font-heading font-bold">Dating Beyond Appearances</h1>
           <p className="text-lg opacity-90 font-accent italic">

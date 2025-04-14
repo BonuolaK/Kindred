@@ -93,8 +93,8 @@ export default function Header() {
                   {user.avatar}
                 </div>
               ) : (
-                <Avatar className="h-9 w-9 border-2 border-primary">
-                  <AvatarFallback className="bg-primary-50 text-primary">
+                <Avatar className="h-9 w-9 border-2 border-[#9B1D54]">
+                  <AvatarFallback className="bg-[#FFF0F5] text-[#9B1D54]">
                     {user?.username?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
