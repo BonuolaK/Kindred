@@ -1,7 +1,13 @@
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
-import { trackEvent, identifyUser, initAnalytics, trackPageView } from '@/lib/analytics';
+import { 
+  trackEvent, 
+  identifyUser, 
+  initAnalytics, 
+  trackPageView, 
+  ANALYTICS_EVENTS 
+} from '@/lib/analytics';
 
 /**
  * Component that automatically tracks page views and user identity
@@ -13,41 +19,100 @@ export function AnalyticsTracker() {
   
   // Initialize analytics on mount
   useEffect(() => {
-    initAnalytics();
-    console.log('[AnalyticsTracker] Initialized analytics tracker');
+    try {
+      // Initialize the analytics system
+      initAnalytics();
+      console.log('[AnalyticsTracker] Initialized analytics tracker');
+      
+      // Track an initial event for app startup
+      trackEvent('app_initialized', { 
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        app: 'kindred',
+        env: import.meta.env.MODE || 'development'
+      });
+      
+      // Track initial landing page view
+      trackEvent('view_landing_page', { 
+        source: 'landing',
+        timestamp: new Date().toISOString(),
+        app: 'kindred',
+        env: import.meta.env.MODE || 'development'
+      });
+    } catch (error) {
+      // Even if analytics fail, the app will continue working
+      console.error('[AnalyticsTracker] Error initializing:', error);
+    }
     
-    // Send an initial event to confirm the tracker is working
-    trackEvent('analytics_tracker_loaded', { 
-      timestamp: new Date().toISOString() 
-    });
+    // Clean up analytics on unmount if needed
+    return () => {
+      // No cleanup needed in this implementation
+    };
   }, []);
   
   // Track page views when location changes
   useEffect(() => {
     if (location) {
-      // Use the dedicated page view function with proper arguments
-      trackEvent('page_view', { 
-        page: location.split('?')[0],
-        full_path: location,
-        referrer: document.referrer || 'direct',
-        timestamp: new Date().toISOString()
-      });
+      try {
+        // Track page view using the standard PostHog event
+        trackPageView(location);
+        
+        // Get the page name from the location
+        const pageName = location.split('/')[1] || 'home';
+        
+        // Track custom page view events for specific pages
+        // These can be used for more detailed analytics in PostHog
+        switch (pageName) {
+          case 'home':
+            trackEvent(ANALYTICS_EVENTS.PAGE_HOME_VIEWED);
+            break;
+          case 'matches':
+            trackEvent(ANALYTICS_EVENTS.PAGE_MATCHES_VIEWED);
+            break;
+          case 'chats':
+            trackEvent(ANALYTICS_EVENTS.PAGE_CHATS_VIEWED);
+            break;
+          case 'profile':
+            if (location.includes('subscription')) {
+              trackEvent(ANALYTICS_EVENTS.PAGE_SUBSCRIPTION_VIEWED);
+            } else {
+              trackEvent(ANALYTICS_EVENTS.PAGE_PROFILE_VIEWED);
+            }
+            break;
+        }
+      } catch (error) {
+        console.error('[AnalyticsTracker] Error tracking page view:', error);
+      }
     }
   }, [location]);
   
   // Identify user when they log in
   useEffect(() => {
     if (user?.id) {
-      // Log identifying user
-      console.log(`[AnalyticsTracker] Identifying user: ${user.id} (${user.username})`);
-      
-      identifyUser(user.id, {
-        username: user.username,
-        email: user.email || '',
-        profileType: user.profileType || 'basic',
-        accountCreated: user.createdAt,
-        last_login: new Date().toISOString()
-      });
+      try {
+        // Log identifying user
+        console.log(`[AnalyticsTracker] Identifying user: ${user.id} (${user.username})`);
+        
+        // First identify with basic info
+        identifyUser(user.id, {
+          username: user.username,
+          email: user.email || '',
+          app: 'kindred',
+          env: import.meta.env.MODE || 'development'
+        });
+        
+        // Then add more detail in a separate identify call
+        identifyUser(user.id, {
+          username: user.username,
+          email: user.email || '',
+          profile_type: user.profileType || 'basic',
+          account_created: user.createdAt,
+          app: 'kindred',
+          env: import.meta.env.MODE || 'development'
+        });
+      } catch (error) {
+        console.error('[AnalyticsTracker] Error identifying user:', error);
+      }
     }
   }, [user?.id]);
   
