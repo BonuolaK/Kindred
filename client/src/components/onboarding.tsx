@@ -289,8 +289,10 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
       const currentFormData = form.getValues();
       
       // Keep onboardingCompleted flag as false until final step
+      // And mark ID verification as skipped since we removed that step
       const formDataForUpdate = {
         ...currentFormData,
+        idVerificationSkipped: true,
         onboardingCompleted: false
       };
       
@@ -323,6 +325,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
         // All required fields are filled, mark onboarding as complete
         const formDataWithCompletionFlag = {
           ...currentFormData,
+          idVerificationSkipped: true,
           onboardingCompleted: true as boolean
         };
         
@@ -368,10 +371,12 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
       data.relationshipPace && 
       data.dealbreakers?.length > 0;
       
+    // Mark ID verification as skipped since we removed that step
     // This is called on the final page, so mark onboarding as complete
     // if all required fields are filled, but always save the call preferences
     const formDataWithCompletionFlag = {
       ...data,
+      idVerificationSkipped: true,
       onboardingCompleted: requiredFieldsFilled as boolean
     };
     
@@ -735,96 +740,6 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                     )}
                     
                     {currentStep === 4 && (
-                      <div className="flex-1 flex flex-col justify-center">
-                        <motion.div 
-                          initial={{ y: 10, opacity: 0 }} 
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: 0.1 }}
-                        >
-                          <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                          <FormDescription>
-                            ID verification is required to make and receive calls on Kindred. We take your privacy seriously and only use this to verify your details. You'll need to verify later to make calls if you skip this step.
-                          </FormDescription>
-                          
-                          <div className="mt-6 flex flex-col items-center gap-4">
-                            <FormField
-                              control={form.control}
-                              name="idVerificationImage"
-                              render={({ field }) => (
-                                <FormItem className="w-full">
-                                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                                    {field.value ? (
-                                      <div className="flex flex-col items-center justify-center">
-                                        <div className="bg-green-100 text-green-800 p-3 rounded-full mb-2">
-                                          <Check className="h-6 w-6" />
-                                        </div>
-                                        <p className="text-sm mb-2">ID uploaded successfully</p>
-                                        <Button 
-                                          variant="destructive" 
-                                          size="sm"
-                                          onClick={() => field.onChange("")}
-                                        >
-                                          <X className="h-4 w-4 mr-2" />
-                                          Remove
-                                        </Button>
-                                      </div>
-                                    ) : (
-                                      <div className="flex flex-col items-center justify-center">
-                                        <div className="bg-primary/10 p-3 rounded-full mb-2">
-                                          <Upload className="h-6 w-6 text-primary" />
-                                        </div>
-                                        <p className="text-sm mb-2">Click to upload or drag and drop</p>
-                                        <p className="text-xs text-gray-500 mb-4">ID card, passport or driver's license</p>
-                                        <Button
-                                          type="button"
-                                          onClick={() => {
-                                            // In a real app, this would trigger a file upload
-                                            // For now, we'll just set a placeholder value
-                                            field.onChange("id-verification-image-placeholder");
-                                          }}
-                                        >
-                                          Upload ID
-                                        </Button>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <div className="flex justify-center items-center w-full">
-                              <div className="h-px w-full bg-gray-200"></div>
-                              <span className="px-4 text-gray-500 text-sm">OR</span>
-                              <div className="h-px w-full bg-gray-200"></div>
-                            </div>
-                            
-                            <FormField
-                              control={form.control}
-                              name="idVerificationSkipped"
-                              render={({ field }) => (
-                                <FormItem className="w-full">
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="w-full"
-                                    onClick={() => {
-                                      field.onChange(true);
-                                      handleNext();
-                                    }}
-                                  >
-                                    Skip
-                                  </Button>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </motion.div>
-                      </div>
-                    )}
-                    
-                    {currentStep === 5 && (
                       <FormField
                         control={form.control}
                         name="avatar"
@@ -888,7 +803,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                       />
                     )}
                     
-                    {currentStep === 6 && (
+                    {currentStep === 5 && (
                       <FormField
                         control={form.control}
                         name="gender"
@@ -925,7 +840,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                       />
                     )}
                     
-                    {currentStep === 7 && (
+                    {currentStep === 6 && (
                       <FormField
                         control={form.control}
                         name="interestedGenders"
@@ -967,6 +882,97 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                           </FormItem>
                         )}
                       />
+                    )}
+                    
+                    {currentStep === 7 && (
+                      <div className="flex-1 flex flex-col justify-center">
+                        <motion.div 
+                          initial={{ y: 10, opacity: 0 }} 
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.1 }}
+                        >
+                          <FormLabel className="text-xl font-heading mb-4">{currentStepData.question}</FormLabel>
+                          <div className="grid grid-cols-2 gap-6 mt-4">
+                            <FormField
+                              control={form.control}
+                              name="agePreferenceMin"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Minimum Age</FormLabel>
+                                  <Select
+                                    onValueChange={(value) => {
+                                      const numValue = parseInt(value);
+                                      field.onChange(numValue);
+                                      
+                                      // Ensure max age is not less than min age
+                                      const currentMax = form.getValues("agePreferenceMax");
+                                      if (currentMax && numValue > currentMax) {
+                                        form.setValue("agePreferenceMax", numValue);
+                                      }
+                                    }}
+                                    defaultValue={field.value?.toString() || "21"}
+                                    value={field.value?.toString() || "21"}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select minimum age" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {Array.from({ length: 80 }, (_, i) => i + 21).map((age) => (
+                                        <SelectItem key={age} value={age.toString()}>
+                                          {age}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="agePreferenceMax"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Maximum Age</FormLabel>
+                                  <Select
+                                    onValueChange={(value) => {
+                                      const numValue = parseInt(value);
+                                      field.onChange(numValue);
+                                      
+                                      // Ensure min age is not greater than max age
+                                      const currentMin = form.getValues("agePreferenceMin");
+                                      if (currentMin && numValue < currentMin) {
+                                        form.setValue("agePreferenceMin", numValue);
+                                      }
+                                    }}
+                                    defaultValue={field.value?.toString() || "65"}
+                                    value={field.value?.toString() || "65"}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select maximum age" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {Array.from({ length: 80 }, (_, i) => i + 21).map((age) => (
+                                        <SelectItem key={age} value={age.toString()}>
+                                          {age}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormDescription>
+                                    Maximum age must be greater than or equal to minimum age
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </motion.div>
+                      </div>
                     )}
                     
                     {currentStep === 8 && (
