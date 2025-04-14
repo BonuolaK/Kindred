@@ -389,7 +389,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>User is offline</p>
+                <p>Calling unavailable - user is offline</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

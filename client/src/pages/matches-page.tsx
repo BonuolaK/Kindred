@@ -164,30 +164,65 @@ export default function MatchesPage() {
                 </div>
               </div>
               
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex items-center gap-1">
-                    <Filter className="h-4 w-4" /> Filter
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-52">
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Filter Matches</h4>
-                    <Select value={filterValue} onValueChange={setFilterValue}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select filter" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Matches</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="scheduled">Call Scheduled</SelectItem>
-                        <SelectItem value="chatUnlocked">Chat Unlocked</SelectItem>
-                        <SelectItem value="photosRevealed">Photos Revealed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => generateMatchesMutation.mutate()}
+                  disabled={
+                    generateMatchesMutation.isPending || 
+                    hasReachedMatchLimit(matches.length, user?.profileType)
+                  }
+                  className="bg-[#9B1D54] hover:bg-[#9B1D54]/90 text-white"
+                  size="sm"
+                >
+                  {generateMatchesMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Finding...
+                    </span>
+                  ) : hasReachedMatchLimit(matches.length, user?.profileType) ? (
+                    <span className="flex items-center gap-2"
+                      onClick={() => {
+                        if (hasReachedMatchLimit(matches.length, user?.profileType)) {
+                          navigate("/profile/subscription");
+                        }
+                      }}
+                    >
+                      <Heart className="h-4 w-4" />
+                      Limit Reached
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <Heart className="h-4 w-4" />
+                      Find New Matches
+                    </span>
+                  )}
+                </Button>
+                
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-1">
+                      <Filter className="h-4 w-4" /> Filter
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-52">
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm">Filter Matches</h4>
+                      <Select value={filterValue} onValueChange={setFilterValue}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select filter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Matches</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="scheduled">Call Scheduled</SelectItem>
+                          <SelectItem value="chatUnlocked">Chat Unlocked</SelectItem>
+                          <SelectItem value="photosRevealed">Photos Revealed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             
             <div className="bg-muted/30 rounded-lg p-4 border">
@@ -261,11 +296,14 @@ export default function MatchesPage() {
                   {filterValue === "all" && (
                     <div className="flex flex-col items-center">
                       <Button
-                        onClick={() => generateMatchesMutation.mutate()}
-                        disabled={
-                          generateMatchesMutation.isPending || 
-                          hasReachedMatchLimit(matches.length, user?.profileType)
-                        }
+                        onClick={() => {
+                          if (hasReachedMatchLimit(matches.length, user?.profileType)) {
+                            navigate("/profile/subscription");
+                          } else {
+                            generateMatchesMutation.mutate();
+                          }
+                        }}
+                        disabled={generateMatchesMutation.isPending}
                         className="mx-auto bg-[#9B1D54] hover:bg-[#9B1D54]/90 text-white font-medium px-8 py-6 h-auto"
                         size="lg"
                       >
@@ -277,7 +315,7 @@ export default function MatchesPage() {
                         ) : hasReachedMatchLimit(matches.length, user?.profileType) ? (
                           <span className="flex items-center gap-2">
                             <Heart className="h-5 w-5" />
-                            Match Limit Reached
+                            Upgrade For More Matches
                           </span>
                         ) : (
                           <span className="flex items-center gap-2">

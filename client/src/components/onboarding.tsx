@@ -1452,9 +1452,9 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                         >
                           <Check className="w-12 h-12 text-primary" />
                         </motion.div>
-                        <h3 className="text-2xl font-heading font-semibold mb-4">Almost there!</h3>
+                        <h3 className="text-2xl font-heading font-semibold mb-4">Profile Complete!</h3>
                         <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                          You're nearly done creating your profile. Just one more step to complete your preferences.
+                          Thanks for taking the time to fill out your profile. You're all set to start finding meaningful connections!
                         </p>
                       </div>
                     )}
