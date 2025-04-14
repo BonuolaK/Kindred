@@ -197,11 +197,6 @@ const steps: Step[] = [
   },
   {
     id: 18,
-    title: "Almost There!",
-    description: "Just one more step to complete your profile",
-  },
-  {
-    id: 19,
     title: "Profile Complete!",
     description: "Thanks for taking the time to fill out your profile",
   },
