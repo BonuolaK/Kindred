@@ -227,7 +227,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-6 w-6 text-primary hover:text-primary/80 hover:bg-primary/10 rounded-full"
+                    className="h-6 w-6 text-[#9B1D54] hover:text-[#9B1D54]/80 hover:bg-[#9B1D54]/10 rounded-full"
                     onClick={() => {
                       const modal = document.createElement('div');
                       modal.id = 'call-preferences-modal';
@@ -366,7 +366,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
           <Button 
             variant="outline" 
             size="sm" 
-            className="flex items-center justify-center gap-1 h-10 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 text-primary hover:text-primary"
+            className="flex items-center justify-center gap-1 h-10 border-[#9B1D54]/30 bg-[#9B1D54]/5 hover:bg-[#9B1D54]/10 hover:border-[#9B1D54]/50 text-[#9B1D54] hover:text-[#9B1D54]"
             asChild
           >
             <Link to={`/call/${match.id}?autoStart=true`}>
@@ -399,7 +399,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
           <Button 
             variant="outline" 
             size="sm" 
-            className="flex items-center justify-center gap-1 h-10 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 text-primary hover:text-primary"
+            className="flex items-center justify-center gap-1 h-10 border-[#9B1D54]/30 bg-[#9B1D54]/5 hover:bg-[#9B1D54]/10 hover:border-[#9B1D54]/50 text-[#9B1D54] hover:text-[#9B1D54]"
             asChild
           >
             <Link to={`/conversation/${match.id}`}>
@@ -423,7 +423,7 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
           <Button 
             variant="outline" 
             size="sm" 
-            className="flex items-center justify-center gap-1 h-10 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 text-primary hover:text-primary"
+            className="flex items-center justify-center gap-1 h-10 border-[#9B1D54]/30 bg-[#9B1D54]/5 hover:bg-[#9B1D54]/10 hover:border-[#9B1D54]/50 text-[#9B1D54] hover:text-[#9B1D54]"
             asChild
           >
             <Link to={`/profile/${otherUser.id}`}>
