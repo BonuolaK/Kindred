@@ -976,97 +976,6 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                     )}
                     
                     {currentStep === 8 && (
-                      <div className="flex-1 flex flex-col justify-center">
-                        <motion.div 
-                          initial={{ y: 10, opacity: 0 }} 
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: 0.1 }}
-                        >
-                          <FormLabel className="text-xl font-heading mb-4">{currentStepData.question}</FormLabel>
-                          <div className="grid grid-cols-2 gap-6 mt-4">
-                            <FormField
-                              control={form.control}
-                              name="agePreferenceMin"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Minimum Age</FormLabel>
-                                  <Select
-                                    onValueChange={(value) => {
-                                      const numValue = parseInt(value);
-                                      field.onChange(numValue);
-                                      
-                                      // Ensure max age is not less than min age
-                                      const currentMax = form.getValues("agePreferenceMax");
-                                      if (currentMax && numValue > currentMax) {
-                                        form.setValue("agePreferenceMax", numValue);
-                                      }
-                                    }}
-                                    defaultValue={field.value?.toString() || "21"}
-                                    value={field.value?.toString() || "21"}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select minimum age" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {Array.from({ length: 80 }, (_, i) => i + 21).map((age) => (
-                                        <SelectItem key={age} value={age.toString()}>
-                                          {age}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="agePreferenceMax"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Maximum Age</FormLabel>
-                                  <Select
-                                    onValueChange={(value) => {
-                                      const numValue = parseInt(value);
-                                      field.onChange(numValue);
-                                      
-                                      // Ensure min age is not greater than max age
-                                      const currentMin = form.getValues("agePreferenceMin");
-                                      if (currentMin && numValue < currentMin) {
-                                        form.setValue("agePreferenceMin", numValue);
-                                      }
-                                    }}
-                                    defaultValue={field.value?.toString() || "65"}
-                                    value={field.value?.toString() || "65"}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select maximum age" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {Array.from({ length: 80 }, (_, i) => i + 21).map((age) => (
-                                        <SelectItem key={age} value={age.toString()}>
-                                          {age}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormDescription>
-                                    Maximum age must be greater than or equal to minimum age
-                                  </FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </motion.div>
-                      </div>
-                    )}
-                    
-                    {currentStep === 9 && (
                       <FormField
                         control={form.control}
                         name="location"
@@ -1116,6 +1025,35 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                                     </Command>
                                   </PopoverContent>
                                 </Popover>
+                              </FormControl>
+                              <FormMessage />
+                            </motion.div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {currentStep === 9 && (
+                      <FormField
+                        control={form.control}
+                        name="bio"
+                        render={({ field }) => (
+                          <FormItem className="flex-1 flex flex-col justify-center">
+                            <motion.div 
+                              initial={{ y: 10, opacity: 0 }} 
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
+                              <FormDescription>
+                                Tell potential matches about your personality, interests, and what makes you unique.
+                              </FormDescription>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="I'm a..." 
+                                  className="mt-4 min-h-[150px]" 
+                                  {...field} 
+                                />
                               </FormControl>
                               <FormMessage />
                             </motion.div>
