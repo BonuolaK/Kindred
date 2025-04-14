@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function HomePage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [, navigate] = useLocation();
   const [showOnboarding, setShowOnboarding] = useState(false);
   
@@ -32,8 +33,8 @@ export default function HomePage() {
         return;
       }
       
-      // Also check if profile is incomplete
-      if (!user.age || !user.gender || !user.interestedGenders) {
+      // Also check if profile is incomplete based on required fields
+      if (!user.age || !user.gender || !user.interestedGenders || !user.location || !user.bio) {
         setShowOnboarding(true);
       }
     }
@@ -43,9 +44,50 @@ export default function HomePage() {
     queryKey: ["/api/matches"],
     enabled: !!user && !showOnboarding,
   });
+  
+  // Generate matches mutation
+  const generateMatchesMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/generate-matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!res.ok) throw new Error('Failed to generate matches');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      // Show appropriate toast message based on response
+      if (data.newMatches && data.newMatches.length > 0) {
+        toast({
+          title: "New Matches Found!",
+          description: `Found ${data.newMatches.length} new match${data.newMatches.length > 1 ? 'es' : ''} for you.`,
+        });
+      } else {
+        toast({
+          title: "No New Matches",
+          description: "Our system is searching for your perfect match. Check back soon!",
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error Finding Matches",
+        description: "There was an issue finding new matches. Please try again later.",
+        variant: "destructive",
+      });
+    }
+  });
 
-  // Check if user has completed their profile
-  const isProfileComplete = user && user.age && user.gender && user.interestedGenders;
+  // Check if user has completed their profile (all required fields)
+  const isProfileComplete = user && 
+    user.age && 
+    user.gender && 
+    user.interestedGenders && 
+    user.interestedGenders.length > 0 && 
+    user.location && 
+    user.bio;
 
   // Handle onboarding completion
   const handleOnboardingComplete = () => {
@@ -82,7 +124,7 @@ export default function HomePage() {
                 </p>
               </div>
               <Button 
-                className="w-full"
+                className="w-full bg-[#9B1D54] hover:bg-[#9B1D54]/90 text-white"
                 onClick={() => navigate("/profile")}
               >
                 Complete Profile
@@ -90,148 +132,118 @@ export default function HomePage() {
             </CardContent>
           </Card>
         ) : (
-          <Tabs defaultValue="matches" className="mb-8">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="matches" className="flex items-center gap-2">
-                <Heart className="h-4 w-4" />
-                <span>Matches</span>
-              </TabsTrigger>
-              <TabsTrigger value="conversations" className="flex items-center gap-2">
-                <MessageCircle className="h-4 w-4" />
-                <span>Conversations</span>
-              </TabsTrigger>
-              <TabsTrigger value="calls" className="flex items-center gap-2">
-                <PhoneCall className="h-4 w-4" />
-                <span>Scheduled Calls</span>
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="matches" className="mt-6">
-              {/* Subscription information */}
-              <div className="mb-4 bg-purple-50 p-4 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CrownIcon className="h-5 w-5 text-purple-700" />
-                  <div>
-                    <h3 className="font-medium">{getSubscriptionName(user?.profileType)}</h3>
-                    <p className="text-sm text-gray-600">
-                      {matches && matches.length} of {getMaxMatches(user?.profileType)} matches available
-                    </p>
-                  </div>
+          <div className="mb-8">
+            {/* Subscription information */}
+            <div className="mb-6 bg-purple-50 p-4 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CrownIcon className="h-5 w-5 text-[#9B1D54]" />
+                <div>
+                  <h3 className="font-medium">{getSubscriptionName(user?.profileType)}</h3>
+                  <p className="text-sm text-gray-600">
+                    {matches?.length || 0} of {getMaxMatches(user?.profileType)} matches 
+                    {user?.profileType === 'elite' ? '' : ' available'}
+                  </p>
                 </div>
+              </div>
+              
+              {user?.profileType !== 'elite' && (
                 <Button 
                   size="sm" 
                   variant="outline"
-                  className="bg-white"
+                  className="bg-white hover:bg-gray-50 border-[#9B1D54] text-[#9B1D54]"
                   onClick={() => navigate("/profile/subscription")}
                 >
                   <ArrowUpCircle className="h-4 w-4 mr-2" />
                   Upgrade
                 </Button>
+              )}
+            </div>
+            
+            {/* Find Matches Button */}
+            <div className="mb-6 flex justify-center">
+              <Button 
+                onClick={() => generateMatchesMutation.mutate()}
+                disabled={
+                  generateMatchesMutation.isPending || 
+                  (matches && hasReachedMatchLimit(matches.length, user?.profileType))
+                }
+                className="w-full max-w-lg py-6 h-auto bg-[#9B1D54] hover:bg-[#9B1D54]/90 text-white"
+                size="lg"
+              >
+                {generateMatchesMutation.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Finding Matches...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Heart className="h-5 w-5" />
+                    Find New Matches
+                  </span>
+                )}
+              </Button>
+            </div>
+            
+            {/* Matches Grid */}
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-[#9B1D54]" />
               </div>
-              
-              {isLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : matches && matches.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {matches.map((match) => (
-                    <MatchCard key={match.id} match={match} currentUserId={user?.id || 0} />
-                  ))}
-                  
-                  {matches.length < getMaxMatches(user?.profileType) ? (
-                    <Card className="flex flex-col items-center justify-center p-6 border-dashed">
-                      <Heart className="h-12 w-12 text-gray-300 mb-4" />
-                      <h3 className="font-heading font-semibold text-lg mb-2 text-center">Find More Matches</h3>
-                      <p className="text-gray-600 mb-4 text-center text-sm">
-                        You have {getMaxMatches(user?.profileType) - (matches.length || 0)} matches remaining on your plan
-                      </p>
-                      <Button 
-                        onClick={() => navigate("/matches")}
-                        variant="default"
-                      >
-                        Find Matches
-                      </Button>
-                    </Card>
-                  ) : (
-                    <Card className="flex flex-col items-center justify-center p-6 border-dashed">
-                      <CrownIcon className="h-12 w-12 text-yellow-400 mb-4" />
-                      <h3 className="font-heading font-semibold text-lg mb-2 text-center">Upgrade for More</h3>
-                      <p className="text-gray-600 mb-4 text-center text-sm">
-                        Upgrade your plan to receive more high-quality matches
-                      </p>
-                      <Button 
-                        onClick={() => navigate("/profile/subscription")}
-                        variant="default"
-                      >
-                        Upgrade Now
-                      </Button>
-                    </Card>
-                  )}
-                </div>
-              ) : (
-                <Card>
-                  <CardContent className="pt-6 text-center">
-                    <div className="mb-4 flex justify-center">
-                      <Heart className="h-12 w-12 text-gray-300" />
-                    </div>
-                    <h3 className="font-heading font-semibold text-lg mb-2">No Matches Yet</h3>
-                    <p className="text-gray-600 mb-4">
-                      We're working on finding your compatible matches based on your profile
+            ) : matches && matches.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {matches.map((match) => (
+                  <MatchCard key={match.id} match={match} currentUserId={user?.id || 0} />
+                ))}
+                
+                {/* Show upgrade card only if not elite and reached limit */}
+                {user?.profileType !== 'elite' && matches.length >= getMaxMatches(user?.profileType) && (
+                  <Card className="flex flex-col items-center justify-center p-6 border-dashed">
+                    <CrownIcon className="h-12 w-12 text-yellow-400 mb-4" />
+                    <h3 className="font-heading font-semibold text-lg mb-2 text-center">Upgrade for More</h3>
+                    <p className="text-gray-600 mb-4 text-center text-sm">
+                      Upgrade your plan to receive more high-quality matches
                     </p>
                     <Button 
-                      onClick={() => navigate("/matches")}
-                      className="w-full"
+                      onClick={() => navigate("/profile/subscription")}
+                      variant="default"
+                      className="bg-[#9B1D54] hover:bg-[#9B1D54]/90 text-white"
                     >
-                      Find Matches
+                      Upgrade Now
                     </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="conversations" className="mt-6">
+                  </Card>
+                )}
+              </div>
+            ) : (
               <Card>
                 <CardContent className="pt-6 text-center">
                   <div className="mb-4 flex justify-center">
-                    <MessageCircle className="h-12 w-12 text-gray-300" />
+                    <Heart className="h-12 w-12 text-gray-300" />
                   </div>
-                  <h3 className="font-heading font-semibold text-lg mb-2">No Conversations Yet</h3>
+                  <h3 className="font-heading font-semibold text-lg mb-2">No Matches Yet</h3>
                   <p className="text-gray-600 mb-4">
-                    Chat unlocks after completing your first two audio calls with a match
+                    Our system is searching for your perfect match. Check back soon!
                   </p>
                   <Button 
-                    onClick={() => navigate("/matches")}
-                    variant="outline"
-                    className="w-full"
+                    onClick={() => generateMatchesMutation.mutate()}
+                    disabled={generateMatchesMutation.isPending}
+                    className="w-full bg-[#9B1D54] hover:bg-[#9B1D54]/90 text-white"
                   >
-                    Go to Matches
+                    {generateMatchesMutation.isPending ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Finding Matches...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Heart className="h-4 w-4" />
+                        Find Matches
+                      </span>
+                    )}
                   </Button>
                 </CardContent>
               </Card>
-            </TabsContent>
-            
-            <TabsContent value="calls" className="mt-6">
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <div className="mb-4 flex justify-center">
-                    <PhoneCall className="h-12 w-12 text-gray-300" />
-                  </div>
-                  <h3 className="font-heading font-semibold text-lg mb-2">No Scheduled Calls</h3>
-                  <p className="text-gray-600 mb-4">
-                    Schedule an audio call with one of your matches to get to know them
-                  </p>
-                  <Button 
-                    onClick={() => navigate("/matches")}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Go to Matches
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+            )}
+          </div>
         )}
         
         <Card>
@@ -266,7 +278,7 @@ export default function HomePage() {
                 </div>
                 <h3 className="font-heading font-semibold mb-2">Deepen Your Connection</h3>
                 <p className="text-gray-600 text-sm">
-                  Chat unlocks after 2 calls, and photos reveal after 3 calls
+                  Chats are unlocked after your first call
                 </p>
               </div>
             </div>

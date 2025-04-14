@@ -12,11 +12,13 @@ import { Tabs } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Filter, Users, Heart } from "lucide-react";
+import { CalendarIcon, Filter, Users, Heart, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn, formatDate } from "@/lib/utils";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { getMaxMatches, hasReachedMatchLimit } from "@/lib/subscription-limits";
 
 export default function MatchesPage() {
   const { user } = useAuth();
@@ -70,6 +72,8 @@ export default function MatchesPage() {
     }
   });
   
+  const { toast } = useToast();
+  
   const generateMatchesMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/generate-matches', {
@@ -80,8 +84,27 @@ export default function MatchesPage() {
       if (!res.ok) throw new Error('Failed to generate matches');
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Show appropriate toast message based on response
+      if (data.newMatches && data.newMatches.length > 0) {
+        toast({
+          title: "New Matches Found!",
+          description: `Found ${data.newMatches.length} new match${data.newMatches.length > 1 ? 'es' : ''} for you.`,
+        });
+      } else {
+        toast({
+          title: "No New Matches",
+          description: "Our system is searching for your perfect match. Check back soon!",
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error Finding Matches",
+        description: "There was an issue finding new matches. Please try again later.",
+        variant: "destructive",
+      });
     }
   });
   
@@ -194,7 +217,7 @@ export default function MatchesPage() {
                   {(user?.profileType === 'basic' || user?.profileType === 'premium') && (
                     <Button 
                       size="sm" 
-                      className="text-xs h-9 bg-primary hover:bg-primary/90 text-white font-medium"
+                      className="text-xs h-9 bg-[#9B1D54] hover:bg-[#9B1D54]/90 text-white font-medium"
                       onClick={() => {
                         navigate("/profile/subscription");
                       }}
@@ -236,27 +259,44 @@ export default function MatchesPage() {
                       : "No matches found with the selected filter. Try a different filter."}
                   </p>
                   {filterValue === "all" && (
-                    <Button
-                      onClick={() => generateMatchesMutation.mutate()}
-                      disabled={generateMatchesMutation.isPending}
-                      className="mx-auto bg-primary hover:bg-primary/90 text-white font-medium px-8 py-6 h-auto"
-                      size="lg"
-                    >
-                      {generateMatchesMutation.isPending ? (
-                        <span className="flex items-center gap-2">
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Finding Matches...
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-2">
-                          <Heart className="h-5 w-5" />
-                          Find New Matches
-                        </span>
+                    <div className="flex flex-col items-center">
+                      <Button
+                        onClick={() => generateMatchesMutation.mutate()}
+                        disabled={
+                          generateMatchesMutation.isPending || 
+                          hasReachedMatchLimit(matches.length, user?.profileType)
+                        }
+                        className="mx-auto bg-[#9B1D54] hover:bg-[#9B1D54]/90 text-white font-medium px-8 py-6 h-auto"
+                        size="lg"
+                      >
+                        {generateMatchesMutation.isPending ? (
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Finding Matches...
+                          </span>
+                        ) : hasReachedMatchLimit(matches.length, user?.profileType) ? (
+                          <span className="flex items-center gap-2">
+                            <Heart className="h-5 w-5" />
+                            Match Limit Reached
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <Heart className="h-5 w-5" />
+                            Find New Matches
+                          </span>
+                        )}
+                      </Button>
+                      
+                      {hasReachedMatchLimit(matches.length, user?.profileType) && user?.profileType !== 'elite' && (
+                        <Button
+                          onClick={() => navigate("/profile/subscription")}
+                          variant="link"
+                          className="mt-2 text-[#9B1D54]"
+                        >
+                          Upgrade for more matches
+                        </Button>
                       )}
-                    </Button>
+                    </div>
                   )}
                 </div>
               )}
@@ -341,8 +381,19 @@ export default function MatchesPage() {
             <Button 
               onClick={handleConfirmSchedule}
               disabled={!date || !time || scheduleMutation.isPending}
+              className="bg-[#9B1D54] hover:bg-[#9B1D54]/90 text-white"
             >
-              {scheduleMutation.isPending ? "Scheduling..." : "Schedule Call"}
+              {scheduleMutation.isPending ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Scheduling...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <PhoneCall className="h-4 w-4" />
+                  Schedule Call
+                </span>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
