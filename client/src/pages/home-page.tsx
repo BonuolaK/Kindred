@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { queryClient } from "@/lib/queryClient";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import MobileNav from "@/components/mobile-nav";
@@ -13,7 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Match } from "@shared/schema";
 import { MatchCard } from "@/components/match-card";
 import { Loader2, PhoneCall, Heart, MessageCircle, Settings, User, CrownIcon, ArrowUpCircle } from "lucide-react";
-import { getMaxMatches, getSubscriptionName } from "@/lib/subscription-limits";
+import { getMaxMatches, getSubscriptionName, hasReachedMatchLimit } from "@/lib/subscription-limits";
+import { useToast } from "@/hooks/use-toast";
 
 export default function HomePage() {
   const { user } = useAuth();
