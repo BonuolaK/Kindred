@@ -332,7 +332,9 @@ export default function ConversationPage() {
               </div>
               <h3 className="font-heading font-semibold text-lg mb-2">Chat is Locked</h3>
               <p className="text-gray-600 max-w-md mb-6">
-                Complete {callCount < 2 ? `${2 - callCount} more` : 'at least 2'} audio calls with {otherUser.username} to unlock the chat feature.
+                {callCount === 0 
+                  ? `Complete an audio call with ${otherUser.username} to unlock the chat feature.` 
+                  : `Chat will unlock after your audio call with ${otherUser.username} is completed.`}
               </p>
               <Button onClick={handleInitiateCall}>Schedule a Call</Button>
             </div>

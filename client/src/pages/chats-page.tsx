@@ -160,7 +160,7 @@ function EmptyChatState({ matches, navigate }: EmptyChatStateProps) {
         <MessageCircleOff className="h-12 w-12 text-gray-300 mb-4" />
         <CardTitle className="text-xl mb-2">No Chats Available</CardTitle>
         <CardDescription className="mb-6 max-w-md">
-          Chats are unlocked after completing your first audio call with a match. This helps build meaningful connections before messaging.
+          Chats are unlocked after your first audio call with a match. This helps build meaningful connections before messaging.
         </CardDescription>
 
         {hasMatches ? (
@@ -182,6 +182,7 @@ function EmptyChatState({ matches, navigate }: EmptyChatStateProps) {
                       variant="outline" 
                       size="sm"
                       onClick={() => navigate(`/conversation/${match.id}`)}
+                      className="border-[#9B1D54]/30 bg-[#9B1D54]/5 hover:bg-[#9B1D54]/10 hover:border-[#9B1D54]/50 text-[#9B1D54] hover:text-[#9B1D54]"
                     >
                       <MessageCircle className="h-4 w-4 mr-1" />
                       Chat
@@ -191,6 +192,7 @@ function EmptyChatState({ matches, navigate }: EmptyChatStateProps) {
                       variant="outline" 
                       size="sm"
                       onClick={() => navigate(`/call/${match.id}`)}
+                      className="border-[#9B1D54]/30 bg-[#9B1D54]/5 hover:bg-[#9B1D54]/10 hover:border-[#9B1D54]/50 text-[#9B1D54] hover:text-[#9B1D54]"
                     >
                       <Phone className="h-4 w-4 mr-1" />
                       Call to Unlock
@@ -212,6 +214,7 @@ function EmptyChatState({ matches, navigate }: EmptyChatStateProps) {
               <Button 
                 variant="default" 
                 onClick={() => navigate("/matches")}
+                className="bg-[#9B1D54] hover:bg-[#9B1D54]/90 text-white"
               >
                 View All Matches
               </Button>
@@ -225,6 +228,7 @@ function EmptyChatState({ matches, navigate }: EmptyChatStateProps) {
             <Button
               variant="default"
               onClick={() => navigate("/matches")}
+              className="bg-[#9B1D54] hover:bg-[#9B1D54]/90 text-white"
             >
               Find Matches
             </Button>
