@@ -1065,35 +1065,6 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                     {currentStep === 10 && (
                       <FormField
                         control={form.control}
-                        name="bio"
-                        render={({ field }) => (
-                          <FormItem className="flex-1 flex flex-col justify-center">
-                            <motion.div 
-                              initial={{ y: 10, opacity: 0 }} 
-                              animate={{ y: 0, opacity: 1 }}
-                              transition={{ delay: 0.1 }}
-                            >
-                              <FormLabel className="text-xl font-heading mb-2">{currentStepData.question}</FormLabel>
-                              <FormDescription>
-                                Tell potential matches about yourself, your interests, and what you're looking for
-                              </FormDescription>
-                              <FormControl>
-                                <Textarea 
-                                  placeholder="I'm a..." 
-                                  {...field} 
-                                  className="mt-4 min-h-[150px]"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </motion.div>
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                    
-                    {currentStep === 11 && (
-                      <FormField
-                        control={form.control}
                         name="communicationStyle"
                         render={({ field }) => (
                           <FormItem className="flex-1 flex flex-col justify-center">
@@ -1133,7 +1104,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                       />
                     )}
                     
-                    {currentStep === 12 && (
+                    {currentStep === 11 && (
                       <FormField
                         control={form.control}
                         name="freeTimeActivities"
@@ -1185,7 +1156,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                       />
                     )}
                     
-                    {currentStep === 13 && (
+                    {currentStep === 12 && (
                       <FormField
                         control={form.control}
                         name="values"
@@ -1228,7 +1199,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                       />
                     )}
                     
-                    {currentStep === 14 && (
+                    {currentStep === 13 && (
                       <FormField
                         control={form.control}
                         name="conflictResolution"
@@ -1271,7 +1242,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                       />
                     )}
                     
-                    {currentStep === 15 && (
+                    {currentStep === 14 && (
                       <FormField
                         control={form.control}
                         name="loveLanguage"
@@ -1313,8 +1284,8 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                         )}
                       />
                     )}
-
-                    {currentStep === 16 && (
+                    
+                    {currentStep === 15 && (
                       <FormField
                         control={form.control}
                         name="relationshipPace"
@@ -1355,8 +1326,8 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                         )}
                       />
                     )}
-                    
-                    {currentStep === 17 && (
+
+                    {currentStep === 16 && (
                       <FormField
                         control={form.control}
                         name="dealbreakers"
@@ -1406,7 +1377,7 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                       />
                     )}
                     
-                    {currentStep === 18 && (
+                    {currentStep === 17 && (
                       <FormField
                         control={form.control}
                         name="callPreferences"
@@ -1469,6 +1440,23 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                           </FormItem>
                         )}
                       />
+                    )}
+                    
+                    {currentStep === 18 && (
+                      <div className="flex-1 flex flex-col items-center justify-center text-center">
+                        <motion.div 
+                          initial={{ scale: 0.8, opacity: 0 }} 
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: 0.1, duration: 0.5 }}
+                          className="bg-primary/10 rounded-full p-4 mb-6"
+                        >
+                          <Check className="w-12 h-12 text-primary" />
+                        </motion.div>
+                        <h3 className="text-2xl font-heading font-semibold mb-4">Almost there!</h3>
+                        <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                          You're nearly done creating your profile. Just one more step to complete your preferences.
+                        </p>
+                      </div>
                     )}
                     
                     {currentStep === 19 && (
