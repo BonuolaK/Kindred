@@ -44,6 +44,8 @@ export function setupSocketServer(httpServer: HttpServer) {
     // Increase timeouts for more stability in Replit
     clientTracking: true,
     perMessageDeflate: false, // Disable compression for reliability
+    // Extended timeout values for Replit environment
+    maxPayload: 1024 * 1024, // 1MB max payload
     // Explicitly verify and accept clients from our origin
     verifyClient: (info, cb) => {
       // In development, we accept all connections
