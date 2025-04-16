@@ -417,31 +417,78 @@ export function setupSocketServer(httpServer: HttpServer) {
     // Handle WebSocket errors
     ws.on('error', (error) => {
       console.error(`WebSocket error for client ${userId ? `(User ${userId})` : ''}:`, error);
+      // Don't immediately remove the user or cleanup as the close event will handle it
     });
 
     ws.on('close', (code, reason) => {
       console.log(`Client disconnected from advanced WebSocket ${userId ? `(User ${userId})` : ''} with code ${code} reason: ${reason || 'none'}`);
       
       if (userId) {
-        users.delete(userId);
+        // For abnormal closures (most likely a reconnection attempt), 
+        // don't immediately mark the user as offline
+        const isAbnormalClosure = (code === 1006);
         
-        // End any active calls involving this user
-        // Manually iterate to avoid downlevelIteration issues
-        activeCalls.forEach((call, key) => {
-          if (call.initiator === userId || call.receiver === userId) {
-            const otherUserId = call.initiator === userId ? call.receiver : call.initiator;
-            const otherUserWs = users.get(otherUserId);
-            
-            if (otherUserWs) {
-              sendToClient(otherUserWs, {
-                type: 'call:ended',
-                from: userId
+        if (!isAbnormalClosure) {
+          // Normal closure - mark user as offline
+          users.delete(userId);
+          onlineUsers.delete(userId);
+          
+          // Broadcast user's offline status to all connected clients
+          users.forEach((clientWs, clientId) => {
+            if (clientWs.readyState === WebSocket.OPEN) {
+              sendToClient(clientWs, {
+                type: 'status',
+                userId: userId,
+                online: false
               });
             }
-            
-            activeCalls.delete(key);
-          }
-        });
+          });
+          
+          // End any active calls involving this user
+          // Manually iterate to avoid downlevelIteration issues
+          activeCalls.forEach((call, key) => {
+            if (call.initiator === userId || call.receiver === userId) {
+              const otherUserId = call.initiator === userId ? call.receiver : call.initiator;
+              const otherUserWs = users.get(otherUserId);
+              
+              if (otherUserWs) {
+                sendToClient(otherUserWs, {
+                  type: 'call:ended',
+                  from: userId
+                });
+              }
+              
+              activeCalls.delete(key);
+            }
+          });
+        } else {
+          // For code 1006, it's likely a temporary disconnection or reconnection attempt
+          // We'll give a grace period before marking the user as offline
+          console.log(`Abnormal closure detected for user ${userId}, maintaining connection state temporarily`);
+          
+          // Keep user in the map, but remove this specific connection
+          // This allows the same user to reconnect quickly without being marked offline
+          setTimeout(() => {
+            // Check if the user has already reconnected (a new connection is stored in the users map)
+            const currentWs = users.get(userId);
+            if (currentWs === ws) {
+              // User didn't reconnect within the grace period, now mark them offline
+              users.delete(userId);
+              onlineUsers.delete(userId);
+              
+              // Broadcast user's offline status
+              users.forEach((clientWs, clientId) => {
+                if (clientWs.readyState === WebSocket.OPEN) {
+                  sendToClient(clientWs, {
+                    type: 'status',
+                    userId: userId,
+                    online: false
+                  });
+                }
+              });
+            }
+          }, 10000); // 10 second grace period
+        }
       }
       
       // Remove from heartbeat tracking

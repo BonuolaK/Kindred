@@ -29,18 +29,50 @@ export function useOnlineStatus() {
       try {
         // Use the appropriate WebSocket endpoint with cache busting
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // Add a cache buster to prevent caching issues
+        // Add a cache buster to prevent caching issues and pass user ID for better tracking
         const cacheBuster = Date.now();
-        const wsUrl = `${protocol}//${window.location.host}/ws?t=${cacheBuster}`;
+        const wsUrl = `${protocol}//${window.location.host}/ws?t=${cacheBuster}&uid=${user.id}`;
         
         if (socketRef.current) {
           // Clean up existing connection if it's still around
           try {
-            socketRef.current.close();
+            // Only attempt clean close if it's not already closing or closed
+            if (socketRef.current.readyState !== WebSocket.CLOSING && 
+                socketRef.current.readyState !== WebSocket.CLOSED) {
+              socketRef.current.close(1000, "Normal closure, reconnecting");
+            }
           } catch (err) {
             // Ignore errors closing an already closed socket
+            console.log('[Online Status] Error during socket cleanup:', err);
           }
+          
+          // Short delay to ensure proper cleanup before creating a new connection
+          setTimeout(() => {
+            createNewConnection();
+          }, 300);
+        } else {
+          createNewConnection();
         }
+      } catch (err) {
+        console.error('[Online Status] Failed to connect:', err);
+        scheduleReconnect(5000);
+      }
+    };
+    
+    const scheduleReconnect = (delay: number) => {
+      clearTimeout(reconnectTimeout);
+      reconnectTimeout = setTimeout(() => {
+        if (document.visibilityState !== 'hidden') {
+          connect();
+        }
+      }, delay);
+    };
+    
+    const createNewConnection = () => {
+      try {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const cacheBuster = Date.now();
+        const wsUrl = `${protocol}//${window.location.host}/ws?t=${cacheBuster}&uid=${user.id}`;
         
         console.log('[Online Status] Attempting to connect to WebSocket...');
         const ws = new WebSocket(wsUrl);
