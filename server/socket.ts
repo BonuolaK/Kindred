@@ -37,22 +37,10 @@ const HEARTBEAT_INTERVAL = 20000; // 20 seconds
 const CLIENT_TIMEOUT = 60000; // 60 seconds without heartbeat = disconnect
 
 export function setupSocketServer(httpServer: HttpServer) {
-  // Create WebSocket server with more resilient settings for Replit environment
+  // Create WebSocket server with bare minimum configuration for maximum compatibility
   const wss = new WebSocketServer({ 
     server: httpServer, 
-    path: '/ws',  // Match the path used in the client
-    // Increase timeouts for more stability in Replit
-    clientTracking: true,
-    perMessageDeflate: false, // Disable compression for reliability
-    // Extended timeout values for Replit environment
-    maxPayload: 1024 * 1024, // 1MB max payload
-    // Explicitly verify and accept clients from our origin
-    verifyClient: (info, cb) => {
-      // In development, we accept all connections
-      // Note: In production, we would check against allowed origins
-      console.log(`[WS] Connection attempt from origin: ${info.origin}`);
-      cb(true); // Accept all clients in development
-    }
+    path: '/ws'
   });
   console.log('WebSocket server initialized on path: /ws');
   

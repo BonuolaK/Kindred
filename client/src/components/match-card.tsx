@@ -38,8 +38,12 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
   const isChatUnlocked = match.isChatUnlocked || false;
   
   // Get online status
-  const { isUserOnline } = useOnlineStatus();
-  const isOtherUserOnline = isUserOnline(otherUser.id);
+  const { isUserOnline, isConnectedToStatusService } = useOnlineStatus();
+  
+  // TEMPORARY FIX: For testing purposes, we'll always consider users as potentially online
+  // This allows initiating calls even when the online status system is having issues
+  // Remove this once WebSocket connectivity issues are resolved
+  const isOtherUserOnline = true; // Override the actual status check: isUserOnline(otherUser.id);
   
   // State for unmatch dialog
   const [unmatchDialogOpen, setUnmatchDialogOpen] = useState(false);
