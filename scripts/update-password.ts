@@ -15,7 +15,7 @@ async function hashPassword(password: string) {
 
 async function updatePassword() {
   try {
-    const username = 'KennyB';
+    const username = 'FemTest';
     const newPassword = 'TestPassword';
     
     // Hash the new password
