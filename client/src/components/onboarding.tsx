@@ -1417,15 +1417,35 @@ export default function Onboarding({ onComplete, initialStep = 1 }: OnboardingPr
                                     
                                     // Save the current form data
                                     const currentData = form.getValues();
+                                    
+                                    // Check if all required fields are filled
+                                    const requiredFieldsFilled = 
+                                      currentData.username && 
+                                      currentData.gender && 
+                                      currentData.interestedGenders?.length > 0 && 
+                                      currentData.age >= 21 && 
+                                      currentData.bio && 
+                                      currentData.location && 
+                                      currentData.freeTimeActivities?.length > 0 &&
+                                      currentData.values && 
+                                      currentData.conflictResolution && 
+                                      currentData.loveLanguage && 
+                                      currentData.relationshipPace && 
+                                      currentData.dealbreakers?.length > 0;
+                                    
+                                    // Include completion flag based on required fields
                                     updateProfileMutation.mutate({
                                       ...currentData,
                                       callPreferences: flexibleSchedule,
-                                      onboardingCompleted: false
+                                      idVerificationSkipped: true,
+                                      onboardingCompleted: requiredFieldsFilled
                                     }, {
                                       onSuccess: () => {
                                         toast({
                                           title: "Call preferences saved",
-                                          description: "Flexible timing preferences have been saved.",
+                                          description: requiredFieldsFilled 
+                                            ? "Flexible timing preferences have been saved."
+                                            : "Flexible timing preferences have been saved, but you still need to complete all required fields.",
                                         });
                                         handleNext();
                                       }
