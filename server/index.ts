@@ -1,3 +1,6 @@
+// Import the path-compat module first to ensure import.meta.dirname is available
+import "../path-compat.js";
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
