@@ -2,44 +2,30 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 /**
- * Get the directory name of the current module, compatible with both Replit and local environments
- * @param importMetaUrl - Pass import.meta.url from the calling module
- * @returns The directory path of the current module
+ * Get project root directory in a way that works in both Replit and local environments
  */
-export function getDirname(importMetaUrl: string): string {
+export function getProjectRoot(): string {
   try {
-    // First try Replit's approach
+    // In Replit environment, import.meta.dirname is available
     if (typeof (import.meta as any).dirname === 'string') {
       return (import.meta as any).dirname;
     }
   } catch (e) {
-    // Ignore error, will use standard approach
+    // Ignore errors - we'll use the alternative method
   }
   
-  // Standard Node.js approach for ES modules
-  const __filename = fileURLToPath(importMetaUrl);
-  return path.dirname(__filename);
+  // In local environment, use fileURLToPath
+  // This is executed from shared/path-utils.ts, so we need to go up one level
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  return path.resolve(__dirname, '..');
 }
 
 /**
- * Resolve a path relative to the current module, compatible with both Replit and local environments
- * @param importMetaUrl - Pass import.meta.url from the calling module
- * @param ...paths - Paths to resolve relative to the current module directory
- * @returns Resolved absolute path
+ * Resolve a path from the project root directory
+ * Works in both Replit and local environments
  */
-export function resolvePath(importMetaUrl: string, ...paths: string[]): string {
-  const dirname = getDirname(importMetaUrl);
-  return path.resolve(dirname, ...paths);
-}
-
-/**
- * Get the project root directory
- * @param importMetaUrl - Pass import.meta.url from the calling module
- * @returns The project root directory path
- */
-export function getProjectRoot(importMetaUrl: string): string {
-  // Navigate up from the current file to find project root
-  // This assumes that shared/path-utils.ts is directly in the shared directory
-  // which is directly in the project root
-  return path.resolve(getDirname(importMetaUrl), '..');
+export function resolvePath(...pathSegments: string[]): string {
+  const root = getProjectRoot();
+  return path.resolve(root, ...pathSegments);
 }
