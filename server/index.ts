@@ -1,10 +1,3 @@
-// Import the path-compat module first to ensure import.meta.dirname is available
-import "../path-compat.js";
-
-// Load environment variables for local development
-import { loadEnv } from "./env-loader";
-loadEnv();
-
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
