@@ -12,15 +12,36 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { logger } from './debug-logger';
 
 /**
  * Load environment variables from a .env file if running locally
  * @param envPath Optional path to .env file, defaults to project root
  */
 export function loadEnv(envPath?: string): void {
+  // Set up logging based on environment
+  const isReplit = !!process.env.REPL_ID;
+  
+  // Automatically enable debug logging in local environments
+  if (!isReplit && !process.env.LOG_LEVEL) {
+    process.env.LOG_LEVEL = 'debug';
+  }
+  
   // If we're in Replit, don't try to load from .env file
-  if (process.env.REPL_ID) {
-    console.log('[env-loader] Running in Replit, using environment variables from Replit Secrets');
+  if (isReplit) {
+    logger.info('Running in Replit, using environment variables from Replit Secrets');
+    
+    // Log key environment variables (without sensitive values)
+    logger.debug('Environment configuration check:');
+    const keysToCheck = [
+      'NODE_ENV', 'PORT', 'REPL_ID', 'REPL_OWNER', 'DATABASE_URL',
+      // Add other keys you want to verify are present (but not show values)
+    ];
+    
+    keysToCheck.forEach(key => {
+      logger.debug(` - ${key}: ${process.env[key] ? '[Set]' : '[Not set]'}`);
+    });
+    
     return;
   }
 
@@ -35,7 +56,8 @@ export function loadEnv(envPath?: string): void {
     
     // Check if .env file exists
     if (!fs.existsSync(envFile)) {
-      console.warn(`[env-loader] No .env file found at ${envFile}`);
+      logger.warn(`No .env file found at ${envFile}`);
+      logger.info(`Create a .env file by copying .env.example and filling in your values`);
       return;
     }
 
@@ -45,6 +67,8 @@ export function loadEnv(envPath?: string): void {
 
     // Process each line in the .env file
     let loadedVars = 0;
+    const loadedKeys: string[] = [];
+    
     for (const line of envLines) {
       const trimmedLine = line.trim();
       
@@ -69,12 +93,23 @@ export function loadEnv(envPath?: string): void {
         if (!process.env[key]) {
           process.env[key] = value;
           loadedVars++;
+          loadedKeys.push(key);
         }
       }
     }
     
-    console.log(`[env-loader] Loaded ${loadedVars} environment variables from .env file`);
+    logger.info(`Loaded ${loadedVars} environment variables from .env file`);
+    logger.debug(`Loaded keys: ${loadedKeys.join(', ')}`);
+    
+    // Check for required variables in local development
+    const requiredVars = ['DATABASE_URL', 'SESSION_SECRET'];
+    const missingVars = requiredVars.filter(key => !process.env[key]);
+    
+    if (missingVars.length > 0) {
+      logger.warn(`Missing required environment variables: ${missingVars.join(', ')}`);
+      logger.info(`Make sure these are set in your .env file`);
+    }
   } catch (error) {
-    console.error('[env-loader] Error loading .env file:', error);
+    logger.error('Error loading .env file:', error);
   }
 }
