@@ -2,40 +2,62 @@
 
 This guide explains how to run the Kindred app in a local development environment.
 
-## Problem
+## Quick Start
 
-When running the application locally, you may encounter the following errors:
-
-1. Path resolution issues:
-```
-TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
-```
-
-2. Missing environment variables:
-```
-Error: DATABASE_URL must be set. Did you forget to provision a database?
-```
-
-These issues occur because Replit-specific features like `import.meta.dirname` and Replit Secrets aren't available in local environments.
-
-## Solution
-
-We've created two compatibility layers:
-
-1. **Path compatibility** - Works in both Replit and local environments by providing a reliable way to resolve file paths.
-2. **Environment variable loader** - Loads variables from a local `.env` file when running outside of Replit.
-
-## Setting Up Environment Variables
-
-1. Copy the `.env.example` file to `.env`:
+1. **Clone the repository**
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+3. **Set up environment variables:**
    ```bash
    cp .env.example .env
+   # Edit .env with your database credentials and settings
+   ```
+4. **Set up a local PostgreSQL database**
+5. **Start the app:**
+   ```bash
+   node local-start.js
    ```
 
-2. Edit the `.env` file with your configuration:
-   - Set up a local PostgreSQL database
-   - Configure authentication secrets
-   - Add other required environment variables
+## Prerequisites
+
+- Node.js (version 18+)
+- npm (version 8+)
+- PostgreSQL (version 13+)
+
+## Detailed Setup
+
+### 1. Database Setup
+
+You need a PostgreSQL database. You can:
+- Install PostgreSQL locally
+- Use Docker: `docker run --name kindred-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres`
+- Use a cloud database (e.g., Render, Neon, Supabase)
+
+Update your `.env` file with the database connection details:
+
+```
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/kindred
+PGUSER=postgres
+PGPASSWORD=postgres
+PGDATABASE=kindred
+PGHOST=localhost
+PGPORT=5432
+```
+
+### 2. Environment Variables
+
+Copy the `.env.example` file to `.env`:
+```bash
+cp .env.example .env
+```
+
+Edit the `.env` file with:
+- Your database credentials
+- Authentication secrets (generate with `openssl rand -hex 32`)
+- Google OAuth credentials (if using Google auth)
+- Other required settings
 
 ## Running Locally
 
@@ -118,14 +140,80 @@ Available log levels (in order of verbosity):
 - `warn` - Shows only warnings and errors
 - `error` - Shows only errors
 
-## How It Works
+## Compatibility with Replit
 
-1. The `path-compat.js` module detects the current environment
-2. It provides helper functions (`getDirname()`, `getProjectRoot()`, `resolveFromRoot()`)
-3. For Vite specifically, it exports pre-calculated path values (`viteAliases`, `viteRoot`, `viteOutDir`)
+The app is designed to work in both Replit and local environments, with specific adaptations for each:
 
-## Notes on Implementation
+### Key Differences
 
-- The solution is non-intrusive and doesn't require modifying existing config files
-- No changes are needed to the server startup in the Replit environment
-- It uses multiple fallback strategies to handle different edge cases
+In Replit:
+- Environment variables are stored in Replit Secrets
+- Path resolution uses Replit-specific features
+- WebSockets operate through Replit's proxied environment
+
+In local development:
+- Environment variables are loaded from .env file
+- Path resolution uses Node.js standard features
+- WebSockets connect directly to localhost
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+1. **Database Connection Problems**
+   - Error: `Error: connect ECONNREFUSED 127.0.0.1:5432`
+   - Solution: Make sure PostgreSQL is running and your DATABASE_URL is correctly configured
+
+2. **Missing Environment Variables**
+   - Error: `Error: AUTH_SECRET is not defined`
+   - Solution: Check your .env file and make sure all required variables are set
+
+3. **WebSocket Connection Issues**
+   - Error: `WebSocket connection to 'ws://localhost:5000/ws' failed`
+   - Solution: Ensure you're using 0.0.0.0 as the host in your server setup, not localhost
+
+4. **TypeScript Compilation Errors**
+   - Error: `Cannot find module '../path-compat'`
+   - Solution: Run with `node local-start.js` which properly handles TypeScript files
+
+### Debug Tools
+
+If you're experiencing issues, try these debugging approaches:
+
+1. Run with verbose logging:
+   ```bash
+   node local-start.js --debug --verbose
+   ```
+
+2. Check database connectivity:
+   ```bash
+   # With PostgreSQL CLI tools
+   psql -U postgres -h localhost -d kindred
+   
+   # Or using a simple test script
+   echo "SELECT 1;" | psql $DATABASE_URL
+   ```
+
+3. Monitor WebSocket communication:
+   - Open Chrome DevTools → Network tab → WS filter
+   - Look for failed connection attempts and error messages
+
+## Implementation Details
+
+### Architecture
+
+The app uses a layered approach to ensure compatibility:
+
+1. **Base Layer**: Core application code, shared between environments
+2. **Compatibility Layer**: Environment-specific adaptations (path-compat.js, env-loader.ts)
+3. **Runner Layer**: Environment-specific entry points (local-start.js for local, Replit workflows for Replit)
+
+### File Structure
+
+- `.env.example` - Template for local environment variables
+- `local-start.js` - Local development entry point using tsx
+- `path-compat.js` - Path resolution compatibility layer
+- `server/env-loader.ts` - Environment variable loading logic
+- `server/debug-logger.ts` - Enhanced logging system
+
+The application is designed to detect its environment automatically and use the appropriate strategies for path resolution, environment variables, and other platform-specific concerns.
