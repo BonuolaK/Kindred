@@ -1,48 +1,67 @@
 // path-compat.js
-// This is a cross-environment compatibility solution for import.meta.dirname
-// Works in both Replit and local environments by patching the import.meta object
+// Cross-environment compatibility solution for path resolution
+// Works in both Replit (with import.meta.dirname) and local environments (where import.meta might be undefined)
 
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { dirname } from 'path';
+import * as url from 'url';
 
-// Patch the import.meta object globally if dirname is not available
-// This is executed when this module is imported
-(function patchImportMeta() {
+// Safely get the current file's directory in ESM
+// This approach should work across all Node.js versions and environments
+function getCurrentDirname() {
   try {
-    // Check if import.meta.dirname is available
-    if (import.meta.dirname === undefined) {
-      // Create a getter for import.meta.dirname that calculates the directory from import.meta.url
-      Object.defineProperty(import.meta, 'dirname', {
-        get: function() {
-          // Get the directory from the URL
-          const filename = fileURLToPath(import.meta.url);
-          return path.dirname(filename);
-        },
-        configurable: true
-      });
-      console.log('[path-compat] Patched import.meta.dirname for local environment compatibility');
+    // For environments with import.meta.url (most modern Node.js)
+    if (typeof import.meta === 'object' && import.meta !== null && typeof import.meta.url === 'string') {
+      return dirname(fileURLToPath(import.meta.url));
     }
   } catch (e) {
-    console.warn('[path-compat] Unable to patch import.meta.dirname:', e.message);
+    console.warn('[path-compat] Error accessing import.meta.url:', e.message);
   }
-})();
 
-// Export helper functions for convenience
-export function getDirname() {
+  // Fallback for older Node.js versions or environments without import.meta
+  // Use a stable reference point - this file's location
   try {
-    return import.meta.dirname;
+    // This uses the __filename equivalent in ESM
+    const fileName = url.fileURLToPath(import.meta.url || url.__filename);
+    return path.dirname(fileName);
   } catch (e) {
-    const filename = fileURLToPath(import.meta.url);
-    return path.dirname(filename);
+    console.warn('[path-compat] Error with fileURLToPath fallback:', e.message);
   }
+
+  // Last resort fallback - use the current working directory
+  console.warn('[path-compat] Using process.cwd() as fallback - this may not be accurate!');
+  return process.cwd();
 }
 
-// Get the project root directory
+// Get the current directory
+const currentDirname = getCurrentDirname();
+
+// Get the project root directory (one level up from this file)
+const projectRoot = path.resolve(currentDirname);
+
+// Export helper functions
+export function getDirname() {
+  return currentDirname;
+}
+
 export function getProjectRoot() {
-  return getDirname();
+  return projectRoot;
 }
 
-// Helper functions for resolving paths relative to project root
+// Helper function to resolve paths relative to project root
 export function resolveFromRoot(...segments) {
-  return path.resolve(getProjectRoot(), ...segments);
+  return path.resolve(projectRoot, ...segments);
 }
+
+// Helper functions specifically for Vite config files
+export const viteAliases = {
+  "@": path.resolve(projectRoot, "client", "src"),
+  "@shared": path.resolve(projectRoot, "shared"),
+  "@assets": path.resolve(projectRoot, "attached_assets"),
+};
+
+export const viteRoot = path.resolve(projectRoot, "client");
+export const viteOutDir = path.resolve(projectRoot, "dist/public");
+
+console.log('[path-compat] Project root resolved as:', projectRoot);
