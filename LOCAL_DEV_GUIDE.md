@@ -1,24 +1,43 @@
 # Local Development Guide
 
-This guide explains how to run the Kindred app in a local development environment to avoid issues with `import.meta.dirname`.
+This guide explains how to run the Kindred app in a local development environment.
 
 ## Problem
 
-When running the application locally, you may encounter the following error:
+When running the application locally, you may encounter the following errors:
 
+1. Path resolution issues:
 ```
 TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
 ```
 
-This happens because `import.meta.dirname` is a Replit-specific feature not available in all Node.js environments.
+2. Missing environment variables:
+```
+Error: DATABASE_URL must be set. Did you forget to provision a database?
+```
+
+These issues occur because Replit-specific features like `import.meta.dirname` and Replit Secrets aren't available in local environments.
 
 ## Solution
 
-We've created a compatibility layer that works in both Replit and local environments. This solution uses standard ESM modules and falls back to alternatives when `import.meta` is not available or doesn't have the `dirname` property.
+We've created two compatibility layers:
+
+1. **Path compatibility** - Works in both Replit and local environments by providing a reliable way to resolve file paths.
+2. **Environment variable loader** - Loads variables from a local `.env` file when running outside of Replit.
+
+## Setting Up Environment Variables
+
+1. Copy the `.env.example` file to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit the `.env` file with your configuration:
+   - Set up a local PostgreSQL database
+   - Configure authentication secrets
+   - Add other required environment variables
 
 ## Running Locally
-
-To run the app locally, use one of these approaches:
 
 ### Option 1: Use the local-dev.js script
 
