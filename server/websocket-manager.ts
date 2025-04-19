@@ -152,7 +152,7 @@ export class WebSocketManager {
           
           // Handle status updates
           if (data.type === 'status' && userId) {
-            this.broadcastStatus(userId, data.online);
+            this.broadcastStatus(ensureNumber(userId), data.online);
           }
           
           // Handle call status updates
@@ -311,7 +311,7 @@ export class WebSocketManager {
       ws.on('close', () => {
         if (userId) {
           console.log(`[BASIC] User ${userId} disconnected from basic WebSocket server`);
-          this.connections.basic.delete(userId);
+          this.connections.basic.delete(ensureNumber(userId));
         }
       });
       
@@ -319,7 +319,7 @@ export class WebSocketManager {
       ws.on('error', (error) => {
         console.error('[BASIC] WebSocket error:', error);
         if (userId) {
-          this.connections.basic.delete(userId);
+          this.connections.basic.delete(ensureNumber(userId));
         }
       });
     });
