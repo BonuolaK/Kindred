@@ -20,10 +20,10 @@ const userRooms = new Map<number, string>();
 const clientHeartbeats = new Map<number, number>();
 
 // Server-side heartbeat interval in milliseconds
-const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+const HEARTBEAT_INTERVAL = 60000; // 60 seconds
 
 // Timeout duration - if no heartbeat in this time, consider the client disconnected
-const HEARTBEAT_TIMEOUT = 60000; // 60 seconds
+const HEARTBEAT_TIMEOUT = 120000; // 120 seconds (2 minutes)
 
 // Debug logging function
 const log = (message: string, data?: any) => {

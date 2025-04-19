@@ -68,10 +68,10 @@ const DEFAULT_MEDIA_CONSTRAINTS: MediaStreamConstraints = {
 };
 
 // Timeouts for various operations (in milliseconds)
-const ICE_GATHERING_TIMEOUT = 5000; // How long to wait for ICE gathering
-const CONNECTION_TIMEOUT = 30000; // How long to wait for connection establishment
-const RECONNECTION_ATTEMPTS = 3; // Maximum number of reconnection attempts
-const RECONNECTION_DELAY = 2000; // Delay between reconnection attempts
+const ICE_GATHERING_TIMEOUT = 10000; // How long to wait for ICE gathering - increased to 10 seconds
+const CONNECTION_TIMEOUT = 60000; // How long to wait for connection establishment - increased to 60 seconds
+const RECONNECTION_ATTEMPTS = 5; // Maximum number of reconnection attempts - increased to 5
+const RECONNECTION_DELAY = 3000; // Delay between reconnection attempts - increased to 3 seconds
 
 // Events emitted by the service
 export type WebRTCEvent = 
@@ -273,7 +273,7 @@ export class WebRTCService {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Timed out waiting to join room'));
-      }, 10000);
+      }, 20000); // Increased to 20 seconds
       
       const onEvent = (event: WebRTCEvent) => {
         if (event.type === 'roomJoined' && event.roomId === roomId) {
@@ -484,11 +484,11 @@ export class WebRTCService {
           this.socket.userId = this.userId;
         }
         
-        // Set up connection timeout (extend to 15 seconds for Replit)
+        // Set up connection timeout (extend to 30 seconds for Replit)
         const connectionTimeout = setTimeout(() => {
           console.error('[WebRTC] WebSocket connection timed out');
           reject(new Error('Signaling connection timeout'));
-        }, 15000);
+        }, 30000); // Increased to 30 seconds
         
         // Use event listeners instead of direct property assignment for better compatibility
         this.socket.addEventListener('open', () => {

@@ -37,10 +37,10 @@ const MAX_RECONNECTION_ATTEMPTS = 8; // Increased for Replit's environment
 const RECONNECTION_DELAY = 2000;
 
 // Heartbeat interval (milliseconds) - increased to reduce frequency
-const HEARTBEAT_INTERVAL = 30000;
+const HEARTBEAT_INTERVAL = 45000; // Increased to 45 seconds
 
 // Connection stabilization delay (milliseconds) - increased to allow connection to fully establish
-const CONNECTION_STABILIZATION_DELAY = 3000;
+const CONNECTION_STABILIZATION_DELAY = 5000; // Increased to 5 seconds
 
 // Maximum message size (bytes) - to avoid large payloads causing disconnections
 const MAX_MESSAGE_SIZE = 16 * 1024;
@@ -147,7 +147,7 @@ function startHeartbeat(ws: WebSocketWithHeartbeat): void {
             console.warn('[WebSocket] No heartbeat response received, closing connection');
             // Use code 1000 (Normal Closure) which is always valid
             ws.close(1000, 'Heartbeat timeout');
-          }, 10000);
+          }, 15000); // Increased timeout to 15 seconds
         } catch (error) {
           console.error('[WebSocket] Error sending heartbeat:', error);
           stopHeartbeat(ws);
