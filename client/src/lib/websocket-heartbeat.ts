@@ -36,11 +36,11 @@ const MAX_RECONNECTION_ATTEMPTS = 8; // Increased for Replit's environment
 // Initial delay between reconnection attempts (milliseconds)
 const RECONNECTION_DELAY = 2000;
 
-// Heartbeat interval (milliseconds)
-const HEARTBEAT_INTERVAL = 15000;
+// Heartbeat interval (milliseconds) - increased to reduce frequency
+const HEARTBEAT_INTERVAL = 30000;
 
-// Connection stabilization delay (milliseconds) - wait before starting heartbeat
-const CONNECTION_STABILIZATION_DELAY = 1000;
+// Connection stabilization delay (milliseconds) - increased to allow connection to fully establish
+const CONNECTION_STABILIZATION_DELAY = 3000;
 
 // Maximum message size (bytes) - to avoid large payloads causing disconnections
 const MAX_MESSAGE_SIZE = 16 * 1024;

@@ -16,6 +16,15 @@ const rooms = new Map<string, Set<number>>();
 // Map to track which room each user is in
 const userRooms = new Map<number, string>();
 
+// Keep track of client heartbeats (userId -> timestamp of last activity)
+const clientHeartbeats = new Map<number, number>();
+
+// Server-side heartbeat interval in milliseconds
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+
+// Timeout duration - if no heartbeat in this time, consider the client disconnected
+const HEARTBEAT_TIMEOUT = 60000; // 60 seconds
+
 // Debug logging function
 const log = (message: string, data?: any) => {
   console.log(`[WebRTC Signaling] ${message}`, data ? data : '');
@@ -36,6 +45,17 @@ export function setupWebRTCSignaling(httpServer: HttpServer) {
   });
 
   log('WebRTC signaling server initialized on path: /rtc');
+  
+  // Setup server-side heartbeat mechanism
+  const heartbeatInterval = setInterval(() => {
+    performHeartbeatCheck(wss);
+  }, HEARTBEAT_INTERVAL);
+  
+  // Clean up interval when server closes
+  wss.on('close', () => {
+    clearInterval(heartbeatInterval);
+    log('WebRTC signaling server closed, heartbeat stopped');
+  });
 
   wss.on('connection', (ws: WebSocket) => {
     let userId: number | null = null;
@@ -44,6 +64,11 @@ export function setupWebRTCSignaling(httpServer: HttpServer) {
     ws.on('message', (message: string) => {
       try {
         const data = JSON.parse(message.toString()) as SignalingData;
+        
+        // Update heartbeat timestamp if user is registered
+        if (userId) {
+          clientHeartbeats.set(userId, Date.now());
+        }
         
         // Skip logging for ICE candidates to prevent log flooding
         if (data.type !== 'ice-candidate') {
@@ -128,6 +153,9 @@ export function setupWebRTCSignaling(httpServer: HttpServer) {
         
         // Remove client from connected clients
         connectedClients.delete(userId);
+        
+        // Remove from heartbeat tracking
+        clientHeartbeats.delete(userId);
       } else {
         log(`Unregistered client disconnected with code ${code} reason: ${reason || 'none'}`);
       }
@@ -154,6 +182,10 @@ function handleRegister(ws: WebSocket, data: SignalingData) {
 
   // Store the connection
   connectedClients.set(userId, ws);
+  
+  // Update heartbeat timestamp
+  clientHeartbeats.set(userId, Date.now());
+  
   log(`Registered user ${userId}, total connected: ${connectedClients.size}`);
 }
 
@@ -313,5 +345,63 @@ function sendErrorToClient(ws: WebSocket, message: string) {
 function sendToClient(ws: WebSocket, data: any) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(data));
+  }
+}
+
+/**
+ * Heartbeat check to detect and remove stale connections
+ * This helps ensure the server doesn't maintain zombie connections
+ */
+function performHeartbeatCheck(wss: WebSocketServer) {
+  const now = Date.now();
+  const staleConnections: number[] = [];
+  
+  // Identify stale connections
+  clientHeartbeats.forEach((lastHeartbeat, userId) => {
+    const timeSinceLastHeartbeat = now - lastHeartbeat;
+    
+    if (timeSinceLastHeartbeat > HEARTBEAT_TIMEOUT) {
+      log(`Detected stale connection for user ${userId} - no heartbeat for ${timeSinceLastHeartbeat}ms`);
+      staleConnections.push(userId);
+    }
+  });
+  
+  // Clean up stale connections
+  if (staleConnections.length > 0) {
+    log(`Cleaning up ${staleConnections.length} stale connections`);
+    
+    staleConnections.forEach(userId => {
+      const ws = connectedClients.get(userId);
+      
+      if (ws) {
+        try {
+          // Send a notification to client that they will be disconnected
+          sendToClient(ws, {
+            type: 'disconnect-warning',
+            reason: 'Heartbeat timeout'
+          });
+          
+          // Close the connection with a normal closure code
+          ws.close(1000, 'Heartbeat timeout');
+          
+          // Remove from tracking maps
+          connectedClients.delete(userId);
+          clientHeartbeats.delete(userId);
+          handleLeaveRoom(userId);
+          
+          log(`Closed stale connection for user ${userId}`);
+        } catch (error) {
+          log(`Error closing stale connection for user ${userId}:`, error);
+        }
+      } else {
+        // Clean up any orphaned entries
+        clientHeartbeats.delete(userId);
+      }
+    });
+  }
+  
+  // Log current connection counts
+  if (connectedClients.size > 0) {
+    log(`Current connections: ${connectedClients.size}, Active heartbeats: ${clientHeartbeats.size}`);
   }
 }
