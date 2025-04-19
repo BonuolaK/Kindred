@@ -51,6 +51,15 @@ export function setupWebRTCSignaling(httpServer: HttpServer) {
         }
 
         switch (data.type) {
+          case 'ping':
+            // Respond with pong for heartbeat
+            sendToClient(ws, {
+              type: 'pong',
+              timestamp: Date.now(),
+              original: data.timestamp || Date.now()
+            });
+            break;
+            
           case 'register':
             handleRegister(ws, data);
             userId = data.userId;

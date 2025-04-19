@@ -303,11 +303,18 @@ export class WebSocketManager {
           // Try to parse as JSON for heartbeats
           try {
             const data = JSON.parse(message.toString());
-            if (data.type === 'heartbeat') {
+            
+            // Handle heartbeat/ping messages for connection stability
+            if (data.type === 'heartbeat' || data.type === 'ping') {
               this.sendToClient(ws, {
-                type: 'ping',
-                timestamp: Date.now()
+                type: 'pong',
+                timestamp: Date.now(),
+                original: data.timestamp || Date.now()
               });
+              
+              // Update last activity timestamp
+              // This is an internal property we're adding to the WebSocket object
+              (ws as any).lastActivity = Date.now();
             }
             
             // Handle registration
