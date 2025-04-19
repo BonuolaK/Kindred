@@ -353,12 +353,15 @@ export class WebSocketManager {
   // Helper methods
   
   private sendToClient(ws: WebSocket, data: any): void {
-    if (ws.readyState === WebSocket.OPEN) {
+    // Use direct value 1 for OPEN state for maximum compatibility
+    if (ws.readyState === 1) { // 1 = WebSocket.OPEN
       try {
         ws.send(JSON.stringify(data));
       } catch (error) {
         console.error('Error sending message to client:', error);
       }
+    } else {
+      console.warn(`Cannot send message, socket not in OPEN state (state: ${ws.readyState})`);
     }
   }
   
@@ -373,7 +376,7 @@ export class WebSocketManager {
     
     // Broadcast to all general WebSocket clients
     this.wss.ws.clients.forEach((client: WebSocket) => {
-      if (client.readyState === WebSocket.OPEN) {
+      if (client.readyState === 1) { // 1 = WebSocket.OPEN
         this.sendToClient(client, statusMessage);
       }
     });
@@ -385,7 +388,7 @@ export class WebSocketManager {
     // This is a simplified implementation
     // In a real app, you'd determine which users are part of the match
     this.wss.ws.clients.forEach((client: WebSocket) => {
-      if (client.readyState === WebSocket.OPEN) {
+      if (client.readyState === 1) { // 1 = WebSocket.OPEN
         this.sendToClient(client, data);
       }
     });
