@@ -40,27 +40,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // HTTP server creation
   const httpServer = createServer(app);
   
-  // Detect if we're running on Windows
-  const isWindows = process.platform === 'win32';
+  // Always use the unified WebSocketManager to avoid upgrade conflicts
+  console.log('Using unified WebSocket manager for all platforms');
+  const wsManager = new WebSocketManager(httpServer);
   
-  if (isWindows) {
-    // Use unified WebSocket manager for Windows to avoid upgrade conflicts
-    console.log('Windows platform detected, using unified WebSocket manager');
-    const wsManager = new WebSocketManager(httpServer);
-  } else {
-    // Setup individual WebSocket servers for non-Windows platforms
-    // Setup general WebSocket server
-    const wss = setupSocketServer(httpServer);
-    
-    // Setup WebRTC signaling server
-    const rtcWss = setupWebRTCSignaling(httpServer);
-
-    // Setup Basic WebSocket server (for testing)
-    const basicWss = setupBasicWebSocketServer(httpServer);
-    
-    // Debug log to confirm setup
-    console.log('WebSocket servers initialized: general (/ws), WebRTC signaling (/rtc), and basic test (/basic-ws)');
-  }
+  // No longer using separate WebSocket servers to avoid conflicts
 
   // Match endpoints
   

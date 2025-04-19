@@ -1,329 +1,268 @@
-import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-
-// Define the valid endpoint types
-type EndpointType = 'basic' | 'main' | 'rtc';
-type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+import React, { useState, useEffect, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function WebSocketDiagnostics() {
-  const [activeTab, setActiveTab] = useState<EndpointType>("basic");
+  const { user } = useAuth();
+  const [generalWsStatus, setGeneralWsStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [rtcWsStatus, setRtcWsStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [basicWsStatus, setBasicWsStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [logs, setLogs] = useState<string[]>([]);
   
-  // Use strongly typed state objects
-  const [status, setStatus] = useState<Record<EndpointType, ConnectionStatus>>({
-    basic: "disconnected",
-    main: "disconnected", 
-    rtc: "disconnected"
-  });
+  const generalWsRef = useRef<WebSocket | null>(null);
+  const rtcWsRef = useRef<WebSocket | null>(null);
+  const basicWsRef = useRef<WebSocket | null>(null);
   
-  const [logs, setLogs] = useState<Record<EndpointType, string[]>>({
-    basic: [],
-    main: [],
-    rtc: []
-  });
-  
-  const [errors, setErrors] = useState<Record<EndpointType, string | null>>({
-    basic: null,
-    main: null,
-    rtc: null
-  });
-  
-  // WebSocket references
-  const wsRefs = useRef<Record<EndpointType, WebSocket | null>>({
-    basic: null,
-    main: null,
-    rtc: null
-  });
-  
-  // Connection configuration
-  const endpoints: Record<EndpointType, string> = {
-    basic: "/basic-ws",
-    main: "/ws",
-    rtc: "/rtc"
+  const addLog = (message: string) => {
+    setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
   };
   
-  // Close connections on unmount
-  useEffect(() => {
-    return () => {
-      (Object.keys(wsRefs.current) as EndpointType[]).forEach(key => {
-        const ws = wsRefs.current[key];
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        }
-      });
-    };
-  }, []);
-  
-  // Add log entry
-  const addLog = (type: EndpointType, message: string) => {
-    setLogs(prev => ({
-      ...prev,
-      [type]: [...prev[type], `${new Date().toISOString().substring(11, 23)} - ${message}`]
-    }));
-  };
-  
-  // Clear logs for a specific type
-  const clearLogs = (type: EndpointType) => {
-    setLogs(prev => ({
-      ...prev,
-      [type]: []
-    }));
-  };
-  
-  // Connect to a WebSocket endpoint
-  const connect = (type: EndpointType) => {
+  const testGeneralWebSocket = () => {
+    if (!user?.id) {
+      addLog('ERROR: Must be logged in to test WebSockets');
+      return;
+    }
+    
     try {
-      // Close existing connection if any
-      const existingWs = wsRefs.current[type];
-      if (existingWs && existingWs.readyState !== WebSocket.CLOSED) {
-        existingWs.close();
+      setGeneralWsStatus('connecting');
+      addLog('Connecting to general WebSocket on /ws...');
+      
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws?t=${Date.now()}&uid=${user.id}`;
+      
+      if (generalWsRef.current) {
+        generalWsRef.current.close();
       }
       
-      // Reset error state
-      setErrors(prev => ({ ...prev, [type]: null }));
-      
-      // Update status
-      setStatus(prev => ({ ...prev, [type]: "connecting" }));
-      addLog(type, `Connecting to ${endpoints[type]}...`);
-      
-      // Create WebSocket URL
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}${endpoints[type]}`;
-      addLog(type, `WebSocket URL: ${wsUrl}`);
-      
-      // Create WebSocket instance
       const ws = new WebSocket(wsUrl);
+      generalWsRef.current = ws;
       
-      // Store the WebSocket
-      wsRefs.current[type] = ws;
-      
-      // Set up event listeners
-      ws.onopen = (event) => {
-        addLog(type, "Connection established");
-        addLog(type, `Event details: ${JSON.stringify({
-          type: event.type,
-          readyState: ws.readyState
-        })}`);
-        setStatus(prev => ({ ...prev, [type]: "connected" }));
+      ws.onopen = () => {
+        setGeneralWsStatus('connected');
+        addLog('✅ Connected to general WebSocket!');
         
-        // Send a simple test message
-        setTimeout(() => {
-          try {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ 
-                type: "ping", 
-                timestamp: Date.now(),
-                client: "diagnostics"
-              }));
-              addLog(type, "Sent ping message");
-            }
-          } catch (err) {
-            addLog(type, `Error sending ping: ${err}`);
-            setErrors(prev => ({ ...prev, [type]: `Error sending ping: ${err}` }));
-          }
-        }, 500);
+        // Send a test message
+        ws.send(JSON.stringify({ type: 'register', userId: user.id }));
+        addLog('Sent registration message to general WebSocket');
       };
       
       ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          addLog(type, `Received message: ${JSON.stringify(data)}`);
-        } catch (err) {
-          addLog(type, `Received raw message: ${event.data}`);
-        }
+        addLog(`Received from general WS: ${event.data}`);
+      };
+      
+      ws.onerror = (error) => {
+        setGeneralWsStatus('error');
+        addLog(`❌ General WebSocket error: ${JSON.stringify(error)}`);
       };
       
       ws.onclose = (event) => {
-        addLog(type, `Connection closed: Code=${event.code}, Reason=${event.reason || 'none'}, Clean=${event.wasClean}`);
-        
-        // Add special handling for common close codes
-        if (event.code === 1006) {
-          addLog(type, "ERROR: Code 1006 indicates abnormal closure (server unreachable, connection dropped, or CORS issue)");
-          setErrors(prev => ({ 
-            ...prev, 
-            [type]: "Abnormal closure (Code 1006). This usually indicates network issues, CORS problems, or server errors."
-          }));
-        } else if (event.code === 1001) {
-          addLog(type, "INFO: Code 1001 indicates the endpoint is going away (server shutdown or restart)");
-        } else if (event.code === 1009) {
-          addLog(type, "ERROR: Code 1009 indicates message too large");
-        } else if (event.code === 1011) {
-          addLog(type, "ERROR: Code 1011 indicates server encountered an error");
-        }
-        
-        setStatus(prev => ({ ...prev, [type]: "disconnected" }));
+        setGeneralWsStatus('disconnected');
+        addLog(`General WebSocket closed: code=${event.code}, reason=${event.reason || 'none'}`);
       };
-      
-      ws.onerror = (event) => {
-        addLog(type, `WebSocket error`);
-        // Inspect the raw error event for any clues
-        try {
-          addLog(type, `Error details: ${JSON.stringify({
-            type: event.type,
-            readyState: ws.readyState
-          })}`);
-        } catch (err) {
-          addLog(type, `Error serializing error event: ${err}`);
-        }
-        
-        // Check if CORS might be the issue
-        if (window.location.protocol === "https:" && wsUrl.startsWith("wss:")) {
-          addLog(type, "DIAGNOSTIC: Secure protocol being used, potential TLS/SSL certificate issues");
-        }
-        
-        setStatus(prev => ({ ...prev, [type]: "error" }));
-        setErrors(prev => ({ 
-          ...prev, 
-          [type]: "WebSocket connection error. Check console for details."
-        }));
-      };
-      
-      // Add instrumentation for browser events during connection
-      window.addEventListener('offline', () => {
-        addLog(type, "BROWSER NETWORK: Device went offline");
-      }, { once: true });
-      
-      window.addEventListener('online', () => {
-        addLog(type, "BROWSER NETWORK: Device is back online");
-      }, { once: true });
       
     } catch (err) {
-      addLog(type, `Exception creating WebSocket: ${err}`);
-      setStatus(prev => ({ ...prev, [type]: "error" }));
-      setErrors(prev => ({ ...prev, [type]: `Exception creating WebSocket: ${err}` }));
+      setGeneralWsStatus('error');
+      addLog(`❌ Error creating general WebSocket: ${err}`);
     }
   };
   
-  // Disconnect from a WebSocket endpoint
-  const disconnect = (type: EndpointType) => {
-    const ws = wsRefs.current[type];
-    if (ws) {
-      try {
-        addLog(type, "Manually closing connection...");
-        ws.close(1000, "User initiated disconnect");
-        wsRefs.current[type] = null;
-      } catch (err) {
-        addLog(type, `Error closing connection: ${err}`);
+  const testRtcWebSocket = () => {
+    if (!user?.id) {
+      addLog('ERROR: Must be logged in to test WebSockets');
+      return;
+    }
+    
+    try {
+      setRtcWsStatus('connecting');
+      addLog('Connecting to RTC WebSocket on /rtc...');
+      
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/rtc?t=${Date.now()}&uid=${user.id}`;
+      
+      if (rtcWsRef.current) {
+        rtcWsRef.current.close();
       }
+      
+      const ws = new WebSocket(wsUrl);
+      rtcWsRef.current = ws;
+      
+      ws.onopen = () => {
+        setRtcWsStatus('connected');
+        addLog('✅ Connected to RTC WebSocket!');
+        
+        // Send a test message
+        ws.send(JSON.stringify({ type: 'register', userId: user.id }));
+        addLog('Sent registration message to RTC WebSocket');
+      };
+      
+      ws.onmessage = (event) => {
+        addLog(`Received from RTC WS: ${event.data}`);
+      };
+      
+      ws.onerror = (error) => {
+        setRtcWsStatus('error');
+        addLog(`❌ RTC WebSocket error: ${JSON.stringify(error)}`);
+      };
+      
+      ws.onclose = (event) => {
+        setRtcWsStatus('disconnected');
+        addLog(`RTC WebSocket closed: code=${event.code}, reason=${event.reason || 'none'}`);
+      };
+      
+    } catch (err) {
+      setRtcWsStatus('error');
+      addLog(`❌ Error creating RTC WebSocket: ${err}`);
     }
   };
   
-  const getStatusVariant = (status: ConnectionStatus): "default" | "destructive" | "outline" | "secondary" => {
-    switch (status) {
-      case "connected": return "default";
-      case "connecting": return "secondary";
-      case "error": return "destructive";
-      default: return "secondary";
+  const testBasicWebSocket = () => {
+    if (!user?.id) {
+      addLog('ERROR: Must be logged in to test WebSockets');
+      return;
+    }
+    
+    try {
+      setBasicWsStatus('connecting');
+      addLog('Connecting to Basic WebSocket on /basic-ws...');
+      
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/basic-ws?t=${Date.now()}&uid=${user.id}`;
+      
+      if (basicWsRef.current) {
+        basicWsRef.current.close();
+      }
+      
+      const ws = new WebSocket(wsUrl);
+      basicWsRef.current = ws;
+      
+      ws.onopen = () => {
+        setBasicWsStatus('connected');
+        addLog('✅ Connected to Basic WebSocket!');
+        
+        // Send a test message
+        ws.send('hello');
+        addLog('Sent test message to Basic WebSocket');
+      };
+      
+      ws.onmessage = (event) => {
+        addLog(`Received from Basic WS: ${event.data}`);
+      };
+      
+      ws.onerror = (error) => {
+        setBasicWsStatus('error');
+        addLog(`❌ Basic WebSocket error: ${JSON.stringify(error)}`);
+      };
+      
+      ws.onclose = (event) => {
+        setBasicWsStatus('disconnected');
+        addLog(`Basic WebSocket closed: code=${event.code}, reason=${event.reason || 'none'}`);
+      };
+      
+    } catch (err) {
+      setBasicWsStatus('error');
+      addLog(`❌ Error creating Basic WebSocket: ${err}`);
     }
   };
+  
+  const closeAllConnections = () => {
+    if (generalWsRef.current) generalWsRef.current.close();
+    if (rtcWsRef.current) rtcWsRef.current.close();
+    if (basicWsRef.current) basicWsRef.current.close();
+    addLog('All WebSocket connections closed');
+  };
+  
+  useEffect(() => {
+    // Clean up on unmount
+    return () => {
+      closeAllConnections();
+    };
+  }, []);
   
   return (
-    <div className="container mx-auto py-6">
-      <Card className="w-full max-w-6xl mx-auto">
-        <CardHeader>
-          <CardTitle className="text-2xl">WebSocket Diagnostics</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="basic" value={activeTab} onValueChange={(value) => setActiveTab(value as EndpointType)}>
-            <TabsList className="grid grid-cols-3 mb-6">
-              <TabsTrigger value="basic">
-                Basic WebSocket
-                <Badge variant={getStatusVariant(status.basic)} className="ml-2">
-                  {status.basic}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="main">
-                Main WebSocket
-                <Badge variant={getStatusVariant(status.main)} className="ml-2">
-                  {status.main}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="rtc">
-                RTC WebSocket
-                <Badge variant={getStatusVariant(status.rtc)} className="ml-2">
-                  {status.rtc}
-                </Badge>
-              </TabsTrigger>
-            </TabsList>
-            
-            {(Object.keys(endpoints) as EndpointType[]).map(type => (
-              <TabsContent key={type} value={type} className="space-y-4">
-                <div className="flex justify-between">
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-semibold">/{type} Endpoint</h3>
-                    <p className="text-muted-foreground">
-                      Test connection to the {type} WebSocket endpoint
-                    </p>
-                  </div>
-                  <div className="space-x-2">
-                    <Button
-                      onClick={() => connect(type)}
-                      disabled={status[type] === "connecting" || status[type] === "connected"}
-                      variant="default"
-                    >
-                      Connect
-                    </Button>
-                    <Button
-                      onClick={() => disconnect(type)}
-                      disabled={status[type] !== "connected" && status[type] !== "error"}
-                      variant="outline"
-                    >
-                      Disconnect
-                    </Button>
-                    <Button
-                      onClick={() => clearLogs(type)}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      Clear Logs
-                    </Button>
-                  </div>
-                </div>
-                
-                {errors[type] && (
-                  <Alert variant="destructive">
-                    <AlertTitle>Connection Error</AlertTitle>
-                    <AlertDescription>{errors[type]}</AlertDescription>
-                  </Alert>
-                )}
-                
-                <Card>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-sm font-medium">Connection Logs</CardTitle>
-                  </CardHeader>
-                  <Separator />
-                  <CardContent className="p-0">
-                    <ScrollArea className="h-[400px] w-full">
-                      <div className="p-4 font-mono text-xs space-y-1">
-                        {logs[type].length === 0 ? (
-                          <div className="text-muted-foreground py-8 text-center">
-                            No logs yet. Connect to see detailed logs.
-                          </div>
-                        ) : (
-                          logs[type].map((log, index) => (
-                            <div key={index} className="whitespace-pre-wrap">
-                              {log}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-                
-                <div className="text-sm text-muted-foreground">
-                  <p>Diagnostic information will be logged here. Check browser console for additional details.</p>
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        </CardContent>
-      </Card>
+    <div className="container mx-auto py-8">
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">WebSocket Diagnostics</h1>
+        
+        <Alert>
+          <AlertTitle>Information</AlertTitle>
+          <AlertDescription>
+            This page helps diagnose WebSocket connection issues. 
+            Click each button to test different WebSocket endpoints.
+          </AlertDescription>
+        </Alert>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>General WebSocket (/ws)</span>
+                <div className={`h-3 w-3 rounded-full ${
+                  generalWsStatus === 'connected' ? 'bg-green-500' :
+                  generalWsStatus === 'connecting' ? 'bg-yellow-500' :
+                  generalWsStatus === 'error' ? 'bg-red-500' :
+                  'bg-gray-500'
+                }`}></div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={testGeneralWebSocket}>Test Connection</Button>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>RTC WebSocket (/rtc)</span>
+                <div className={`h-3 w-3 rounded-full ${
+                  rtcWsStatus === 'connected' ? 'bg-green-500' :
+                  rtcWsStatus === 'connecting' ? 'bg-yellow-500' :
+                  rtcWsStatus === 'error' ? 'bg-red-500' :
+                  'bg-gray-500'
+                }`}></div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={testRtcWebSocket}>Test Connection</Button>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Basic WebSocket (/basic-ws)</span>
+                <div className={`h-3 w-3 rounded-full ${
+                  basicWsStatus === 'connected' ? 'bg-green-500' :
+                  basicWsStatus === 'connecting' ? 'bg-yellow-500' :
+                  basicWsStatus === 'error' ? 'bg-red-500' :
+                  'bg-gray-500'
+                }`}></div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={testBasicWebSocket}>Test Connection</Button>
+            </CardContent>
+          </Card>
+        </div>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Connection Logs</CardTitle>
+            <Button variant="destructive" onClick={closeAllConnections}>Close All Connections</Button>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-muted p-4 rounded-md h-96 overflow-y-auto">
+              {logs.map((log, i) => (
+                <div key={i} className="text-sm border-b border-border py-1">{log}</div>
+              ))}
+              {logs.length === 0 && (
+                <div className="text-muted-foreground text-center py-8">No logs yet. Test a connection to begin.</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

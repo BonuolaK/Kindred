@@ -119,8 +119,8 @@ export class WebSocketManager {
         });
         
         // Broadcast user's online status to all other connections
-        if (isValidUserId(userId)) {
-          this.broadcastStatus(userId, true);
+        if (userId !== null) {
+          this.broadcastStatus(ensureNumber(userId), true);
         }
       }
       
@@ -132,14 +132,13 @@ export class WebSocketManager {
           // Handle registration
           if (data.type === 'register' && data.userId) {
             userId = data.userId;
-            // Type assertion to ensure it's treated as a number for storage
-            const userIdNum: number = userId;
-            this.connections.ws.set(userIdNum, ws);
+            // Use our helper to ensure a valid number for the Map key
+            this.connections.ws.set(ensureNumber(userId), ws);
             console.log(`[WS] User ${userId} registered with general WebSocket server`);
             
             // Broadcast online status
-            if (isValidUserId(userId)) {
-              this.broadcastStatus(userId, true);
+            if (userId !== null) {
+              this.broadcastStatus(ensureNumber(userId), true);
             }
           }
           
