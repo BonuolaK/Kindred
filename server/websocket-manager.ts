@@ -219,14 +219,32 @@ export class WebSocketManager {
             });
           }
           
-          // Handle WebRTC signaling messages
-          if ((data.type === 'offer' || data.type === 'answer' || data.type === 'ice_candidate') 
-              && userId && data.targetUserId) {
-            // Forward WebRTC signaling messages to the target user
-            const targetWs = this.connections.rtc.get(data.targetUserId);
-            if (targetWs && targetWs.readyState === WebSocket.OPEN) {
-              data.fromUserId = userId; // Add sender info
-              this.sendToClient(targetWs, data);
+          // Handle WebRTC signaling messages - expanded to handle all signaling message types
+          if (userId && (
+              data.type === 'offer' || 
+              data.type === 'answer' || 
+              data.type === 'ice_candidate' ||
+              data.type === 'call_request' ||
+              data.type === 'call_response'
+            )) {
+              
+            // If this is a targeted message, send to the specific user
+            if (data.targetUserId) {
+              const targetWs = this.connections.rtc.get(ensureNumber(data.targetUserId));
+              if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+                data.fromUserId = userId; // Add sender info
+                this.sendToClient(targetWs, data);
+                console.log(`[RTC] Forwarded ${data.type} message from ${userId} to ${data.targetUserId}`);
+              } else {
+                // Send failure response back to sender
+                this.sendToClient(ws, {
+                  type: 'error',
+                  error: 'target_not_available',
+                  originalType: data.type,
+                  message: `User ${data.targetUserId} is not connected or unavailable`
+                });
+                console.log(`[RTC] Failed to forward message: target user ${data.targetUserId} not available`);
+              }
             }
           }
         } catch (error) {

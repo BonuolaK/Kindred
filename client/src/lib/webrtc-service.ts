@@ -599,9 +599,26 @@ export class WebRTCService {
   /**
    * Handle incoming signaling messages
    */
-  private handleSignalingMessage(data: string): void {
+  private handleSignalingMessage(data: string | Buffer | ArrayBuffer): void {
+    // Check if the data is valid before attempting to parse
+    if (!data) {
+      console.error('[WebRTC] Received empty signaling message');
+      return;
+    }
+    
     try {
-      const message = JSON.parse(data);
+      // Ensure we're parsing a string
+      let dataStr: string;
+      if (typeof data === 'string') {
+        dataStr = data;
+      } else if (data instanceof Buffer || data instanceof ArrayBuffer) {
+        dataStr = Buffer.from(data).toString();
+      } else {
+        console.error('[WebRTC] Received message of unexpected type:', typeof data);
+        return;
+      }
+      
+      const message = JSON.parse(dataStr);
       console.log(`[WebRTC] Received signaling message: ${message.type}`);
       
       switch (message.type) {
@@ -943,6 +960,12 @@ export class WebRTCService {
    */
   private async handleRemoteOffer(peerId: number, offer: RTCSessionDescriptionInit): Promise<void> {
     console.log(`[WebRTC] Received offer from peer ${peerId}`);
+    
+    // Validate the offer data
+    if (!offer || !offer.sdp) {
+      console.error(`[WebRTC] Invalid offer received from peer ${peerId}:`, offer);
+      return;
+    }
     
     // Create or get peer connection
     let pc = this.peerConnections.get(peerId);
