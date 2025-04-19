@@ -119,11 +119,11 @@ function startHeartbeat(ws: WebSocketWithHeartbeat): void {
   // This can help with Replit's connection issues
   setTimeout(() => {
     // Don't start heartbeat if the connection is already closed
-    if (ws.readyState !== WebSocket.OPEN) return;
+    if (ws.readyState !== 1) return; // 1 is the value of WebSocket.OPEN
     
     // Set up periodic heartbeat
     ws.heartbeatInterval = window.setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) {
+      if (ws.readyState === 1) { // 1 is the value of WebSocket.OPEN
         console.log('[WebSocket] Sending heartbeat ping');
         
         // Send a ping message
@@ -160,7 +160,8 @@ function startHeartbeat(ws: WebSocketWithHeartbeat): void {
             console.error('[WebSocket] Error closing connection after heartbeat failure:', closeError);
           }
         }
-      } else if (ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+      } else if (ws.readyState === 3 || ws.readyState === 2) {
+        // 3 = WebSocket.CLOSED, 2 = WebSocket.CLOSING
         stopHeartbeat(ws);
       }
     }, HEARTBEAT_INTERVAL);
@@ -239,7 +240,7 @@ function attemptReconnect(
   function performReconnect() {
     try {
       // Check if we're already reconnected
-      if (ws.readyState === WebSocket.OPEN) {
+      if (ws.readyState === 1) { // WebSocket.OPEN value is 1
         console.log('[WebSocket] Connection already reestablished');
         return;
       }
@@ -249,7 +250,7 @@ function attemptReconnect(
       stopHeartbeat(ws);
       
       try {
-        if (ws.readyState !== WebSocket.CLOSED) {
+        if (ws.readyState !== 3) { // 3 = WebSocket.CLOSED
           ws.close(1000, 'Replacing with new connection');
         }
       } catch (closeError) {

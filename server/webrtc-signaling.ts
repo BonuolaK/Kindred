@@ -343,8 +343,15 @@ function sendErrorToClient(ws: WebSocket, message: string) {
 
 // Send message to client
 function sendToClient(ws: WebSocket, data: any) {
+  // Check against WebSocket.OPEN constant
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(data));
+    try {
+      ws.send(JSON.stringify(data));
+    } catch (error) {
+      console.error(`[WebRTC Signaling] Error sending message to client:`, error);
+    }
+  } else {
+    console.warn(`[WebRTC Signaling] Cannot send message, socket not open (state: ${ws.readyState})`);
   }
 }
 
