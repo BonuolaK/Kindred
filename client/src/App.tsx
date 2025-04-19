@@ -6,6 +6,12 @@ import { AuthProvider } from "./hooks/use-auth";
 import AnalyticsTracker from "./components/analytics-tracker";
 import { initAnalytics, trackEvent } from "./lib/analytics";
 import { useEffect } from "react";
+// Add PostHog interface to window object
+declare global {
+  interface Window {
+    posthog?: any;
+  }
+}
 import LandingPage from "@/pages/landing-page";
 import AuthPage from "@/pages/auth-page";
 import HomePage from "@/pages/home-page";
@@ -17,6 +23,7 @@ import CallPage from "@/pages/call-page";
 import SocketTestPage from "@/pages/socket-test";
 import RTCTestPage from "@/pages/rtc-test";
 import SimpleRtcTest from "@/pages/simple-rtc-test";
+import MatchCallTest from "@/pages/match-call-test";
 import SimpleWsTest from "@/pages/simple-ws-test";
 import WebSocketDiagnostics from "@/pages/websocket-diagnostics";
 import DebugMatches from "@/pages/debug-matches";
@@ -40,6 +47,7 @@ function Router() {
       <ProtectedRoute path="/socket-test" component={SocketTestPage} />
       <ProtectedRoute path="/rtc-test" component={RTCTestPage} />
       <ProtectedRoute path="/simple-rtc-test" component={SimpleRtcTest} />
+      <ProtectedRoute path="/match-call-test" component={MatchCallTest} />
       <Route path="/simple-ws-test" component={SimpleWsTest} />
       <Route path="/ws-diagnostics" component={WebSocketDiagnostics} />
       <ProtectedRoute path="/rtc-test-old" component={RtcTestPageOld} />
