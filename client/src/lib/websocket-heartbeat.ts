@@ -145,8 +145,8 @@ function startHeartbeat(ws: WebSocketWithHeartbeat): void {
           
           ws.heartbeatTimeout = window.setTimeout(() => {
             console.warn('[WebSocket] No heartbeat response received, closing connection');
-            // Use code 1001 (Going Away) instead of 4000 which might not be handled properly by all servers
-            ws.close(1001, 'Heartbeat timeout');
+            // Use code 1000 (Normal Closure) which is always valid
+            ws.close(1000, 'Heartbeat timeout');
           }, 10000);
         } catch (error) {
           console.error('[WebSocket] Error sending heartbeat:', error);
@@ -155,7 +155,7 @@ function startHeartbeat(ws: WebSocketWithHeartbeat): void {
           // If an error occurs during sending, the connection might be broken
           // Try to close it gracefully, but don't panic if this fails
           try {
-            ws.close(1001, 'Heartbeat error');
+            ws.close(1000, 'Heartbeat error');
           } catch (closeError) {
             console.error('[WebSocket] Error closing connection after heartbeat failure:', closeError);
           }
