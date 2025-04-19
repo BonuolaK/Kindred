@@ -169,10 +169,10 @@ export class WebSocketManager {
       ws.on('close', () => {
         if (userId) {
           console.log(`[WS] User ${userId} disconnected from general WebSocket server`);
-          this.connections.ws.delete(userId);
+          this.connections.ws.delete(ensureNumber(userId));
           
           // Broadcast offline status
-          this.broadcastStatus(userId, false);
+          this.broadcastStatus(ensureNumber(userId), false);
         }
       });
       
@@ -180,7 +180,7 @@ export class WebSocketManager {
       ws.on('error', (error) => {
         console.error('[WS] WebSocket error:', error);
         if (userId) {
-          this.connections.ws.delete(userId);
+          this.connections.ws.delete(ensureNumber(userId));
         }
       });
     });
@@ -201,9 +201,8 @@ export class WebSocketManager {
           // Handle registration
           if (data.type === 'register' && data.userId) {
             userId = data.userId;
-            // Type assertion to ensure it's treated as a number
-            const userIdNum: number = userId;
-            this.connections.rtc.set(userIdNum, ws);
+            // Use our helper to ensure a valid number for the Map key
+            this.connections.rtc.set(ensureNumber(userId), ws);
             console.log(`[RTC] User ${userId} registered with WebRTC signaling server`);
           }
           
@@ -239,7 +238,7 @@ export class WebSocketManager {
       ws.on('close', () => {
         if (userId) {
           console.log(`[RTC] User ${userId} disconnected from WebRTC signaling server`);
-          this.connections.rtc.delete(userId);
+          this.connections.rtc.delete(ensureNumber(userId));
           
           // Notify room participants if needed
           if (roomId) {
@@ -252,7 +251,7 @@ export class WebSocketManager {
       ws.on('error', (error) => {
         console.error('[RTC] WebSocket error:', error);
         if (userId) {
-          this.connections.rtc.delete(userId);
+          this.connections.rtc.delete(ensureNumber(userId));
         }
       });
     });
@@ -269,9 +268,8 @@ export class WebSocketManager {
       const queryUserId = url.searchParams.get('uid');
       if (queryUserId && !isNaN(parseInt(queryUserId))) {
         userId = parseInt(queryUserId);
-        // Type assertion to ensure it's treated as a number
-        const userIdNum: number = userId;
-        this.connections.basic.set(userIdNum, ws);
+        // Use our helper function to ensure valid number
+        this.connections.basic.set(ensureNumber(userId), ws);
         console.log(`[BASIC] User ${userId} connected to basic WebSocket server`);
         
         // Send simple "ok" response to confirm connection
@@ -297,9 +295,8 @@ export class WebSocketManager {
             // Handle registration
             if (data.type === 'register' && data.userId) {
               userId = data.userId;
-              // Type assertion to ensure it's treated as a number
-              const userIdNum: number = userId as number;
-              this.connections.basic.set(userIdNum, ws);
+              // Use our helper function to ensure valid number
+              this.connections.basic.set(ensureNumber(userId), ws);
               console.log(`[BASIC] User ${userId} registered with basic WebSocket server`);
             }
           } catch (jsonError) {

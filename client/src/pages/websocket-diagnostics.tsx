@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/use-auth';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function WebSocketDiagnostics() {
   const { user } = useAuth();
@@ -10,6 +12,8 @@ export default function WebSocketDiagnostics() {
   const [rtcWsStatus, setRtcWsStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [basicWsStatus, setBasicWsStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [logs, setLogs] = useState<string[]>([]);
+  const [customMessage, setCustomMessage] = useState<string>('{"type": "heartbeat"}');
+  const [activeTarget, setActiveTarget] = useState<'general' | 'rtc' | 'basic'>('general');
   
   const generalWsRef = useRef<WebSocket | null>(null);
   const rtcWsRef = useRef<WebSocket | null>(null);
@@ -173,6 +177,38 @@ export default function WebSocketDiagnostics() {
     addLog('All WebSocket connections closed');
   };
   
+  const sendCustomMessage = () => {
+    let activeSocket: WebSocket | null = null;
+    let socketType = '';
+    
+    switch (activeTarget) {
+      case 'general':
+        activeSocket = generalWsRef.current;
+        socketType = 'General';
+        break;
+      case 'rtc':
+        activeSocket = rtcWsRef.current;
+        socketType = 'RTC';
+        break;
+      case 'basic':
+        activeSocket = basicWsRef.current;
+        socketType = 'Basic';
+        break;
+    }
+    
+    if (!activeSocket || activeSocket.readyState !== WebSocket.OPEN) {
+      addLog(`❌ Cannot send message: ${socketType} WebSocket is not connected`);
+      return;
+    }
+    
+    try {
+      activeSocket.send(customMessage);
+      addLog(`Sent to ${socketType} WebSocket: ${customMessage}`);
+    } catch (err) {
+      addLog(`❌ Error sending to ${socketType} WebSocket: ${err}`);
+    }
+  };
+  
   useEffect(() => {
     // Clean up on unmount
     return () => {
@@ -245,6 +281,63 @@ export default function WebSocketDiagnostics() {
             </CardContent>
           </Card>
         </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Send Custom Messages</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-2">
+                <Button 
+                  variant={activeTarget === 'general' ? 'default' : 'outline'} 
+                  onClick={() => setActiveTarget('general')}
+                  disabled={generalWsStatus !== 'connected'}
+                >
+                  General WS
+                </Button>
+                <Button 
+                  variant={activeTarget === 'rtc' ? 'default' : 'outline'} 
+                  onClick={() => setActiveTarget('rtc')}
+                  disabled={rtcWsStatus !== 'connected'}
+                >
+                  RTC WS
+                </Button>
+                <Button 
+                  variant={activeTarget === 'basic' ? 'default' : 'outline'} 
+                  onClick={() => setActiveTarget('basic')}
+                  disabled={basicWsStatus !== 'connected'}
+                >
+                  Basic WS
+                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="custom-message">Message Payload</Label>
+                <Input 
+                  id="custom-message"
+                  value={customMessage}
+                  onChange={(e) => setCustomMessage(e.target.value)}
+                  placeholder="Enter message to send"
+                />
+                <p className="text-xs text-muted-foreground">
+                  For /ws and /rtc, enter valid JSON. For /basic-ws, any format is accepted.
+                </p>
+              </div>
+              
+              <Button 
+                onClick={sendCustomMessage}
+                disabled={
+                  (activeTarget === 'general' && generalWsStatus !== 'connected') ||
+                  (activeTarget === 'rtc' && rtcWsStatus !== 'connected') ||
+                  (activeTarget === 'basic' && basicWsStatus !== 'connected')
+                }
+              >
+                Send Message
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
