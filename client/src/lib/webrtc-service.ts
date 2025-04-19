@@ -622,6 +622,12 @@ export class WebRTCService {
       console.log(`[WebRTC] Received signaling message: ${message.type}`);
       
       switch (message.type) {
+        case 'pong':
+          // Handle pong response for heartbeat
+          // No action needed as WebSocketWithHeartbeat handles this
+          // but log for debugging purposes
+          break;
+          
         case 'session_created':
           this.sessionId = message.sessionId;
           
