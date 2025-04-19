@@ -7,6 +7,7 @@ import { MatchingAlgorithm, canReceiveNewMatch, getMaxMatchesAllowed } from "./m
 import { setupSocketServer } from "./socket";
 import { setupWebRTCSignaling } from "./webrtc-signaling";
 import { setupBasicWebSocketServer } from "./basic-ws";
+import { WebSocketManager } from "./websocket-manager";
 import { db } from "./db";
 import { matches } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
@@ -39,17 +40,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // HTTP server creation
   const httpServer = createServer(app);
   
-  // Setup general WebSocket server
-  const wss = setupSocketServer(httpServer);
+  // Detect if we're running on Windows
+  const isWindows = process.platform === 'win32';
   
-  // Setup WebRTC signaling server
-  const rtcWss = setupWebRTCSignaling(httpServer);
+  if (isWindows) {
+    // Use unified WebSocket manager for Windows to avoid upgrade conflicts
+    console.log('Windows platform detected, using unified WebSocket manager');
+    const wsManager = new WebSocketManager(httpServer);
+  } else {
+    // Setup individual WebSocket servers for non-Windows platforms
+    // Setup general WebSocket server
+    const wss = setupSocketServer(httpServer);
+    
+    // Setup WebRTC signaling server
+    const rtcWss = setupWebRTCSignaling(httpServer);
 
-  // Setup Basic WebSocket server (for testing)
-  const basicWss = setupBasicWebSocketServer(httpServer);
-  
-  // Debug log to confirm setup
-  console.log('WebSocket servers initialized: general (/ws), WebRTC signaling (/rtc), and basic test (/basic-ws)');
+    // Setup Basic WebSocket server (for testing)
+    const basicWss = setupBasicWebSocketServer(httpServer);
+    
+    // Debug log to confirm setup
+    console.log('WebSocket servers initialized: general (/ws), WebRTC signaling (/rtc), and basic test (/basic-ws)');
+  }
 
   // Match endpoints
   

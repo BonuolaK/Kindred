@@ -14,6 +14,24 @@ interface ConnectionMap {
 // WebSocket types
 type WebSocketType = 'ws' | 'rtc' | 'basic';
 
+// Type guard for userId
+function isValidUserId(userId: number | null): userId is number {
+  return userId !== null;
+}
+
+// Helper to safely convert userId to a valid Map key
+function ensureNumber(value: any): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value === 'string' && !isNaN(parseInt(value))) {
+    return parseInt(value);
+  }
+  // Default to a placeholder ID when we can't get a valid number
+  console.warn(`Invalid userId value: ${value}, using placeholder ID instead`);
+  return 999999; // Unlikely to conflict with real user IDs
+}
+
 export class WebSocketManager {
   private wss: {
     ws: WebSocketServer;
@@ -89,7 +107,9 @@ export class WebSocketManager {
       const queryUserId = url.searchParams.get('uid');
       if (queryUserId && !isNaN(parseInt(queryUserId))) {
         userId = parseInt(queryUserId);
-        this.connections.ws.set(userId, ws);
+        // Type assertion to ensure it's treated as a number for storage
+        const userIdNum: number = userId;
+        this.connections.ws.set(userIdNum, ws);
         console.log(`[WS] User ${userId} connected to general WebSocket server`);
         
         // Send confirmation to client
@@ -99,7 +119,9 @@ export class WebSocketManager {
         });
         
         // Broadcast user's online status to all other connections
-        this.broadcastStatus(userId, true);
+        if (isValidUserId(userId)) {
+          this.broadcastStatus(userId, true);
+        }
       }
       
       // Handle messages
@@ -110,11 +132,15 @@ export class WebSocketManager {
           // Handle registration
           if (data.type === 'register' && data.userId) {
             userId = data.userId;
-            this.connections.ws.set(userId, ws);
+            // Type assertion to ensure it's treated as a number for storage
+            const userIdNum: number = userId;
+            this.connections.ws.set(userIdNum, ws);
             console.log(`[WS] User ${userId} registered with general WebSocket server`);
             
             // Broadcast online status
-            this.broadcastStatus(userId, true);
+            if (isValidUserId(userId)) {
+              this.broadcastStatus(userId, true);
+            }
           }
           
           // Handle heartbeat
@@ -176,7 +202,9 @@ export class WebSocketManager {
           // Handle registration
           if (data.type === 'register' && data.userId) {
             userId = data.userId;
-            this.connections.rtc.set(userId, ws);
+            // Type assertion to ensure it's treated as a number
+            const userIdNum: number = userId;
+            this.connections.rtc.set(userIdNum, ws);
             console.log(`[RTC] User ${userId} registered with WebRTC signaling server`);
           }
           
@@ -242,7 +270,9 @@ export class WebSocketManager {
       const queryUserId = url.searchParams.get('uid');
       if (queryUserId && !isNaN(parseInt(queryUserId))) {
         userId = parseInt(queryUserId);
-        this.connections.basic.set(userId, ws);
+        // Type assertion to ensure it's treated as a number
+        const userIdNum: number = userId;
+        this.connections.basic.set(userIdNum, ws);
         console.log(`[BASIC] User ${userId} connected to basic WebSocket server`);
         
         // Send simple "ok" response to confirm connection
@@ -268,7 +298,9 @@ export class WebSocketManager {
             // Handle registration
             if (data.type === 'register' && data.userId) {
               userId = data.userId;
-              this.connections.basic.set(userId, ws);
+              // Type assertion to ensure it's treated as a number
+              const userIdNum: number = userId as number;
+              this.connections.basic.set(userIdNum, ws);
               console.log(`[BASIC] User ${userId} registered with basic WebSocket server`);
             }
           } catch (jsonError) {
