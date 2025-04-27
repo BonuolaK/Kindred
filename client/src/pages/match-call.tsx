@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
-const rtcTestSocket = new WebSocket('ws://localhost:5000/rtctest');
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const rtcTestSocket = new WebSocket(`${protocol}//${window.location.host}/rtctest`);
 
 const MatchCall = () => {
   const localAudioRef = useRef<HTMLAudioElement>(null);
