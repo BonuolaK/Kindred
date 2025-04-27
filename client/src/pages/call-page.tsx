@@ -134,13 +134,20 @@ export default function CallPage() {
         {user && matchDetails.otherUser && (
           <div className="flex justify-center items-center">
             <div className="bg-white shadow-lg rounded-lg p-6 mb-6 max-w-md w-full">
-              {/* Using the new WebSocket-based AudioCallUI component */}
-              <AudioCallUI
+              {/* Using the new RtcTest-based call component which has proven stable */}
+              <RtcTestCallUI
                 matchId={matchDetails.id}
                 otherUserId={matchDetails.otherUser.id}
                 otherUserName={matchDetails.otherUser.username || 'Your Match'}
+                otherUser={{
+                  id: matchDetails.otherUser.id,
+                  username: matchDetails.otherUser.username,
+                  avatar: matchDetails.otherUser.avatar || undefined
+                }}
                 callDay={matchDetails.callCount + 1}
                 onClose={handleCallEnded}
+                arePhotosRevealed={matchDetails.arePhotosRevealed ? true : false}
+                autoStart={true}
               />
               
               {/* Display debug info for troubleshooting */}

@@ -502,6 +502,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Complete a call for a specific match (for rtctest implementation)
+  app.patch("/api/calls/match/:matchId/complete", async (req, res, next) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const matchId = parseInt(req.params.matchId, 10);
+      const { status } = req.body;
+      const userId = req.user.id;
+      
+      // Get the most recent call for this match
+      const callLogs = await storage.getCallLogsByMatchId(matchId);
+      
+      if (!callLogs || callLogs.length === 0) {
+        return res.status(404).json({ message: "No calls found for this match" });
+      }
+      
+      // Find the active call (sort by startTime in descending order and take the first one)
+      const activeCalls = callLogs
+        .filter(call => call.status === 'pending' || call.status === 'active' || call.status === 'connecting')
+        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+      
+      if (activeCalls.length === 0) {
+        return res.status(404).json({ message: "No active call found for this match" });
+      }
+      
+      const activeCall = activeCalls[0];
+      
+      // Verify that the requesting user is part of the call
+      if (activeCall.initiatorId !== userId && activeCall.receiverId !== userId) {
+        return res.status(403).json({ message: "Not authorized to update this call" });
+      }
+      
+      // Update the call
+      const updatedCall = await storage.updateCallLog(activeCall.id, {
+        status: status || 'completed',
+        endTime: new Date(),
+        duration: Math.floor((Date.now() - new Date(activeCall.startTime).getTime()) / 1000) // Duration in seconds
+      });
+      
+      // If the call is completed, also update the match
+      if ((status === 'completed' || !status) && activeCall.matchId) {
+        const match = await storage.getMatchById(activeCall.matchId);
+        if (match) {
+          const updates: any = { 
+            callCount: match.callCount + 1,
+            lastCallDate: new Date(),
+            callScheduled: false
+          };
+          
+          // Unlock chat after 2 calls
+          if (activeCall.callDay >= 2 && !match.isChatUnlocked) {
+            updates.isChatUnlocked = true;
+          }
+          
+          // Reveal photos after 3 calls
+          if (activeCall.callDay >= 3 && !match.arePhotosRevealed) {
+            updates.arePhotosRevealed = true;
+          }
+          
+          await storage.updateMatch(match.id, updates);
+        }
+      }
+      
+      res.json(updatedCall);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   // Update a call's status
   app.patch("/api/calls/:id", async (req, res, next) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);

@@ -5,13 +5,20 @@ import { Progress } from '@/components/ui/progress';
 import { Phone, PhoneOff, Mic, MicOff } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import UserAvatar from '@/components/user-avatar';
-import { User } from '@shared/schema';
+
+// Use a simplified user type for the UI component
+type SimpleUser = {
+  id: number;
+  username: string;
+  avatar?: string;
+  [key: string]: any;
+};
 
 interface RtcTestCallUIProps {
   matchId: number;
   otherUserId: number;
   otherUserName: string;
-  otherUser?: User;
+  otherUser?: SimpleUser;
   callDay: number;
   onClose: () => void;
   isIncoming?: boolean;
