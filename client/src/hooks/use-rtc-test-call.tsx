@@ -362,6 +362,7 @@ export function useRtcTestCall() {
       // Create call record in the database
       const response = await apiRequest('POST', '/api/calls', {
         matchId: targetMatchId,
+        initiatorId: user.id, // Important! Server requires this for authorization
         receiverId: targetUserId,
         callDay: targetCallDay
       });
