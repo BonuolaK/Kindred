@@ -88,18 +88,26 @@ export function useRtcTestCall() {
       
       socket.onmessage = async (event) => {
         try {
-          const message = JSON.parse(event.data);
-          console.log('[RTC-TEST] Received message:', message);
+          // Log the raw message data for debugging
+          console.log('[RTC-TEST] Raw message received:', event.data);
           
-          if (message.type === 'rtc-signal') {
+          const message = JSON.parse(event.data);
+          console.log('[RTC-TEST] Parsed message:', message);
+          
+          if (message.type === 'registered') {
+            console.log('[RTC-TEST] Successfully registered with rtctest server as user', message.userId);
+          }
+          else if (message.type === 'rtc-signal') {
+            console.log('[RTC-TEST] Received RTC signal from user', message.fromUserId);
             handleSignalingData(message);
-          } else if (message.type === 'error') {
+          } 
+          else if (message.type === 'error') {
             console.error('[RTC-TEST] Error from server:', message.message);
             setError(message.message);
             setCallState('error');
           }
         } catch (err) {
-          console.error('[RTC-TEST] Error parsing message:', err);
+          console.error('[RTC-TEST] Error parsing message:', err, 'Raw data:', event.data);
         }
       };
       
@@ -350,6 +358,12 @@ export function useRtcTestCall() {
       setMatchId(targetMatchId);
       setCallDay(targetCallDay);
       
+      if (!user || !user.id) {
+        throw new Error('User must be logged in to make calls');
+      }
+      
+      console.log(`[RTC-TEST] Initiating call as user ${user.id} to user ${targetUserId}`);
+      
       // Connect to WebSocket if not already connected
       const connected = connectSocket();
       if (!connected) {
@@ -357,12 +371,21 @@ export function useRtcTestCall() {
       }
       
       // Wait a moment for socket connection and registration
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Using a longer timeout to ensure the WebSocket connection is fully established
+      console.log('[RTC-TEST] Waiting for WebSocket connection to establish...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check if WebSocket is actually connected
+      if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+        console.error('[RTC-TEST] WebSocket not open after waiting', socketRef.current?.readyState);
+        throw new Error('WebSocket connection not ready');
+      }
+      
+      console.log('[RTC-TEST] WebSocket connection established and ready');
       
       // Create call record in the database
-      if (!user || !user.id) {
-        throw new Error('User must be logged in to make calls');
-      }
+      console.log(`[RTC-TEST] Creating call record for match ${targetMatchId}`);
+      
       
       const response = await apiRequest('POST', '/api/calls', {
         matchId: targetMatchId,
