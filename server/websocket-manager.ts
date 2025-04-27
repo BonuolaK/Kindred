@@ -95,7 +95,7 @@ export class WebSocketManager {
           this.wss.basic.emit('connection', ws, request);
         });
       } else if (pathname === '/rtctest') {
-        this.wss.basic.handleUpgrade(request, socket, head, (ws) => {
+        this.wss.rtctest.handleUpgrade(request, socket, head, (ws) => {
           this.wss.rtctest.emit('connection', ws, request);
         });
       } 

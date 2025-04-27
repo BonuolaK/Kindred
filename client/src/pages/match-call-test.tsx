@@ -11,8 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { RtcTestCallUI } from '@/components/RtcTestCallUI';
 
-// Mock match for testing calls
-const MOCK_MATCH_ID = 999;
+// We'll use a real match ID from the database
+// The match ID will be fetched or created when the component loads
 
 // Test users for simulating call
 type TestUser = {
@@ -42,9 +42,123 @@ export default function MatchCallTest() {
   const [callDay, setCallDay] = useState<number>(1);
   const [showDebug, setShowDebug] = useState<boolean>(true);
   const [logs, setLogs] = useState<string[]>([]);
+  const [matchId, setMatchId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Reference to log end for auto-scrolling
   const logEndRef = useRef<HTMLDivElement>(null);
+  
+  // Connect User 2 to rtctest WebSocket for testing
+  useEffect(() => {
+    // Function to connect User 2 to WebSocket for testing
+    const connectUser2 = () => {
+      // Connect to the rtctest WebSocket server
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/rtctest`;
+      
+      try {
+        const socket = new WebSocket(wsUrl);
+        
+        socket.onopen = () => {
+          addLog(`[User2] Connected to rtctest WebSocket`);
+          
+          // Register with the server as User 2
+          const registerMessage = {
+            type: 'register',
+            userId: USER_2.id
+          };
+          
+          socket.send(JSON.stringify(registerMessage));
+          addLog(`[User2] Registered with rtctest server as User ${USER_2.id}`);
+        };
+        
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            addLog(`[User2] Received message: ${data.type}`);
+            
+            // If we receive a signal from User 1, send back an appropriate response
+            if (data.type === 'rtc-signal' && data.fromUserId === USER_1.id) {
+              addLog(`[User2] Received rtc-signal from User ${USER_1.id}`);
+              
+              // Send a response back to User 1
+              const responseMessage = {
+                type: 'rtc-signal',
+                targetUserId: USER_1.id,
+                signalData: {
+                  // Echo back the received signal with a response type
+                  ...data.signalData,
+                  type: data.signalData.type === 'offer' ? 'answer' : 'response',
+                  responding: true
+                }
+              };
+              
+              socket.send(JSON.stringify(responseMessage));
+              addLog(`[User2] Sent rtc-signal response to User ${USER_1.id}`);
+            }
+          } catch (err) {
+            console.error('Error parsing WebSocket message:', err);
+          }
+        };
+        
+        socket.onclose = () => {
+          addLog(`[User2] Disconnected from rtctest WebSocket`);
+        };
+        
+        socket.onerror = (error) => {
+          addLog(`[User2] WebSocket error: ${error}`);
+        };
+        
+        // Return a cleanup function
+        return () => {
+          socket.close();
+        };
+      } catch (err) {
+        addLog(`[User2] Failed to connect to WebSocket: ${err}`);
+        return () => {};
+      }
+    };
+    
+    // Connect User 2 after a delay to ensure UI is ready
+    const timer = setTimeout(connectUser2, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Fetch one of the user's matches for testing
+  useEffect(() => {
+    const fetchUserMatch = async () => {
+      if (!loggedInUser) return;
+      
+      try {
+        setIsLoading(true);
+        // Fetch user's matches
+        const response = await fetch('/api/matches');
+        if (!response.ok) {
+          throw new Error('Failed to fetch matches');
+        }
+        
+        const matches = await response.json();
+        
+        if (matches && matches.length > 0) {
+          // Use the first match
+          setMatchId(matches[0].id);
+          addLog(`Using real match ID: ${matches[0].id}`);
+        } else {
+          setError('No matches found. Please create a match first.');
+          addLog('No matches found for testing');
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to load match';
+        setError(message);
+        addLog(`Error: ${message}`);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchUserMatch();
+  }, [loggedInUser]);
   
   // Scroll to bottom of logs when they update
   useEffect(() => {
@@ -85,103 +199,139 @@ export default function MatchCallTest() {
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold text-center mb-8">Match Call Test</h1>
       
-      <div className="mb-6 flex items-center justify-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="font-medium">Call Day:</span>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex flex-col items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+          <p>Loading match data...</p>
+        </div>
+      )}
+      
+      {/* Error State */}
+      {error && !isLoading && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            {error}
+            <div className="mt-2">
+              <p className="text-sm">Make sure you have at least one match in your account to test with.</p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Match ID Badge */}
+      {matchId && (
+        <div className="mb-4 text-center">
+          <Badge variant="outline" className="text-lg px-3 py-1">
+            Using Match ID: {matchId}
+          </Badge>
+        </div>
+      )}
+      
+      {/* Control Buttons */}
+      {!isLoading && matchId && (
+        <div className="mb-6 flex items-center justify-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">Call Day:</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={decrementCallDay}
+              disabled={callDay <= 1}
+            >
+              -
+            </Button>
+            <span className="font-bold px-2">{callDay}</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={incrementCallDay}
+              disabled={callDay >= 3}
+            >
+              +
+            </Button>
+          </div>
+          
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={decrementCallDay}
-            disabled={callDay <= 1}
+            onClick={toggleDebug}
           >
-            -
-          </Button>
-          <span className="font-bold px-2">{callDay}</span>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={incrementCallDay}
-            disabled={callDay >= 3}
-          >
-            +
+            {showDebug ? "Hide Debug" : "Show Debug"}
           </Button>
         </div>
-        
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={toggleDebug}
-        >
-          {showDebug ? "Hide Debug" : "Show Debug"}
-        </Button>
-      </div>
+      )}
       
-      <Tabs defaultValue="user1" className="w-full" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 w-full max-w-md mx-auto mb-4">
-          <TabsTrigger value="user1" className="text-center">User 1 (KennyB)</TabsTrigger>
-          <TabsTrigger value="user2" className="text-center">User 2 (JaneDoe)</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="user1" className="w-full">
-          <Card>
-            <CardHeader className="bg-indigo-50 dark:bg-indigo-950">
-              <CardTitle className="flex items-center gap-2">
-                <span className="text-2xl">{USER_1.avatar}</span>
-                <span>{USER_1.username}</span>
-                <Badge variant="outline" className="ml-auto">ID: {USER_1.id}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="mb-4">
-                <RtcTestCallUI
-                  matchId={MOCK_MATCH_ID}
-                  otherUserId={USER_2.id}
-                  otherUserName={USER_2.username}
-                  otherUser={{
-                    id: USER_2.id,
-                    username: USER_2.username,
-                    avatar: USER_2.avatar
-                  }}
-                  callDay={callDay}
-                  onClose={handleCallEnded}
-                  autoStart={false}
-                  arePhotosRevealed={callDay >= 3}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="user2" className="w-full">
-          <Card>
-            <CardHeader className="bg-pink-50 dark:bg-pink-950">
-              <CardTitle className="flex items-center gap-2">
-                <span className="text-2xl">{USER_2.avatar}</span>
-                <span>{USER_2.username}</span>
-                <Badge variant="outline" className="ml-auto">ID: {USER_2.id}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="mb-4">
-                <RtcTestCallUI
-                  matchId={MOCK_MATCH_ID}
-                  otherUserId={USER_1.id}
-                  otherUserName={USER_1.username}
-                  otherUser={{
-                    id: USER_1.id,
-                    username: USER_1.username,
-                    avatar: USER_1.avatar
-                  }}
-                  callDay={callDay}
-                  onClose={handleCallEnded}
-                  autoStart={false}
-                  arePhotosRevealed={callDay >= 3}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* Call Interfaces */}
+      {!isLoading && matchId && (
+        <Tabs defaultValue="user1" className="w-full" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid grid-cols-2 w-full max-w-md mx-auto mb-4">
+            <TabsTrigger value="user1" className="text-center">User 1 (KennyB)</TabsTrigger>
+            <TabsTrigger value="user2" className="text-center">User 2 (JaneDoe)</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="user1" className="w-full">
+            <Card>
+              <CardHeader className="bg-indigo-50 dark:bg-indigo-950">
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-2xl">{USER_1.avatar}</span>
+                  <span>{USER_1.username}</span>
+                  <Badge variant="outline" className="ml-auto">ID: {USER_1.id}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="mb-4">
+                  <RtcTestCallUI
+                    matchId={matchId}
+                    otherUserId={USER_2.id}
+                    otherUserName={USER_2.username}
+                    otherUser={{
+                      id: USER_2.id,
+                      username: USER_2.username,
+                      avatar: USER_2.avatar
+                    }}
+                    callDay={callDay}
+                    onClose={handleCallEnded}
+                    autoStart={false}
+                    arePhotosRevealed={callDay >= 3}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="user2" className="w-full">
+            <Card>
+              <CardHeader className="bg-pink-50 dark:bg-pink-950">
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-2xl">{USER_2.avatar}</span>
+                  <span>{USER_2.username}</span>
+                  <Badge variant="outline" className="ml-auto">ID: {USER_2.id}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="mb-4">
+                  <RtcTestCallUI
+                    matchId={matchId}
+                    otherUserId={USER_1.id}
+                    otherUserName={USER_1.username}
+                    otherUser={{
+                      id: USER_1.id,
+                      username: USER_1.username,
+                      avatar: USER_1.avatar
+                    }}
+                    callDay={callDay}
+                    onClose={handleCallEnded}
+                    autoStart={false}
+                    arePhotosRevealed={callDay >= 3}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      )}
       
       {showDebug && (
         <div className="mt-6">
