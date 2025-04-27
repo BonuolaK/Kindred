@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
-import { useAudioCall } from "@/hooks/use-audio-call";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import CallInterface from "@/components/call-interface";
@@ -10,7 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Match, User } from "@shared/schema";
 
 import SimpleCallInterface from "@/components/simple-call-interface";
-import { AudioCallUI } from "@/components/AudioCallUI";
+import { RtcTestCallUI } from "@/components/RtcTestCallUI";
 import ErrorBoundary from "@/components/error-boundary";
 
 export default function CallPage() {
