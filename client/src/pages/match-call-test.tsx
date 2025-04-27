@@ -14,7 +14,7 @@ import { RtcTestCallUI } from '@/components/RtcTestCallUI';
 // We'll use a real match ID from the database
 // The match ID will be fetched or created when the component loads
 
-// Test users for simulating call
+// Type for match users
 type TestUser = {
   id: number;
   username: string;
@@ -22,6 +22,7 @@ type TestUser = {
   color: string;
 };
 
+// Current logged in user
 const USER_1: TestUser = { 
   id: 17, 
   username: "KennyB", 
@@ -29,10 +30,11 @@ const USER_1: TestUser = {
   color: "#4f46e5" 
 };
 
-const USER_2: TestUser = { 
-  id: 35, 
-  username: "JaneDoe", 
-  avatar: "🌻", 
+// Match user will be populated from the actual match data
+const DEFAULT_USER_2: TestUser = { 
+  id: 2, 
+  username: "FemTest", 
+  avatar: "🌸", 
   color: "#9B1D54" 
 };
 
@@ -43,16 +45,23 @@ export default function MatchCallTest() {
   const [showDebug, setShowDebug] = useState<boolean>(true);
   const [logs, setLogs] = useState<string[]>([]);
   const [matchId, setMatchId] = useState<number | null>(null);
+  const [matchedUserId, setMatchedUserId] = useState<number | null>(null);
+  const [matchedUser, setMatchedUser] = useState<TestUser>(DEFAULT_USER_2);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
   // Reference to log end for auto-scrolling
   const logEndRef = useRef<HTMLDivElement>(null);
   
-  // Connect User 2 to rtctest WebSocket for testing
+  // Connect matched user to rtctest WebSocket for testing
   useEffect(() => {
-    // Function to connect User 2 to WebSocket for testing
-    const connectUser2 = () => {
+    // Function to connect matched user to WebSocket for testing
+    const connectMatchedUser = () => {
+      if (!matchedUserId) {
+        addLog('[MatchedUser] No matched user ID available yet');
+        return () => {};
+      }
+
       // Connect to the rtctest WebSocket server
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/rtctest`;
@@ -61,26 +70,26 @@ export default function MatchCallTest() {
         const socket = new WebSocket(wsUrl);
         
         socket.onopen = () => {
-          addLog(`[User2] Connected to rtctest WebSocket`);
+          addLog(`[MatchedUser] Connected to rtctest WebSocket`);
           
-          // Register with the server as User 2
+          // Register with the server as the matched user
           const registerMessage = {
             type: 'register',
-            userId: USER_2.id
+            userId: matchedUser.id
           };
           
           socket.send(JSON.stringify(registerMessage));
-          addLog(`[User2] Registered with rtctest server as User ${USER_2.id}`);
+          addLog(`[MatchedUser] Registered with rtctest server as User ${matchedUser.id} (${matchedUser.username})`);
         };
         
         socket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            addLog(`[User2] Received message: ${data.type}`);
+            addLog(`[MatchedUser] Received message: ${data.type}`);
             
             // If we receive a signal from User 1, send back an appropriate response
             if (data.type === 'rtc-signal' && data.fromUserId === USER_1.id) {
-              addLog(`[User2] Received rtc-signal from User ${USER_1.id}`);
+              addLog(`[MatchedUser] Received rtc-signal from User ${USER_1.id}`);
               
               // Send a response back to User 1
               const responseMessage = {
@@ -95,7 +104,7 @@ export default function MatchCallTest() {
               };
               
               socket.send(JSON.stringify(responseMessage));
-              addLog(`[User2] Sent rtc-signal response to User ${USER_1.id}`);
+              addLog(`[MatchedUser] Sent rtc-signal response to User ${USER_1.id}`);
             }
           } catch (err) {
             console.error('Error parsing WebSocket message:', err);
@@ -103,11 +112,11 @@ export default function MatchCallTest() {
         };
         
         socket.onclose = () => {
-          addLog(`[User2] Disconnected from rtctest WebSocket`);
+          addLog(`[MatchedUser] Disconnected from rtctest WebSocket`);
         };
         
         socket.onerror = (error) => {
-          addLog(`[User2] WebSocket error: ${error}`);
+          addLog(`[MatchedUser] WebSocket error: ${error}`);
         };
         
         // Return a cleanup function
@@ -115,15 +124,18 @@ export default function MatchCallTest() {
           socket.close();
         };
       } catch (err) {
-        addLog(`[User2] Failed to connect to WebSocket: ${err}`);
+        addLog(`[MatchedUser] Failed to connect to WebSocket: ${err}`);
         return () => {};
       }
     };
     
-    // Connect User 2 after a delay to ensure UI is ready
-    const timer = setTimeout(connectUser2, 2000);
-    return () => clearTimeout(timer);
-  }, []);
+    // Connect matched user after a delay to ensure UI is ready
+    // Only connect when we have a matched user ID
+    if (matchedUserId) {
+      const timer = setTimeout(connectMatchedUser, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [matchedUserId, matchedUser, USER_1]);
   
   // Fetch one of the user's matches for testing
   useEffect(() => {
@@ -141,9 +153,38 @@ export default function MatchCallTest() {
         const matches = await response.json();
         
         if (matches && matches.length > 0) {
-          // Use the first match
-          setMatchId(matches[0].id);
-          addLog(`Using real match ID: ${matches[0].id}`);
+          const match = matches[0];
+          setMatchId(match.id);
+          addLog(`Using real match ID: ${match.id}`);
+          
+          // Determine which user is the match (the one that's not us)
+          const ourUserId = loggedInUser.id;
+          const otherUserId = match.userId1 === ourUserId ? match.userId2 : match.userId1;
+          setMatchedUserId(otherUserId);
+          
+          try {
+            // Fetch the matched user details
+            const userResponse = await fetch(`/api/users/${otherUserId}`);
+            if (userResponse.ok) {
+              const userData = await userResponse.json();
+              
+              // Create formatted user object for the matched user
+              setMatchedUser({
+                id: userData.id,
+                username: userData.username, 
+                avatar: userData.avatar || "🌸",
+                color: "#9B1D54"
+              });
+              
+              addLog(`Found matched user: ${userData.username} (ID: ${userData.id})`);
+            } else {
+              // If we can't get the user, just use the default
+              addLog(`Couldn't fetch matched user ${otherUserId}, using default`);
+            }
+          } catch (userErr) {
+            // If there's an error, use the default user
+            addLog(`Error fetching matched user: ${userErr}`);
+          }
         } else {
           setError('No matches found. Please create a match first.');
           addLog('No matches found for testing');
@@ -268,7 +309,7 @@ export default function MatchCallTest() {
         <Tabs defaultValue="user1" className="w-full" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-2 w-full max-w-md mx-auto mb-4">
             <TabsTrigger value="user1" className="text-center">User 1 (KennyB)</TabsTrigger>
-            <TabsTrigger value="user2" className="text-center">User 2 (JaneDoe)</TabsTrigger>
+            <TabsTrigger value="user2" className="text-center">User 2 ({matchedUser.username})</TabsTrigger>
           </TabsList>
           
           <TabsContent value="user1" className="w-full">
@@ -284,12 +325,12 @@ export default function MatchCallTest() {
                 <div className="mb-4">
                   <RtcTestCallUI
                     matchId={matchId}
-                    otherUserId={USER_2.id}
-                    otherUserName={USER_2.username}
+                    otherUserId={matchedUser.id}
+                    otherUserName={matchedUser.username}
                     otherUser={{
-                      id: USER_2.id,
-                      username: USER_2.username,
-                      avatar: USER_2.avatar
+                      id: matchedUser.id,
+                      username: matchedUser.username,
+                      avatar: matchedUser.avatar
                     }}
                     callDay={callDay}
                     onClose={handleCallEnded}
@@ -305,9 +346,9 @@ export default function MatchCallTest() {
             <Card>
               <CardHeader className="bg-pink-50 dark:bg-pink-950">
                 <CardTitle className="flex items-center gap-2">
-                  <span className="text-2xl">{USER_2.avatar}</span>
-                  <span>{USER_2.username}</span>
-                  <Badge variant="outline" className="ml-auto">ID: {USER_2.id}</Badge>
+                  <span className="text-2xl">{matchedUser.avatar}</span>
+                  <span>{matchedUser.username}</span>
+                  <Badge variant="outline" className="ml-auto">ID: {matchedUser.id}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
