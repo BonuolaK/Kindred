@@ -360,6 +360,10 @@ export function useRtcTestCall() {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Create call record in the database
+      if (!user || !user.id) {
+        throw new Error('User must be logged in to make calls');
+      }
+      
       const response = await apiRequest('POST', '/api/calls', {
         matchId: targetMatchId,
         initiatorId: user.id, // Important! Server requires this for authorization
