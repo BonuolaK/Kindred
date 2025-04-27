@@ -30,6 +30,7 @@ import DebugMatches from "@/pages/debug-matches";
 import RtcTestPageOld from "@/pages/rtc-test-page";
 import NotFound from "@/pages/not-found";
 import { ProtectedRoute } from "./lib/protected-route";
+import MatchCall from "@/pages/match-call";
 
 function Router() {
   return (
@@ -48,6 +49,7 @@ function Router() {
       <ProtectedRoute path="/rtc-test" component={RTCTestPage} />
       <ProtectedRoute path="/simple-rtc-test" component={SimpleRtcTest} />
       <ProtectedRoute path="/match-call-test" component={MatchCallTest} />
+      <ProtectedRoute path="/match-call" component={MatchCall} />
       <Route path="/simple-ws-test" component={SimpleWsTest} />
       <Route path="/ws-diagnostics" component={WebSocketDiagnostics} />
       <ProtectedRoute path="/rtc-test-old" component={RtcTestPageOld} />
