@@ -9,10 +9,11 @@ interface ConnectionMap {
   ws: Map<number, WebSocket>;
   rtc: Map<number, WebSocket>;
   basic: Map<number, WebSocket>;
+  rtctest: Map<number, WebSocket>;
 }
 
 // WebSocket types
-type WebSocketType = 'ws' | 'rtc' | 'basic';
+type WebSocketType = 'ws' | 'rtc' | 'basic'| 'rtctest';
 
 // Type guard for userId
 function isValidUserId(userId: number | null): userId is number {
@@ -37,12 +38,14 @@ export class WebSocketManager {
     ws: WebSocketServer;
     rtc: WebSocketServer;
     basic: WebSocketServer;
+    rtctest: WebSocketServer;
   };
   
   private connections: ConnectionMap = {
     ws: new Map(),
     rtc: new Map(),
-    basic: new Map()
+    basic: new Map(),
+    rtctest: new Map()
   };
   
   private httpServer: HttpServer;
@@ -54,13 +57,15 @@ export class WebSocketManager {
     this.wss = {
       ws: new WebSocketServer({ noServer: true }),
       rtc: new WebSocketServer({ noServer: true }),
-      basic: new WebSocketServer({ noServer: true })
+      basic: new WebSocketServer({ noServer: true }),
+      rtctest: new WebSocketServer({ noServer: true })
     };
     
     // Set up event handlers for each WebSocket server
     this.setupGeneralWSHandlers();
     this.setupRTCHandlers();
     this.setupBasicWSHandlers();
+    this.setUpRTCTestHandlers();
     
     // Set up HTTP server upgrade handler
     this.setupUpgradeHandler();
@@ -89,7 +94,13 @@ export class WebSocketManager {
         this.wss.basic.handleUpgrade(request, socket, head, (ws) => {
           this.wss.basic.emit('connection', ws, request);
         });
-      } else {
+      } else if (pathname === '/rtctest') {
+        this.wss.basic.handleUpgrade(request, socket, head, (ws) => {
+          this.wss.rtctest.emit('connection', ws, request);
+        });
+      } 
+      
+      else {
         // If no matching WebSocket path, close the connection
         socket.destroy();
       }
@@ -274,6 +285,121 @@ export class WebSocketManager {
       });
     });
   }
+
+  private setUpRTCTestHandlers() {
+    this.wss.rtctest.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+      console.log('[RTC-TEST] Client connected to RTC Test signaling server');
+      let userId: number | null = null;
+  
+      // Track last message time for basic rate limiting
+      let lastMessageTimestamp = Date.now();
+  
+      ws.on('message', (message: Buffer | string) => {
+        try {
+          const now = Date.now();
+          if (now - lastMessageTimestamp < 100) { // Example: limit to 10 messages/second
+            console.warn('[RTC-TEST] Rate limit triggered, ignoring message');
+            return;
+          }
+          lastMessageTimestamp = now;
+  
+          const data = JSON.parse(message.toString());
+  
+          if (data.type === 'register' && data.userId) {
+            const validatedUserId = ensureNumber(data.userId);
+  
+            if (!validatedUserId) {
+              this.sendToClient(ws, {
+                type: 'error',
+                error: 'invalid_user_id',
+                message: 'User ID must be a number',
+              });
+              return;
+            }
+  
+            // Optional: Authentication check can go here (e.g., token verification)
+  
+            // Handle duplicate connections (overwrite old connection if exists)
+            const existingConnection = this.connections.rtctest.get(validatedUserId);
+            if (existingConnection) {
+              console.warn(`[RTC-TEST] Duplicate registration for user ${validatedUserId}. Overwriting old connection.`);
+              existingConnection.close();
+              this.connections.rtctest.delete(validatedUserId);
+            }
+  
+            userId = validatedUserId;
+            this.connections.rtctest.set(validatedUserId, ws);
+  
+            console.log(`[RTC-TEST] User ${userId} registered successfully`);
+  
+            this.sendToClient(ws, {
+              type: 'registered',
+              userId: validatedUserId,
+            });
+          }
+  
+          else if (data.type === 'rtc-signal' && data.targetUserId) {
+            if (!userId) {
+              console.warn('[RTC-TEST] Unregistered user trying to send rtc-signal');
+              this.sendToClient(ws, {
+                type: 'error',
+                error: 'unauthorized',
+                message: 'You must register before sending rtc-signal',
+              });
+              return;
+            }
+  
+            const targetUserId = ensureNumber(data.targetUserId);
+            const targetWs = this.connections.rtctest.get(targetUserId);
+  
+            if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+              const forwardPayload = {
+                type: 'rtc-signal',
+                fromUserId: userId,
+                signalData: data.signalData,
+              };
+              this.sendToClient(targetWs, forwardPayload);
+              console.log(`[RTC-TEST] Forwarded rtc-signal from ${userId} to ${targetUserId}`);
+            } else {
+              console.warn(`[RTC-TEST] Target user ${targetUserId} not available`);
+  
+              this.sendToClient(ws, {
+                type: 'error',
+                error: 'target_unavailable',
+                message: `Target user ${targetUserId} is not connected`,
+              });
+            }
+          }
+  
+          else {
+            console.warn('[RTC-TEST] Unknown message type received:', data.type);
+          }
+        } catch (error) {
+          console.error('[RTC-TEST] Error parsing message:', error);
+          this.sendToClient(ws, {
+            type: 'error',
+            error: 'invalid_message_format',
+            message: 'Message could not be parsed or was invalid',
+          });
+        }
+      });
+  
+      ws.on('close', () => {
+        if (userId !== null) {
+          console.log(`[RTC-TEST] User ${userId} disconnected from RTC Test server`);
+          this.connections.rtctest.delete(userId);
+        }
+      });
+  
+      ws.on('error', (error) => {
+        console.error('[RTC-TEST] WebSocket error:', error);
+        if (userId !== null) {
+          this.connections.rtctest.delete(userId);
+        }
+      });
+    });
+  }
+  
   
   private setupBasicWSHandlers() {
     // Basic WebSocket server (fallback for status)

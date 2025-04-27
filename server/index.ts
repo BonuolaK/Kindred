@@ -1,4 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
+// import dotenv from "dotenv";
+// dotenv.config();
+
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -62,7 +65,7 @@ app.use((req, res, next) => {
   const port = process.env.PORT || 5000;
   server.listen({
     port,
-    host: "0.0.0.0",
+    host: "localhost",
     reusePort: true,
   }, () => {
     log(`serving on port ${port} in ${app.get('env')} mode`);
