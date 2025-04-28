@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useWebSocketManager } from '@/lib/websocket-manager';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
+import { useWebSocketManager } from '@/lib/websocket-manager';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
+// Type definitions for call status
 export type CallStatus = 
   // No call in progress
   | 'idle' 
@@ -24,6 +25,7 @@ export type CallStatus =
   // There was an error during the call
   | 'error';
 
+// Data structure for calls
 export interface CallData {
   id?: number;
   matchId: number;
@@ -39,11 +41,15 @@ export interface CallData {
   errorMessage?: string;
 }
 
+// WebSocket message type for call signals
 interface CallSignalingMessage {
   type: string;
   callData?: CallData;
   error?: string;
 }
+
+// Call timeout durations
+const CALL_RING_TIMEOUT = 30000; // 30 seconds
 
 /**
  * This hook manages call signaling and state management for audio calls
@@ -63,6 +69,7 @@ export function useCallSignaling() {
   const [callStatus, setCallStatus] = useState<CallStatus>('idle');
   const [currentCall, setCurrentCall] = useState<CallData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   
   // Timeout refs
   const ringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -79,6 +86,8 @@ export function useCallSignaling() {
   // Set up message listener for call signals
   useEffect(() => {
     const handleMessage = (message: any) => {
+      console.log('[Call Signaling] Received message:', message);
+      
       if (message.type === 'call:request') {
         // Incoming call
         handleIncomingCall(message.callData);
@@ -95,334 +104,377 @@ export function useCallSignaling() {
         // Call ended
         handleCallEnded(message.callData);
       }
-      else if (message.type === 'call:error') {
-        // Call error
-        handleCallError(message.error || 'Unknown call error');
+      else if (message.type === 'error') {
+        // Error occurred
+        setCallStatus('error');
+        setError(message.message || 'An error occurred with the call');
       }
     };
     
+    // Register message handler and get unsubscribe function
     const unsubscribe = onRtcMessage(handleMessage);
-    return unsubscribe;
+    
+    return () => {
+      // Clean up subscription when component unmounts
+      unsubscribe();
+    };
   }, [onRtcMessage]);
-
-  // Handler functions
+  
+  // Handle incoming call
   const handleIncomingCall = useCallback((callData: CallData) => {
-    if (!user) return;
+    console.log('[Call Signaling] Incoming call from:', callData.initiatorId);
     
-    // Only handle calls that are meant for this user
-    if (callData.receiverId !== user.id) return;
+    // Only accept the call if we're idle and not already in a call
+    if (callStatus !== 'idle') {
+      console.log('[Call Signaling] Rejecting call - already in a call');
+      sendRtcMessage({
+        type: 'call:reject',
+        callData: {
+          ...callData,
+          status: 'rejected'
+        }
+      });
+      return;
+    }
     
-    // Update state
-    setCallStatus('ringing');
+    // Set current call data and update status to ringing
     setCurrentCall(callData);
+    setCallStatus('ringing');
     
-    // Set a timeout for the ringing (30 seconds)
+    // Set a timeout for the ringing state
     if (ringTimeoutRef.current) {
       clearTimeout(ringTimeoutRef.current);
     }
     
     ringTimeoutRef.current = setTimeout(() => {
-      // If call is still ringing after timeout, mark as missed
+      // Call was not answered in time
       if (callStatus === 'ringing') {
-        setCallStatus('missed');
+        // Send missed call signal
         sendRtcMessage({
-          type: 'call:miss',
-          callData
+          type: 'call:missed',
+          callData: {
+            ...callData,
+            status: 'missed'
+          }
         });
         
-        // Log the missed call
-        updateCallStatus(callData, 'missed');
+        // Update local state
+        setCallStatus('missed');
+        
+        // Show notification
+        toast({
+          title: 'Missed Call',
+          description: `You missed a call from ${callData.otherUserName}`,
+          variant: 'default',
+        });
       }
-    }, 30000);
-    
-    // Notify user
-    toast({
-      title: 'Incoming Call',
-      description: `${callData.otherUserName} is calling you`,
-      variant: 'default',
-      duration: 30000,
-    });
-  }, [user, callStatus, sendRtcMessage, toast]);
+    }, CALL_RING_TIMEOUT);
+  }, [callStatus, sendRtcMessage, toast]);
   
+  // Handle call accepted
   const handleCallAccepted = useCallback((callData: CallData) => {
-    if (callStatus !== 'calling') return;
+    console.log('[Call Signaling] Call accepted');
     
+    // Clear any timeouts
+    if (ringTimeoutRef.current) {
+      clearTimeout(ringTimeoutRef.current);
+      ringTimeoutRef.current = null;
+    }
+    
+    // Update call state
     setCallStatus('connecting');
     setCurrentCall(callData);
     
-    // Update call status in database
-    updateCallStatus(callData, 'active');
-  }, [callStatus]);
+    // After a short delay, transition to active state
+    setTimeout(() => {
+      setCallStatus('active');
+      setIsConnected(true);
+    }, 1000);
+  }, []);
   
+  // Handle call rejected
   const handleCallRejected = useCallback((callData: CallData) => {
-    setCallStatus('rejected');
+    console.log('[Call Signaling] Call rejected');
     
+    // Clear any timeouts
+    if (ringTimeoutRef.current) {
+      clearTimeout(ringTimeoutRef.current);
+      ringTimeoutRef.current = null;
+    }
+    
+    // Update call state
+    setCallStatus('rejected');
+    setCurrentCall(callData);
+    
+    // Show notification
     toast({
       title: 'Call Rejected',
-      description: `${callData.otherUserName} rejected your call`,
-      variant: 'destructive',
+      description: `${callData.otherUserName} rejected the call`,
+      variant: 'default',
     });
     
-    // Update call status in database
-    updateCallStatus(callData, 'rejected');
-    
-    // Clean up after a short delay
+    // Return to idle state after a delay
     setTimeout(() => {
       setCallStatus('idle');
       setCurrentCall(null);
     }, 3000);
   }, [toast]);
   
+  // Handle call ended
   const handleCallEnded = useCallback((callData: CallData) => {
+    console.log('[Call Signaling] Call ended');
+    
+    // Update call state
     setCallStatus('ended');
+    setCurrentCall(callData);
+    setIsConnected(false);
     
-    // Update call status in database
-    updateCallStatus(callData, 'ended');
-    
-    // Clean up after a short delay
+    // Return to idle state after a delay
     setTimeout(() => {
       setCallStatus('idle');
       setCurrentCall(null);
     }, 3000);
   }, []);
   
-  const handleCallError = useCallback((errorMessage: string) => {
-    setCallStatus('error');
-    setError(errorMessage);
-    
-    toast({
-      title: 'Call Error',
-      description: errorMessage,
-      variant: 'destructive',
-    });
-    
-    // If we have a current call, update its status
-    if (currentCall) {
-      updateCallStatus(currentCall, 'error');
-    }
-    
-    // Clean up after a short delay
-    setTimeout(() => {
-      setCallStatus('idle');
-      setCurrentCall(null);
-      setError(null);
-    }, 3000);
-  }, [currentCall, toast]);
-  
-  // Helper to update call status in the database
+  // Update call status in database and send signal
   const updateCallStatus = useCallback(async (
     callData: CallData, 
     status: CallStatus
   ) => {
     try {
-      const response = await apiRequest('PATCH', `/api/calls/match/${callData.matchId}/complete`, {
-        status
+      // Update call in database
+      if (callData.id) {
+        await apiRequest('PATCH', `/api/calls/${callData.id}`, {
+          status,
+          ...(status === 'active' ? { startTime: new Date() } : {}),
+          ...(status === 'ended' ? { endTime: new Date() } : {})
+        });
+      }
+      
+      // Send signal to other user
+      const signalCallData: CallData = {
+        ...callData,
+        status,
+        otherUserId: user?.id || 0,
+        otherUserName: user?.username || 'Unknown'
+      };
+      
+      // Determine signal type based on status
+      const signalType = 
+        status === 'calling' ? 'call:request' :
+        status === 'connecting' ? 'call:accept' :
+        status === 'rejected' ? 'call:reject' :
+        status === 'ended' ? 'call:end' :
+        status === 'missed' ? 'call:missed' :
+        'call:update';
+      
+      sendRtcMessage({
+        type: signalType,
+        callData: signalCallData
       });
       
-      if (!response.ok) {
-        console.error('Failed to update call status:', await response.text());
-      }
-    } catch (error) {
-      console.error('Error updating call status:', error);
+      return true;
+    } catch (err) {
+      console.error('[Call Signaling] Error updating call status:', err);
+      setError('Failed to update call status');
+      return false;
     }
-  }, []);
+  }, [sendRtcMessage, user]);
   
-  // API to initiate a call
+  // Start a new call
   const startCall = useCallback(async (
-    matchId: number,
-    receiverId: number,
-    receiverName: string,
+    matchId: number, 
+    otherUserId: number,
+    otherUserName: string,
     callDay: number
   ) => {
     try {
-      if (!user) {
-        setError('You must be logged in to make calls');
+      console.log(`[Call Signaling] Starting call to ${otherUserName} (${otherUserId})`);
+      
+      // Check if other user is available
+      if (!isUserAvailableForCall(otherUserId)) {
+        setError(`${otherUserName} is not available for calls right now`);
         return false;
       }
       
-      // Check if recipient is available for calls
-      if (!isUserAvailableForCall(receiverId)) {
-        setError(`${receiverName} is not available for calls right now`);
-        return false;
-      }
-      
-      // Create a call record in the database
+      // Create call record in database
       const response = await apiRequest('POST', '/api/calls', {
         matchId,
-        initiatorId: user.id,
-        receiverId,
+        initiatorId: user?.id,
+        receiverId: otherUserId,
         callDay
       });
       
       if (!response.ok) {
         const errorText = await response.text();
-        setError(`Failed to start call: ${errorText}`);
-        return false;
+        throw new Error(`Failed to create call: ${errorText}`);
       }
       
-      const callData = await response.json();
+      const callRecord = await response.json();
       
-      // Create call data for signaling
-      const signalCallData: CallData = {
-        ...callData,
-        otherUserId: receiverId,
-        otherUserName: receiverName,
+      // Create call data
+      const callData: CallData = {
+        id: callRecord.id,
+        matchId,
+        initiatorId: user?.id || 0,
+        receiverId: otherUserId,
+        otherUserId,
+        otherUserName,
+        callDay,
         status: 'calling'
       };
       
       // Update local state
+      setCurrentCall(callData);
       setCallStatus('calling');
-      setCurrentCall(signalCallData);
+      setError(null);
       
-      // Send call request to the recipient
-      sendRtcMessage({
-        type: 'call:request',
-        callData: signalCallData
-      });
+      // Send call request to other user
+      const success = await updateCallStatus(callData, 'calling');
       
-      // Set a timeout for the call (60 seconds)
+      // Set timeout for call ringing
       if (ringTimeoutRef.current) {
         clearTimeout(ringTimeoutRef.current);
       }
       
       ringTimeoutRef.current = setTimeout(() => {
-        // If call is still in calling state after timeout, mark as missed
+        // Call was not answered in time
         if (callStatus === 'calling') {
+          updateCallStatus(callData, 'missed');
           setCallStatus('missed');
-          
-          // Update call status in database
-          updateCallStatus(signalCallData, 'missed');
           
           toast({
             title: 'Call Not Answered',
-            description: `${receiverName} didn't answer the call`,
+            description: `${otherUserName} did not answer the call`,
             variant: 'default',
           });
-          
-          // Clean up after a short delay
-          setTimeout(() => {
-            setCallStatus('idle');
-            setCurrentCall(null);
-          }, 3000);
         }
-      }, 60000);
+      }, CALL_RING_TIMEOUT);
       
+      return success;
+    } catch (err) {
+      console.error('[Call Signaling] Error starting call:', err);
+      setError((err as Error).message || 'Failed to start call');
+      setCallStatus('error');
+      return false;
+    }
+  }, [isUserAvailableForCall, user, updateCallStatus, callStatus, toast]);
+  
+  // Answer an incoming call
+  const answerCall = useCallback(async () => {
+    if (!currentCall || callStatus !== 'ringing') {
+      console.error('[Call Signaling] Cannot answer call - no incoming call');
+      return false;
+    }
+    
+    try {
+      // Clear ring timeout
+      if (ringTimeoutRef.current) {
+        clearTimeout(ringTimeoutRef.current);
+        ringTimeoutRef.current = null;
+      }
+      
+      // Update call status
+      setCallStatus('connecting');
+      
+      // Send acceptance to other user
+      const success = await updateCallStatus(currentCall, 'connecting');
+      
+      // After a short delay, transition to active state
+      setTimeout(() => {
+        setCallStatus('active');
+        setIsConnected(true);
+      }, 1000);
+      
+      return success;
+    } catch (err) {
+      console.error('[Call Signaling] Error answering call:', err);
+      setError('Failed to answer call');
+      setCallStatus('error');
+      return false;
+    }
+  }, [currentCall, callStatus, updateCallStatus]);
+  
+  // Reject an incoming call
+  const rejectCall = useCallback(async () => {
+    if (!currentCall || callStatus !== 'ringing') {
+      console.error('[Call Signaling] Cannot reject call - no incoming call');
+      return false;
+    }
+    
+    try {
+      // Clear ring timeout
+      if (ringTimeoutRef.current) {
+        clearTimeout(ringTimeoutRef.current);
+        ringTimeoutRef.current = null;
+      }
+      
+      // Update call status
+      setCallStatus('rejected');
+      
+      // Send rejection to other user
+      const success = await updateCallStatus(currentCall, 'rejected');
+      
+      // Return to idle state after a delay
+      setTimeout(() => {
+        setCallStatus('idle');
+        setCurrentCall(null);
+      }, 3000);
+      
+      return success;
+    } catch (err) {
+      console.error('[Call Signaling] Error rejecting call:', err);
+      setError('Failed to reject call');
+      return false;
+    }
+  }, [currentCall, callStatus, updateCallStatus]);
+  
+  // End an active call
+  const endCall = useCallback(async () => {
+    if (!currentCall || (callStatus !== 'active' && callStatus !== 'calling' && callStatus !== 'connecting')) {
+      console.warn('[Call Signaling] Cannot end call - no active call');
+      setCallStatus('idle');
+      setCurrentCall(null);
       return true;
-    } catch (error) {
-      console.error('Error starting call:', error);
-      setError('Failed to start call due to a network error');
-      return false;
-    }
-  }, [user, callStatus, isUserAvailableForCall, sendRtcMessage, toast, updateCallStatus]);
-  
-  // API to answer an incoming call
-  const answerCall = useCallback(() => {
-    if (callStatus !== 'ringing' || !currentCall) {
-      setError('No incoming call to answer');
-      return false;
     }
     
-    // Clear the ring timeout
-    if (ringTimeoutRef.current) {
-      clearTimeout(ringTimeoutRef.current);
-      ringTimeoutRef.current = null;
-    }
-    
-    // Update call status
-    setCallStatus('connecting');
-    
-    // Send call accept message
-    sendRtcMessage({
-      type: 'call:accept',
-      callData: {
-        ...currentCall,
-        status: 'connecting'
+    try {
+      // Clear any timeouts
+      if (ringTimeoutRef.current) {
+        clearTimeout(ringTimeoutRef.current);
+        ringTimeoutRef.current = null;
       }
-    });
-    
-    // Update call status in database
-    updateCallStatus(currentCall, 'active');
-    
-    return true;
-  }, [callStatus, currentCall, sendRtcMessage, updateCallStatus]);
-  
-  // API to reject an incoming call
-  const rejectCall = useCallback(() => {
-    if (callStatus !== 'ringing' || !currentCall) {
+      
+      // Update call status
+      setCallStatus('ended');
+      setIsConnected(false);
+      
+      // Send end call signal to other user
+      const success = await updateCallStatus(currentCall, 'ended');
+      
+      // Return to idle state after a delay
+      setTimeout(() => {
+        setCallStatus('idle');
+        setCurrentCall(null);
+      }, 3000);
+      
+      return success;
+    } catch (err) {
+      console.error('[Call Signaling] Error ending call:', err);
+      setError('Failed to end call');
+      setCallStatus('error');
       return false;
     }
-    
-    // Clear the ring timeout
-    if (ringTimeoutRef.current) {
-      clearTimeout(ringTimeoutRef.current);
-      ringTimeoutRef.current = null;
-    }
-    
-    // Update call status
-    setCallStatus('rejected');
-    
-    // Send call reject message
-    sendRtcMessage({
-      type: 'call:reject',
-      callData: {
-        ...currentCall,
-        status: 'rejected'
-      }
-    });
-    
-    // Update call status in database
-    updateCallStatus(currentCall, 'rejected');
-    
-    // Clean up after a short delay
-    setTimeout(() => {
-      setCallStatus('idle');
-      setCurrentCall(null);
-    }, 3000);
-    
-    return true;
-  }, [callStatus, currentCall, sendRtcMessage, updateCallStatus]);
-  
-  // API to end an active call
-  const endCall = useCallback(() => {
-    if (
-      (callStatus !== 'active' && callStatus !== 'connecting' && callStatus !== 'calling') || 
-      !currentCall
-    ) {
-      return false;
-    }
-    
-    // Update call status
-    setCallStatus('ended');
-    
-    // Send call end message
-    sendRtcMessage({
-      type: 'call:end',
-      callData: {
-        ...currentCall,
-        status: 'ended'
-      }
-    });
-    
-    // Update call status in database
-    updateCallStatus(currentCall, 'ended');
-    
-    // Clean up after a short delay
-    setTimeout(() => {
-      setCallStatus('idle');
-      setCurrentCall(null);
-    }, 3000);
-    
-    return true;
-  }, [callStatus, currentCall, sendRtcMessage, updateCallStatus]);
+  }, [currentCall, callStatus, updateCallStatus]);
   
   return {
     callStatus,
     currentCall,
     error,
-    isConnected: rtcStatus === 'connected',
+    isConnected,
     startCall,
     answerCall,
     rejectCall,
-    endCall,
+    endCall
   };
 }

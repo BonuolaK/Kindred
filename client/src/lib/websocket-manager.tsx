@@ -298,6 +298,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         ws.onmessage = (event) => {
           try {
             const message = JSON.parse(event.data);
+            console.log('[WebSocket Manager] RTC message received:', message);
             
             if (message.type === 'registered') {
               console.log('[WebSocket Manager] RTC registered as user', message.userId);
@@ -314,6 +315,15 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
               // This would be a server message with all connected users
               setRtcConnectedUsers(message.users || {});
             }
+            
+            // For any type of message, forward to all listeners
+            rtcMessageListeners.current.forEach(listener => {
+              try {
+                listener(message);
+              } catch (listenerError) {
+                console.error('[WebSocket Manager] Error in message listener:', listenerError);
+              }
+            });
             
           } catch (err) {
             console.error('[WebSocket Manager] Error parsing RTC WebSocket message:', err);
@@ -456,6 +466,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       rtcStatus,
       rtcConnectedUsers,
       isUserRtcConnected,
+      sendRtcMessage,
+      onRtcMessage,
       
       isUserAvailableForCall
     }}>
