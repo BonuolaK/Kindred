@@ -63,11 +63,16 @@ export function RtcTestCallUI({
     setAudioElements(localAudioRef.current, remoteAudioRef.current);
   }, [setAudioElements]);
   
+  // Add custom state for tracking rtc ready state
+  const [isRtcConnectionReady, setIsRtcConnectionReady] = useState(false);
+  const [hasAttemptedConnection, setHasAttemptedConnection] = useState(false);
+  
   // Auto-start call if specified
   useEffect(() => {
     const initCall = async () => {
       if (autoStart && !isIncoming) {
         try {
+          setHasAttemptedConnection(true);
           addLog(`Starting call to ${otherUserName} (ID: ${otherUserId})`);
           const result = await startCall(matchId, otherUserId, callDay);
           
@@ -203,7 +208,20 @@ export function RtcTestCallUI({
     return null;
   };
   
+  // Listen for specific error types related to user availability
+  useEffect(() => {
+    if (error && error.includes("Target user") && error.includes("not available")) {
+      setIsRtcConnectionReady(false);
+      addLog(`Error: ${otherUserName} (ID: ${otherUserId}) is not connected to the call system`);
+    }
+  }, [error, otherUserName, otherUserId]);
+
   const renderCallStatus = () => {
+    // First check for special case of target user not available
+    if (error && error.includes("Target user") && error.includes("not available")) {
+      return `${otherUserName} is not connected to call system`;
+    }
+    
     switch (callState) {
       case 'idle':
         return 'Ready to call';
@@ -260,6 +278,17 @@ export function RtcTestCallUI({
           
           {/* Call status */}
           <p className="text-muted-foreground mt-1">{renderCallStatus()}</p>
+          
+          {/* Error explanation for target user not available */}
+          {error && error.includes("Target user") && error.includes("not available") && (
+            <div className="mt-3 p-3 border border-amber-200 bg-amber-50 rounded-md text-sm text-amber-800 max-w-xs text-center">
+              <p className="font-medium">Both users need to be using the call system</p>
+              <p className="mt-1 text-xs">
+                Although {otherUserName} is online in the app, they aren't connected to the call system yet. 
+                They need to navigate to a call page to become available.
+              </p>
+            </div>
+          )}
           
           {/* Call timer when connected */}
           {callState === 'connected' && (
