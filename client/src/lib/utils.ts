@@ -67,6 +67,26 @@ export function formatPhoneNumber(number: string): string {
   return number;
 }
 
+/**
+ * Get initials from a name (first letter of first and last name)
+ * @param name The full name to extract initials from
+ * @returns The initials (1-2 characters)
+ */
+export function getInitials(name: string): string {
+  if (!name) return '';
+  
+  const parts = name.trim().split(/\s+/);
+  
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+  
+  const firstInitial = parts[0].charAt(0);
+  const lastInitial = parts[parts.length - 1].charAt(0);
+  
+  return (firstInitial + lastInitial).toUpperCase();
+}
+
 export const AVATAR_SHAPES = [
   'M100,0 L200,69 L162,180 L38,180 L0,69 Z', // pentagon
   'M100,0 L168,32 L200,100 L168,168 L100,200 L32,168 L0,100 L32,32 Z', // octagon

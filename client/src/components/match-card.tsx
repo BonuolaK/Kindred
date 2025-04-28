@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/utils";
 import { Match, User } from "@shared/schema";
 import { Lock, Phone, MessageCircle, CalendarClock, Eye, Clock, X, RefreshCw, AlertTriangle } from "lucide-react";
 import UserAvatar from "./user-avatar";
+import { CallButton } from "./CallButton";
 import { Link } from "wouter";
 import { CallPreferencesDisplay } from "./call-preferences-display";
 import { CompactCallPreferences } from "./compact-call-preferences";

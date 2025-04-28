@@ -280,14 +280,12 @@ export function CallSignalingProvider({ children }: { children: ReactNode }) {
       clearTimeout(missedCallTimeoutRef.current);
     }
     
-    // Store current call status in variable to avoid stale closure issues
-    const currentStatus = callStatus;
+    // Use a local variable to capture the current callData
+    const callDataCopy = { ...callData };
     missedCallTimeoutRef.current = setTimeout(() => {
-      if (currentStatus === 'ringing') {
-        console.log('[CALL-SIGNAL] Call not answered, marking as missed');
-        sendCallSignal(callData, 'missed');
-        handleCallMissed(callData);
-      }
+      console.log('[CALL-SIGNAL] Call not answered, marking as missed');
+      sendCallSignal(callDataCopy, 'missed');
+      handleCallMissed(callDataCopy);
     }, 30000); // 30 seconds to answer
     
     // Show toast notification

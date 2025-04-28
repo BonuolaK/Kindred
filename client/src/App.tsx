@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "./hooks/use-auth";
 import { WebSocketProvider } from "./lib/websocket-manager";
 import { CallSignalingProvider } from "./hooks/use-call-signaling";
+import { CallDialog } from "./components/CallDialog";
 import AnalyticsTracker from "./components/analytics-tracker";
 import { initAnalytics, trackEvent } from "./lib/analytics";
 import { useEffect } from "react";
@@ -109,6 +110,7 @@ function App() {
             <AnalyticsInitializer />
             <AnalyticsTracker />
             <Router />
+            <CallDialog />
             <Toaster />
           </CallSignalingProvider>
         </WebSocketProvider>
