@@ -125,7 +125,7 @@ export function CallSignalingProvider({ children }: { children: ReactNode }) {
       
       // Determine WebSocket URL (check if we're using HTTPS)
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/call-signaling`;
+      const wsUrl = `${protocol}//${window.location.host}/callsignal`;
       
       console.log('[CALL-SIGNAL] Connecting to call signaling server...');
       const ws = new WebSocket(wsUrl);

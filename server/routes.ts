@@ -46,7 +46,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const wsManager = new WebSocketManager(httpServer);
   
   // Set up call signaling server
-  const callSignalingWss = setupCallSignalingServer(httpServer);
+  // const callSignalingWss = setupCallSignalingServer(httpServer);
   
   // No longer using separate WebSocket servers to avoid conflicts
 

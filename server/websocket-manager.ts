@@ -10,10 +10,11 @@ interface ConnectionMap {
   rtc: Map<number, WebSocket>;
   basic: Map<number, WebSocket>;
   rtctest: Map<number, WebSocket>;
+  callsignal: Map<number, WebSocket>;
 }
 
 // WebSocket types
-type WebSocketType = 'ws' | 'rtc' | 'basic'| 'rtctest';
+type WebSocketType = 'ws' | 'rtc' | 'basic'| 'rtctest'| 'callsignal';
 
 // Type guard for userId
 function isValidUserId(userId: number | null): userId is number {
@@ -39,14 +40,17 @@ export class WebSocketManager {
     rtc: WebSocketServer;
     basic: WebSocketServer;
     rtctest: WebSocketServer;
+    callsignal: WebSocketServer;
   };
   
   private connections: ConnectionMap = {
     ws: new Map(),
     rtc: new Map(),
     basic: new Map(),
-    rtctest: new Map()
+    rtctest: new Map(),
+    callsignal: new Map()
   };
+  
   
   private httpServer: HttpServer;
   
@@ -58,7 +62,8 @@ export class WebSocketManager {
       ws: new WebSocketServer({ noServer: true }),
       rtc: new WebSocketServer({ noServer: true }),
       basic: new WebSocketServer({ noServer: true }),
-      rtctest: new WebSocketServer({ noServer: true })
+      rtctest: new WebSocketServer({ noServer: true }),
+      callsignal: new WebSocketServer({ noServer: true })
     };
     
     // Set up event handlers for each WebSocket server
@@ -66,6 +71,7 @@ export class WebSocketManager {
     this.setupRTCHandlers();
     this.setupBasicWSHandlers();
     this.setUpRTCTestHandlers();
+    this.setupCallSignalingServer();
     
     // Set up HTTP server upgrade handler
     this.setupUpgradeHandler();
@@ -97,6 +103,11 @@ export class WebSocketManager {
       } else if (pathname === '/rtctest') {
         this.wss.rtctest.handleUpgrade(request, socket, head, (ws) => {
           this.wss.rtctest.emit('connection', ws, request);
+        });
+      } 
+      else if (pathname === '/callsignal') {
+        this.wss.callsignal.handleUpgrade(request, socket, head, (ws) => {
+          this.wss.callsignal.emit('connection', ws, request);
         });
       } 
       
@@ -475,6 +486,129 @@ export class WebSocketManager {
       });
     });
   }
+
+  private setupCallSignalingServer() {
+    // Create WebSocket server with dedicated path for call signaling
+    console.log('Call Signaling WebSocket server initialized on path: /callsignal');
+
+    this.wss.callsignal.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+      console.log(`[CALL-SIGNAL] Client connected to Call Signaling server`);
+      let userId: number | null = null;
+      
+      // Handle messages
+      ws.on('message', (message) => {
+        try {
+          const data = JSON.parse(message.toString());
+          console.log(`[CALL-SIGNAL] Received message:`, data);
+          
+          switch (data.type) {
+            case 'register':
+              // Register user connection
+              userId = parseInt(data.userId, 10);
+              if (!isNaN(userId)) {
+                this.connections.callsignal.set(userId, ws);
+                console.log(`[CALL-SIGNAL] User ${userId} registered with Call Signaling server (active users: ${this.connections.callsignal.size})`);
+                
+                // Send registration confirmation
+                this.sendToClient(ws, {
+                  type: 'registered',
+                  userId: userId
+                });
+              } else {
+                console.error(`[CALL-SIGNAL] Invalid userId received: ${data.userId}`);
+                this.sendToClient(ws, {
+                  type: 'error',
+                  error: 'invalid_user_id',
+                  message: 'User ID must be a number'
+                });
+              }
+              break;
+              
+            case 'call:request':
+            case 'call:accept':
+            case 'call:reject':
+            case 'call:end':
+            case 'call:missed':
+              if (!userId) {
+                this.sendToClient(ws, {
+                  type: 'error',
+                  error: 'unauthorized',
+                  message: 'You must register before sending call signals'
+                });
+                return;
+              }
+              
+              // Forward call signaling messages to the target user
+              const { callData } = data;
+              
+              if (!callData) {
+                this.sendToClient(ws, {
+                  type: 'error',
+                  error: 'missing_data',
+                  message: 'Call data is required for call signaling'
+                });
+                return;
+              }
+              
+              // Determine target user based on call data
+              let targetUserId: number;
+              if (userId === callData.initiatorId) {
+                targetUserId = callData.receiverId;
+              } else if (userId === callData.receiverId) {
+                targetUserId = callData.initiatorId;
+              } else {
+                this.sendToClient(ws, {
+                  type: 'error',
+                  error: 'invalid_user',
+                  message: 'User is not part of this call'
+                });
+                return;
+              }
+              
+              const targetWs = this.connections.callsignal.get(targetUserId);
+              
+              if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+                console.log(`[CALL-SIGNAL] Forwarded ${data.type} from ${userId} to ${targetUserId}`);
+                this.sendToClient(targetWs, data);
+              } else {
+                console.warn(`[CALL-SIGNAL] Target user ${targetUserId} not available`);
+    
+                this.sendToClient(ws, {
+                  type: 'error',
+                  error: 'target_unavailable',
+                  message: `Target user ${targetUserId} is not connected`
+                });
+              }
+              break;
+              
+            default:
+              console.warn(`[CALL-SIGNAL] Unknown message type: ${data.type}`);
+              this.sendToClient(ws, {
+                type: 'error',
+                error: 'unknown_message_type',
+                message: `Unknown message type: ${data.type}`
+              });
+          }
+        } catch (error) {
+          console.error('[CALL-SIGNAL] Error processing message:', error);
+        }
+      });
+      
+      // Handle WebSocket errors
+      ws.on('error', (error) => {
+        console.error(`[CALL-SIGNAL] WebSocket error for client ${userId ? `(User ${userId})` : ''}:`, error);
+      });
+  
+      ws.on('close', () => {
+        console.log(`[CALL-SIGNAL] Client disconnected ${userId ? `(User ${userId})` : ''}`);
+        
+        if (userId) {
+          this.connections.callsignal.delete(userId);
+        }
+      });
+    });
+  }
+  
   
   // Helper methods
   
