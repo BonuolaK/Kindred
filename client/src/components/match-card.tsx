@@ -37,11 +37,13 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
   const isPhotoRevealed = match.arePhotosRevealed || false;
   const isChatUnlocked = match.isChatUnlocked || false;
   
-  // Get online status
-  const { isUserOnline, isConnectedToStatusService } = useOnlineStatus();
+  // Get online status from WebSocket manager
+  const { isUserOnline, isUserRtcConnected, isUserAvailableForCall } = useWebSocketManager();
   
-  // Check if the other user is online in the app
+  // Check if user is online and check availability for calls
   const isOtherUserOnline = isUserOnline(otherUser.id);
+  const isOtherUserRtcConnected = isUserRtcConnected(otherUser.id);
+  const isOtherUserCallable = isUserAvailableForCall(otherUser.id);
   
   // State for unmatch dialog
   const [unmatchDialogOpen, setUnmatchDialogOpen] = useState(false);
@@ -364,8 +366,8 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
             <CalendarClock className="h-4 w-4" />
             Scheduled
           </Button>
-        ) : isOtherUserOnline ? (
-          // When user is online, allow call button
+        ) : isOtherUserCallable ? (
+          // When user is online AND connected to call system
           <Button 
             variant="outline" 
             size="sm" 
@@ -377,8 +379,31 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
               Call
             </Link>
           </Button>
+        ) : isOtherUserOnline && !isOtherUserRtcConnected ? (
+          // User is online but not connected to call system
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center justify-center gap-1 h-10 border-amber-300 bg-amber-50 text-amber-700"
+                  disabled
+                >
+                  <Phone className="h-4 w-4" />
+                  Busy
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs p-3">
+                <p className="font-semibold">{otherUser.username} is online but not available for calls right now</p>
+                <p className="text-xs mt-1">
+                  They need to be connected to the call system to receive calls.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ) : (
-          // When user is offline, disable the call button with tooltip
+          // User is completely offline
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -392,8 +417,11 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
                   Offline
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
-                <p>{otherUser.username} is currently offline. They need to be online to receive calls.</p>
+              <TooltipContent className="max-w-xs p-3">
+                <p className="font-semibold">{otherUser.username} is currently offline</p>
+                <p className="text-xs mt-1">
+                  They need to be online and connected to the call system to receive calls.
+                </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
