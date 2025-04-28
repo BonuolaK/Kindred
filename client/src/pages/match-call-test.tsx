@@ -53,89 +53,15 @@ export default function MatchCallTest() {
   // Reference to log end for auto-scrolling
   const logEndRef = useRef<HTMLDivElement>(null);
   
-  // Connect matched user to rtctest WebSocket for testing
+  // We don't need to simulate the matched user's WebSocket connection anymore since they're logged in on another browser
+  // Just log information about the matched user for debugging purposes
   useEffect(() => {
-    // Function to connect matched user to WebSocket for testing
-    const connectMatchedUser = () => {
-      if (!matchedUserId) {
-        addLog('[MatchedUser] No matched user ID available yet');
-        return () => {};
-      }
-
-      // Connect to the rtctest WebSocket server
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/rtctest`;
-      
-      try {
-        const socket = new WebSocket(wsUrl);
-        
-        socket.onopen = () => {
-          addLog(`[MatchedUser] Connected to rtctest WebSocket`);
-          
-          // Register with the server as the matched user
-          const registerMessage = {
-            type: 'register',
-            userId: matchedUser.id
-          };
-          
-          socket.send(JSON.stringify(registerMessage));
-          addLog(`[MatchedUser] Registered with rtctest server as User ${matchedUser.id} (${matchedUser.username})`);
-        };
-        
-        socket.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            addLog(`[MatchedUser] Received message: ${data.type}`);
-            
-            // If we receive a signal from User 1, send back an appropriate response
-            if (data.type === 'rtc-signal' && data.fromUserId === USER_1.id) {
-              addLog(`[MatchedUser] Received rtc-signal from User ${USER_1.id}`);
-              
-              // Send a response back to User 1
-              const responseMessage = {
-                type: 'rtc-signal',
-                targetUserId: USER_1.id,
-                signalData: {
-                  // Echo back the received signal with a response type
-                  ...data.signalData,
-                  type: data.signalData.type === 'offer' ? 'answer' : 'response',
-                  responding: true
-                }
-              };
-              
-              socket.send(JSON.stringify(responseMessage));
-              addLog(`[MatchedUser] Sent rtc-signal response to User ${USER_1.id}`);
-            }
-          } catch (err) {
-            console.error('Error parsing WebSocket message:', err);
-          }
-        };
-        
-        socket.onclose = () => {
-          addLog(`[MatchedUser] Disconnected from rtctest WebSocket`);
-        };
-        
-        socket.onerror = (error) => {
-          addLog(`[MatchedUser] WebSocket error: ${error}`);
-        };
-        
-        // Return a cleanup function
-        return () => {
-          socket.close();
-        };
-      } catch (err) {
-        addLog(`[MatchedUser] Failed to connect to WebSocket: ${err}`);
-        return () => {};
-      }
-    };
-    
-    // Connect matched user after a delay to ensure UI is ready
-    // Only connect when we have a matched user ID
-    if (matchedUserId) {
-      const timer = setTimeout(connectMatchedUser, 2000);
-      return () => clearTimeout(timer);
+    if (matchedUserId && matchedUser) {
+      addLog(`[Info] Found matched user: ${matchedUser.username} (ID: ${matchedUser.id})`);
+      addLog(`[Info] This user should be connected from another browser`);
+      addLog(`[Info] Ready to test call functionality with match ID: ${matchId}`);
     }
-  }, [matchedUserId, matchedUser, USER_1]);
+  }, [matchedUserId, matchedUser, matchId]);
   
   // Fetch one of the user's matches for testing
   useEffect(() => {

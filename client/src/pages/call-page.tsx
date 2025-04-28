@@ -134,21 +134,43 @@ export default function CallPage() {
         {user && matchDetails.otherUser && (
           <div className="flex justify-center items-center">
             <div className="bg-white shadow-lg rounded-lg p-6 mb-6 max-w-md w-full">
-              {/* Using the new RtcTest-based call component which has proven stable */}
-              <RtcTestCallUI
-                matchId={matchDetails.id}
-                otherUserId={matchDetails.otherUser.id}
-                otherUserName={matchDetails.otherUser.username || 'Your Match'}
-                otherUser={{
-                  id: matchDetails.otherUser.id,
-                  username: matchDetails.otherUser.username,
-                  avatar: matchDetails.otherUser.avatar || undefined
-                }}
-                callDay={matchDetails.callCount + 1}
-                onClose={handleCallEnded}
-                arePhotosRevealed={matchDetails.arePhotosRevealed ? true : false}
-                autoStart={true}
-              />
+              {/* 
+                Ensure we're using the correct user ID for the other user
+                Verify by adding extra logging before rendering component 
+              */}
+              {(() => {
+                console.log('[CALL-PAGE] Rendering RtcTestCallUI with matchDetails:', 
+                  { 
+                    matchId: matchDetails.id,
+                    otherUserId: matchDetails.otherUser.id,
+                    otherUserName: matchDetails.otherUser.username,
+                    callDay: matchDetails.callCount + 1 
+                  }
+                );
+                
+                // Double check that the user IDs look correct
+                const currentUserId = user.id;
+                const otherUserId = matchDetails.otherUser.id;
+                
+                console.log(`[CALL-PAGE] Current user: ${user.username} (${currentUserId}), Other user: ${matchDetails.otherUser.username} (${otherUserId})`);
+                
+                return (
+                  <RtcTestCallUI
+                    matchId={matchDetails.id}
+                    otherUserId={otherUserId}
+                    otherUserName={matchDetails.otherUser.username || 'Your Match'}
+                    otherUser={{
+                      id: otherUserId,
+                      username: matchDetails.otherUser.username,
+                      avatar: matchDetails.otherUser.avatar || undefined
+                    }}
+                    callDay={matchDetails.callCount + 1}
+                    onClose={handleCallEnded}
+                    arePhotosRevealed={matchDetails.arePhotosRevealed ? true : false}
+                    autoStart={true}
+                  />
+                );
+              })()}
               
               {/* Display debug info for troubleshooting */}
               <div className="mt-6 text-xs border-t pt-4 text-muted-foreground">
