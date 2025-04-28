@@ -367,65 +367,16 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
             <CalendarClock className="h-4 w-4" />
             Scheduled
           </Button>
-        ) : isOtherUserCallable ? (
-          // When user is online AND connected to call system
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center justify-center gap-1 h-10 border-[#9B1D54]/30 bg-[#9B1D54]/5 hover:bg-[#9B1D54]/10 hover:border-[#9B1D54]/50 text-[#9B1D54] hover:text-[#9B1D54]"
-            asChild
-          >
-            <Link to={`/call/${match.id}?autoStart=true`}>
-              <Phone className="h-4 w-4" />
-              Call
-            </Link>
-          </Button>
-        ) : isOtherUserOnline && !isOtherUserRtcConnected ? (
-          // User is online but not connected to call system
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex items-center justify-center gap-1 h-10 border-amber-300 bg-amber-50 text-amber-700"
-                  disabled
-                >
-                  <Phone className="h-4 w-4" />
-                  Busy
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs p-3">
-                <p className="font-semibold">{otherUser.username} is online but not available for calls right now</p>
-                <p className="text-xs mt-1">
-                  They need to be connected to the call system to receive calls.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         ) : (
-          // User is completely offline
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex items-center justify-center gap-1 h-10 border-gray-300 text-gray-500"
-                  disabled
-                >
-                  <Phone className="h-4 w-4" />
-                  Offline
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs p-3">
-                <p className="font-semibold">{otherUser.username} is currently offline</p>
-                <p className="text-xs mt-1">
-                  They need to be online and connected to the call system to receive calls.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <CallButton
+            matchId={match.id}
+            otherUserId={otherUser.id}
+            otherUserName={otherUser.username}
+            callDay={1}
+            isOnline={isOtherUserCallable}
+            arePhotosRevealed={isPhotoRevealed}
+            className="h-10 flex items-center justify-center gap-1 border"
+          />
         )}
         
         {isChatUnlocked ? (

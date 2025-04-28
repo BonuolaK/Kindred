@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react';
-import { useCallSignaling, type CallStatus } from '@/hooks/use-call-signaling';
+import { useCallSignaling } from "@/hooks/use-call-signaling";
+import { getInitials } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Phone, PhoneOff, User } from 'lucide-react';
-import { getInitials } from '@/lib/utils';
+} from "@/components/ui/dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Phone, PhoneOff, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function CallDialog() {
   const {
@@ -18,134 +19,255 @@ export function CallDialog() {
     currentCall,
     acceptCall,
     rejectCall,
-    endCall,
-    resetCallState
+    endCall
   } = useCallSignaling();
-  
-  const [open, setOpen] = useState(false);
 
-  // Open dialog when there's an incoming call or active call
+  // Only show the dialog when there's an active call
+  const showDialog = callStatus !== 'idle' && currentCall !== null;
+
+  // State for call timer
+  const [callTimer, setCallTimer] = useState(0);
+  const [timerId, setTimerId] = useState<NodeJS.Timeout | null>(null);
+
+  // Start timer when call becomes active
   useEffect(() => {
-    if (callStatus === 'ringing' || 
-        callStatus === 'connecting' ||
-        callStatus === 'active') {
-      setOpen(true);
-    } else if (callStatus === 'ended' || 
-              callStatus === 'rejected' || 
-              callStatus === 'missed' ||
-              callStatus === 'error') {
-      // Dialog will close after a short delay for ended, rejected, or missed calls
-      const timer = setTimeout(() => {
-        setOpen(false);
-      }, 3000);
+    if (callStatus === 'active') {
+      // Clear any existing timer
+      if (timerId) clearInterval(timerId);
       
-      return () => clearTimeout(timer);
-    } else if (callStatus === 'idle') {
-      setOpen(false);
-    }
-  }, [callStatus]);
-
-  // When dialog is closed manually, reset state if needed
-  const handleOpenChange = (isOpen: boolean) => {
-    setOpen(isOpen);
-    
-    if (!isOpen && ['connecting', 'active', 'ringing'].includes(callStatus)) {
-      // If call is active and dialog is closed, end call
-      if (callStatus === 'active' || callStatus === 'connecting') {
-        endCall();
-      } else if (callStatus === 'ringing') {
-        // If call is ringing and dialog is closed, reject call
-        rejectCall();
+      // Start a new timer
+      const id = setInterval(() => {
+        setCallTimer(prev => prev + 1);
+      }, 1000);
+      setTimerId(id);
+    } else {
+      // Clear timer when call is not active
+      if (timerId) {
+        clearInterval(timerId);
+        setTimerId(null);
       }
-    } else if (!isOpen) {
-      // Otherwise just reset the state
-      resetCallState();
+      
+      // Reset timer when call ends
+      if (callStatus === 'idle') {
+        setCallTimer(0);
+      }
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
+  }, [callStatus, timerId]);
+
+  // Format call timer to MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Handle different call statuses for UI rendering
+  const renderCallContent = () => {
+    if (!currentCall) return null;
+
+    const { otherUserName, avatar } = currentCall;
+    const userInitials = getInitials(otherUserName);
+
+    switch (callStatus) {
+      case 'ringing':
+        return (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-center">Incoming Call</DialogTitle>
+              <DialogDescription className="text-center">
+                {otherUserName} is calling you
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex flex-col items-center my-6">
+              <Avatar className="h-24 w-24 mb-4">
+                {avatar ? (
+                  <img src={avatar} alt={otherUserName} />
+                ) : (
+                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                    {userInitials}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <p className="text-lg font-semibold">{otherUserName}</p>
+              <p className="animate-pulse text-sm mt-2">Calling...</p>
+            </div>
+            
+            <DialogFooter className="flex justify-center gap-4 sm:gap-0">
+              <Button 
+                variant="destructive" 
+                className="rounded-full h-14 w-14 p-0"
+                onClick={rejectCall}
+              >
+                <X className="h-6 w-6" />
+              </Button>
+              <Button 
+                variant="default" 
+                className="rounded-full h-14 w-14 p-0 bg-green-600 hover:bg-green-700"
+                onClick={acceptCall}
+              >
+                <Phone className="h-6 w-6" />
+              </Button>
+            </DialogFooter>
+          </>
+        );
+        
+      case 'calling':
+        return (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-center">Calling</DialogTitle>
+              <DialogDescription className="text-center">
+                Waiting for {otherUserName} to answer...
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex flex-col items-center my-6">
+              <Avatar className="h-24 w-24 mb-4">
+                {avatar ? (
+                  <img src={avatar} alt={otherUserName} />
+                ) : (
+                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                    {userInitials}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <p className="text-lg font-semibold">{otherUserName}</p>
+              <p className="animate-pulse text-sm mt-2">Ringing...</p>
+            </div>
+            
+            <DialogFooter className="flex justify-center">
+              <Button 
+                variant="destructive" 
+                className="rounded-full h-14 w-14 p-0"
+                onClick={endCall}
+              >
+                <PhoneOff className="h-6 w-6" />
+              </Button>
+            </DialogFooter>
+          </>
+        );
+
+      case 'connecting':
+      case 'active':
+        return (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-center">
+                {callStatus === 'connecting' ? 'Connecting...' : 'Call in Progress'}
+              </DialogTitle>
+              {callStatus === 'active' && (
+                <DialogDescription className="text-center">
+                  Call time: {formatTime(callTimer)}
+                </DialogDescription>
+              )}
+            </DialogHeader>
+            
+            <div className="flex flex-col items-center my-6">
+              <Avatar className="h-24 w-24 mb-4">
+                {avatar ? (
+                  <img src={avatar} alt={otherUserName} />
+                ) : (
+                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                    {userInitials}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <p className="text-lg font-semibold">{otherUserName}</p>
+              {callStatus === 'connecting' && (
+                <p className="animate-pulse text-sm mt-2">Establishing connection...</p>
+              )}
+            </div>
+            
+            <DialogFooter className="flex justify-center">
+              <Button 
+                variant="destructive" 
+                className="rounded-full h-14 w-14 p-0"
+                onClick={endCall}
+              >
+                <PhoneOff className="h-6 w-6" />
+              </Button>
+            </DialogFooter>
+          </>
+        );
+
+      case 'ended':
+      case 'rejected':
+      case 'missed':
+        const statusText = callStatus === 'ended' 
+          ? 'Call Ended' 
+          : callStatus === 'rejected' 
+            ? 'Call Rejected' 
+            : 'Call Missed';
+        
+        return (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-center">{statusText}</DialogTitle>
+              <DialogDescription className="text-center">
+                {callStatus === 'ended' && currentCall.duration && 
+                  `Call duration: ${formatTime(Math.floor(currentCall.duration))}`}
+                {callStatus === 'rejected' && 
+                  `${otherUserName} rejected the call`}
+                {callStatus === 'missed' && 
+                  `${otherUserName} didn't answer`}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex flex-col items-center my-6">
+              <Avatar className="h-24 w-24 mb-4">
+                {avatar ? (
+                  <img src={avatar} alt={otherUserName} />
+                ) : (
+                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                    {userInitials}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <p className="text-lg font-semibold">{otherUserName}</p>
+            </div>
+          </>
+        );
+
+      case 'error':
+        return (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-center text-red-500">Call Error</DialogTitle>
+              <DialogDescription className="text-center">
+                {currentCall.errorMessage || 'An error occurred during the call'}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex flex-col items-center my-6">
+              <Avatar className="h-24 w-24 mb-4">
+                {avatar ? (
+                  <img src={avatar} alt={otherUserName} />
+                ) : (
+                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                    {userInitials}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <p className="text-lg font-semibold">{otherUserName}</p>
+            </div>
+          </>
+        );
+
+      default:
+        return null;
     }
   };
 
-  if (!currentCall) return null;
-  
-  const avatar = currentCall.avatar || '';
-  const userName = currentCall.otherUserName || 'User';
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={showDialog} onOpenChange={() => { /* Prevent manual closure */ }}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {callStatus === 'ringing' && 'Incoming Call'}
-            {callStatus === 'calling' && 'Calling...'}
-            {callStatus === 'connecting' && 'Connecting...'}
-            {callStatus === 'active' && 'In Call'}
-            {callStatus === 'ended' && 'Call Ended'}
-            {callStatus === 'rejected' && 'Call Rejected'}
-            {callStatus === 'missed' && 'Call Missed'}
-            {callStatus === 'error' && 'Call Error'}
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="flex flex-col items-center justify-center gap-4 py-4">
-          <Avatar className="h-24 w-24">
-            <AvatarImage src={avatar} alt={userName} />
-            <AvatarFallback className="text-2xl">
-              {getInitials(userName)}
-            </AvatarFallback>
-          </Avatar>
-          
-          <div className="text-xl font-semibold">{userName}</div>
-          
-          <div className="text-sm text-muted-foreground">
-            {callStatus === 'ringing' && 'is calling you...'}
-            {callStatus === 'calling' && 'Calling...'}
-            {callStatus === 'connecting' && 'Connecting to call...'}
-            {callStatus === 'active' && 'Call in progress'}
-            {callStatus === 'ended' && 'Call has ended'}
-            {callStatus === 'rejected' && 'Call was rejected'}
-            {callStatus === 'missed' && 'Call was missed'}
-            {callStatus === 'error' && currentCall.errorMessage || 'An error occurred'}
-          </div>
-        </div>
-        
-        <DialogFooter className="flex justify-center gap-4 sm:justify-center">
-          {callStatus === 'ringing' && (
-            <>
-              <Button 
-                variant="destructive" 
-                className="rounded-full p-6" 
-                onClick={rejectCall}
-              >
-                <PhoneOff size={24} />
-              </Button>
-              
-              <Button 
-                variant="default" 
-                className="rounded-full bg-green-600 hover:bg-green-700 p-6" 
-                onClick={acceptCall}
-              >
-                <Phone size={24} />
-              </Button>
-            </>
-          )}
-          
-          {(callStatus === 'connecting' || callStatus === 'active') && (
-            <Button 
-              variant="destructive" 
-              className="rounded-full p-6" 
-              onClick={endCall}
-            >
-              <PhoneOff size={24} />
-            </Button>
-          )}
-          
-          {(callStatus === 'ended' || callStatus === 'missed' || callStatus === 'rejected' || callStatus === 'error') && (
-            <Button 
-              variant="outline" 
-              onClick={() => handleOpenChange(false)}
-            >
-              Close
-            </Button>
-          )}
-        </DialogFooter>
+        {renderCallContent()}
       </DialogContent>
     </Dialog>
   );
