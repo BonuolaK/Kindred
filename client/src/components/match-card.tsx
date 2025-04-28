@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useOnlineStatus } from "@/hooks/use-online-status";
+import { useWebSocketManager } from "@/lib/websocket-manager";
 import {
   AlertDialog,
   AlertDialogAction,

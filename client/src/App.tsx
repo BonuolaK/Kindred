@@ -3,6 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "./hooks/use-auth";
+import { WebSocketProvider } from "./lib/websocket-manager";
 import AnalyticsTracker from "./components/analytics-tracker";
 import { initAnalytics, trackEvent } from "./lib/analytics";
 import { useEffect } from "react";
@@ -102,10 +103,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AnalyticsInitializer />
-        <AnalyticsTracker />
-        <Router />
-        <Toaster />
+        <WebSocketProvider>
+          <AnalyticsInitializer />
+          <AnalyticsTracker />
+          <Router />
+          <Toaster />
+        </WebSocketProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
