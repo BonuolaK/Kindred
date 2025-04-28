@@ -216,10 +216,17 @@ export default function CallPage() {
               <div className="mt-6 text-xs border-t pt-4 text-muted-foreground">
                 <p className="font-semibold">Debug Info:</p>
                 <p>Match ID: {matchDetails.id}</p>
-                <p>Other User ID: {matchDetails.otherUser.id}</p>
+                <p>Other User: {matchDetails.otherUser.username} (ID: {matchDetails.otherUser.id})</p>
                 <p>Other User Online: {isTargetUserOnline ? '✅ Yes' : '❌ No'}</p>
                 <p>Call Day: {matchDetails.callCount + 1}</p>
                 <p>Current User: {user.username} (ID: {user.id})</p>
+                <p>WebSocket Status: {isConnected ? '✅ Connected' : '❌ Disconnected'}</p>
+                <p>Photos Revealed: {matchDetails.arePhotosRevealed ? '✅ Yes' : '❌ No'}</p>
+                <div className="mt-2">
+                  <p className="font-semibold">Call History:</p>
+                  <p>Total Calls: {matchDetails.callCount || 0}</p>
+                  {matchDetails.lastCallDate && <p>Last Call: {new Date(matchDetails.lastCallDate).toLocaleString()}</p>}
+                </div>
               </div>
             </div>
           </div>

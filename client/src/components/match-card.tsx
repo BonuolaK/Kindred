@@ -40,10 +40,8 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
   // Get online status
   const { isUserOnline, isConnectedToStatusService } = useOnlineStatus();
   
-  // TEMPORARY FIX: For testing purposes, we'll always consider users as potentially online
-  // This allows initiating calls even when the online status system is having issues
-  // Remove this once WebSocket connectivity issues are resolved
-  const isOtherUserOnline = true; // Override the actual status check: isUserOnline(otherUser.id);
+  // Check if the other user is online in the app
+  const isOtherUserOnline = isUserOnline(otherUser.id);
   
   // State for unmatch dialog
   const [unmatchDialogOpen, setUnmatchDialogOpen] = useState(false);
@@ -366,9 +364,8 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
             <CalendarClock className="h-4 w-4" />
             Scheduled
           </Button>
-        ) : (
-          // TEMPORARY FIX: Enable calling regardless of online status
-          // The original implementation depended on online status: {isOtherUserOnline ? ... : ...}
+        ) : isOtherUserOnline ? (
+          // When user is online, allow call button
           <Button 
             variant="outline" 
             size="sm" 
@@ -378,11 +375,28 @@ export const MatchCard = ({ match, currentUserId, onScheduleCall }: MatchCardPro
             <Link to={`/call/${match.id}?autoStart=true`}>
               <Phone className="h-4 w-4" />
               Call
-              {!isOtherUserOnline && (
-                <span className="ml-1 text-xs text-[#9B1D54]/60">(try)</span>
-              )}
             </Link>
           </Button>
+        ) : (
+          // When user is offline, disable the call button with tooltip
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center justify-center gap-1 h-10 border-gray-300 text-gray-500"
+                  disabled
+                >
+                  <Phone className="h-4 w-4" />
+                  Offline
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{otherUser.username} is currently offline. They need to be online to receive calls.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
         
         {isChatUnlocked ? (
