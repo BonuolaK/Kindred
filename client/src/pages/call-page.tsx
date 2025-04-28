@@ -3,10 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import CallInterface from "@/components/call-interface";
-import { Loader2 } from "lucide-react";
+import { Loader2, WifiOff } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { Match, User } from "@shared/schema";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 import SimpleCallInterface from "@/components/simple-call-interface";
 import { RtcTestCallUI } from "@/components/RtcTestCallUI";
@@ -19,6 +22,7 @@ export default function CallPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isUserOnline } = useOnlineStatus();
   const queryClient = useQueryClient();
   const parsedMatchId = parseInt(id || "0", 10);
   
@@ -36,6 +40,7 @@ export default function CallPage() {
   const [matchDetails, setMatchDetails] = useState<MatchWithOtherUser>();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [isTargetUserOnline, setIsTargetUserOnline] = useState(false);
   
   // Debug output
   console.log("Call page loaded with id:", id, "parsed as:", parsedMatchId);
@@ -57,6 +62,14 @@ export default function CallPage() {
         console.log("Direct API response:", data);
         
         setMatchDetails(data);
+        
+        // Check if the matched user is online
+        if (data.otherUser?.id) {
+          const online = isUserOnline(data.otherUser.id);
+          console.log(`[CALL-PAGE] User ${data.otherUser.username} (${data.otherUser.id}) online status:`, online);
+          setIsTargetUserOnline(online);
+        }
+        
         setIsLoading(false);
       } catch (err) {
         console.error("Error fetching match:", err);
@@ -67,13 +80,13 @@ export default function CallPage() {
     
     fetchMatchDetails();
     
-    // Set up refresh interval
+    // Set up refresh interval - check for both match details and online status
     const intervalId = setInterval(() => {
       fetchMatchDetails();
     }, 5000);
     
     return () => clearInterval(intervalId);
-  }, [parsedMatchId, user]);
+  }, [parsedMatchId, user, isUserOnline]);
   
   // Handle call ended
   const handleCallEnded = () => {
@@ -144,7 +157,8 @@ export default function CallPage() {
                     matchId: matchDetails.id,
                     otherUserId: matchDetails.otherUser.id,
                     otherUserName: matchDetails.otherUser.username,
-                    callDay: matchDetails.callCount + 1 
+                    callDay: matchDetails.callCount + 1,
+                    isTargetUserOnline: isTargetUserOnline
                   }
                 );
                 
@@ -152,8 +166,34 @@ export default function CallPage() {
                 const currentUserId = user.id;
                 const otherUserId = matchDetails.otherUser.id;
                 
-                console.log(`[CALL-PAGE] Current user: ${user.username} (${currentUserId}), Other user: ${matchDetails.otherUser.username} (${otherUserId})`);
+                console.log(`[CALL-PAGE] Current user: ${user.username} (${currentUserId}), Other user: ${matchDetails.otherUser.username} (${otherUserId}), Online: ${isTargetUserOnline}`);
                 
+                // If the target user is offline, show an error message instead of the call UI
+                if (!isTargetUserOnline) {
+                  return (
+                    <div className="space-y-4">
+                      <Alert variant="destructive">
+                        <WifiOff className="h-4 w-4 mr-2" />
+                        <AlertTitle>User is offline</AlertTitle>
+                        <AlertDescription>
+                          {matchDetails.otherUser.username} is currently offline and cannot receive calls.
+                          Please try again when they are online.
+                        </AlertDescription>
+                      </Alert>
+                      
+                      <div className="flex flex-col items-center gap-3 mt-6">
+                        <p className="text-center text-muted-foreground">
+                          You can try again later or return to your matches
+                        </p>
+                        <Button onClick={() => setLocation('/matches')}>
+                          Return to Matches
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                // Otherwise, render the normal call UI
                 return (
                   <RtcTestCallUI
                     matchId={matchDetails.id}
@@ -167,7 +207,7 @@ export default function CallPage() {
                     callDay={matchDetails.callCount + 1}
                     onClose={handleCallEnded}
                     arePhotosRevealed={matchDetails.arePhotosRevealed ? true : false}
-                    autoStart={true}
+                    autoStart={isTargetUserOnline} // Only auto-start if the user is online
                   />
                 );
               })()}
@@ -177,6 +217,7 @@ export default function CallPage() {
                 <p className="font-semibold">Debug Info:</p>
                 <p>Match ID: {matchDetails.id}</p>
                 <p>Other User ID: {matchDetails.otherUser.id}</p>
+                <p>Other User Online: {isTargetUserOnline ? '✅ Yes' : '❌ No'}</p>
                 <p>Call Day: {matchDetails.callCount + 1}</p>
                 <p>Current User: {user.username} (ID: {user.id})</p>
               </div>

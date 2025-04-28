@@ -1,0 +1,28 @@
+[RTC-TEST] Initiating call as user 17 to user 35
+index-BRHjTcqb.js:381 [RTC-TEST] Waiting for WebSocket connection to establish...
+index-BRHjTcqb.js:381 [RTC-TEST] Connected to rtctest WebSocket
+index-BRHjTcqb.js:381 [RTC-TEST] Registered as user 17
+index-BRHjTcqb.js:381 [RTC-TEST] Raw message received: {"type":"registered","userId":17}
+index-BRHjTcqb.js:381 [RTC-TEST] Parsed message: {type: 'registered', userId: 17}
+index-BRHjTcqb.js:381 [RTC-TEST] Successfully registered with rtctest server as user 17
+index-BRHjTcqb.js:381 [RTC-TEST] Starting call to user 35 for match 65, day 2
+index-BRHjTcqb.js:381 [RTC-TEST] Initiating call as user 17 to user 35
+index-BRHjTcqb.js:381 [RTC-TEST] WebSocket already connected
+index-BRHjTcqb.js:381 [RTC-TEST] Waiting for WebSocket connection to establish...
+index-BRHjTcqb.js:381 [RTC-TEST] WebSocket connection established and ready
+index-BRHjTcqb.js:381 [RTC-TEST] Creating call record for match 65
+index-BRHjTcqb.js:381 [RTC-TEST] Starting call to user 35 for match 65, day 2
+index-BRHjTcqb.js:381 [RTC-TEST] Initiating call as user 17 to user 35
+index-BRHjTcqb.js:381 [RTC-TEST] WebSocket already connected
+index-BRHjTcqb.js:381 [RTC-TEST] Waiting for WebSocket connection to establish...
+index-BRHjTcqb.js:381 [RTC-TEST] Setting up peer connection, initiator: true
+index-BRHjTcqb.js:381 [RTC-TEST] Getting local media stream
+index-BRHjTcqb.js:381 [RTC-TEST] WebSocket connection established and ready
+index-BRHjTcqb.js:381 [RTC-TEST] Creating call record for match 65
+index-BRHjTcqb.js:381 [RTC-TEST] Setting up peer connection, initiator: true
+index-BRHjTcqb.js:381 [RTC-TEST] Creating offer as initiator
+index-BRHjTcqb.js:381 [RTC-TEST] Offer sent to user 35
+2index-BRHjTcqb.js:381 [RTC-TEST] Sending ICE candidate to user 35
+index-BRHjTcqb.js:381 [RTC-TEST] Raw message received: {"type":"error","error":"target_unavailable","message":"Target user 35 is not connected"}
+index-BRHjTcqb.js:381 [RTC-TEST] Parsed message: {type: 'error', error: 'target_unavailable', message: 'Target user 35 is not connected'}
+index-BRHjTcqb.js:381  [RTC-TEST] Error from server: Target user 35 is not connected
