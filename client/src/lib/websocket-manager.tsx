@@ -9,6 +9,9 @@ type OnlineUsers = {
   [userId: number]: boolean;
 };
 
+// Types for messaging
+type RtcMessageCallback = (message: any) => void;
+
 // Context type
 interface WebSocketContextType {
   // Basic WebSocket (online status)
@@ -20,6 +23,8 @@ interface WebSocketContextType {
   rtcStatus: WebSocketStatus;
   rtcConnectedUsers: OnlineUsers;
   isUserRtcConnected: (userId: number) => boolean;
+  sendRtcMessage: (message: any) => void;
+  onRtcMessage: (callback: RtcMessageCallback) => () => void;
   
   // Combined status
   isUserAvailableForCall: (userId: number) => boolean;
@@ -34,6 +39,8 @@ const WebSocketContext = createContext<WebSocketContextType>({
   rtcStatus: 'disconnected',
   rtcConnectedUsers: {},
   isUserRtcConnected: () => false,
+  sendRtcMessage: () => {},
+  onRtcMessage: () => () => {},
   
   isUserAvailableForCall: () => false,
 });
@@ -71,6 +78,33 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const isUserAvailableForCall = useCallback((userId: number): boolean => {
     return isUserOnline(userId) && isUserRtcConnected(userId);
   }, [isUserOnline, isUserRtcConnected]);
+  
+  // Message handlers
+  const rtcMessageListeners = useRef<RtcMessageCallback[]>([]);
+  
+  // Function to send messages to the RTC server
+  const sendRtcMessage = useCallback((message: any) => {
+    if (!rtcSocketRef.current || rtcSocketRef.current.readyState !== WebSocket.OPEN) {
+      console.error('[WebSocket Manager] Cannot send message, RTC WebSocket not open');
+      return;
+    }
+    
+    try {
+      rtcSocketRef.current.send(JSON.stringify(message));
+    } catch (err) {
+      console.error('[WebSocket Manager] Error sending RTC message:', err);
+    }
+  }, []);
+  
+  // Function to register message listeners
+  const onRtcMessage = useCallback((callback: RtcMessageCallback) => {
+    rtcMessageListeners.current.push(callback);
+    
+    // Return a function to unsubscribe
+    return () => {
+      rtcMessageListeners.current = rtcMessageListeners.current.filter(cb => cb !== callback);
+    };
+  }, []);
 
   // Connect to basic WebSocket for online status
   useEffect(() => {
