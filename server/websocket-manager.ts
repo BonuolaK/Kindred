@@ -39,13 +39,15 @@ export class WebSocketManager {
     rtc: WebSocketServer;
     basic: WebSocketServer;
     rtctest: WebSocketServer;
+    callSignaling: WebSocketServer;
   };
   
   private connections: ConnectionMap = {
     ws: new Map(),
     rtc: new Map(),
     basic: new Map(),
-    rtctest: new Map()
+    rtctest: new Map(),
+    callSignaling: new Map()
   };
   
   private httpServer: HttpServer;
@@ -58,7 +60,8 @@ export class WebSocketManager {
       ws: new WebSocketServer({ noServer: true }),
       rtc: new WebSocketServer({ noServer: true }),
       basic: new WebSocketServer({ noServer: true }),
-      rtctest: new WebSocketServer({ noServer: true })
+      rtctest: new WebSocketServer({ noServer: true }),
+      callSignaling: new WebSocketServer({ noServer: true })
     };
     
     // Set up event handlers for each WebSocket server

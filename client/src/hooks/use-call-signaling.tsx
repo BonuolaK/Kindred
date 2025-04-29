@@ -110,12 +110,32 @@ export function CallSignalingProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  // Track reconnection attempts
+  const reconnectAttemptsRef = useRef(0);
+  const lastConnectAttemptRef = useRef(0);
+  
   // Connect to the signaling server
   const connectToSignalingServer = useCallback(() => {
     if (!user || isConnecting) return;
     
+    // Limit reconnection frequency
+    const now = Date.now();
+    if (now - lastConnectAttemptRef.current < 2000) {
+      console.log('[CALL-SIGNAL] Reconnection attempt too soon, skipping');
+      return;
+    }
+    
+    // Maximum reconnection attempts (reset after successful connection)
+    const maxReconnectAttempts = 5;
+    if (reconnectAttemptsRef.current >= maxReconnectAttempts && callStatus === 'idle') {
+      console.log('[CALL-SIGNAL] Maximum reconnection attempts reached, stopping attempts');
+      return;
+    }
+    
     try {
       setIsConnecting(true);
+      lastConnectAttemptRef.current = now;
+      reconnectAttemptsRef.current++;
       
       // Close existing connection if any
       if (wsRef.current) {
@@ -155,12 +175,15 @@ export function CallSignalingProvider({ children }: { children: ReactNode }) {
         }
         
         // Try to reconnect after a delay if not intentionally closed
-        if (event.code !== 1000) {
+        // Only reconnect if there's an active call or we're not already connecting
+        if (event.code !== 1000 && (callStatus !== 'idle' || !isConnecting)) {
+          // Add a random delay to prevent connection floods
+          const reconnectDelay = 3000 + Math.random() * 2000;
           setTimeout(() => {
-            if (document.visibilityState === 'visible') {
+            if (document.visibilityState === 'visible' && !isConnecting) {
               connectToSignalingServer();
             }
-          }, 3000);
+          }, reconnectDelay);
         }
       };
       
