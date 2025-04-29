@@ -10,10 +10,11 @@ interface ConnectionMap {
   rtc: Map<number, WebSocket>;
   basic: Map<number, WebSocket>;
   rtctest: Map<number, WebSocket>;
+  callSignaling: Map<number, WebSocket>;
 }
 
 // WebSocket types
-type WebSocketType = 'ws' | 'rtc' | 'basic'| 'rtctest';
+type WebSocketType = 'ws' | 'rtc' | 'basic'| 'rtctest' | 'callSignaling';
 
 // Type guard for userId
 function isValidUserId(userId: number | null): userId is number {
@@ -69,11 +70,12 @@ export class WebSocketManager {
     this.setupRTCHandlers();
     this.setupBasicWSHandlers();
     this.setUpRTCTestHandlers();
+    this.setupCallSignalingHandlers();
     
     // Set up HTTP server upgrade handler
     this.setupUpgradeHandler();
     
-    console.log('WebSocket Manager initialized with handlers for /ws, /rtc, and /basic-ws');
+    console.log('WebSocket Manager initialized with handlers for /ws, /rtc, /basic-ws, /rtctest, and /call-signaling');
   }
   
   private setupUpgradeHandler() {
@@ -101,10 +103,16 @@ export class WebSocketManager {
         this.wss.rtctest.handleUpgrade(request, socket, head, (ws) => {
           this.wss.rtctest.emit('connection', ws, request);
         });
+      } else if (pathname === '/call-signaling') {
+        console.log('[CALL-SIGNALING] Processing WebSocket upgrade request');
+        this.wss.callSignaling.handleUpgrade(request, socket, head, (ws) => {
+          this.wss.callSignaling.emit('connection', ws, request);
+        });
       } 
       
       else {
         // If no matching WebSocket path, close the connection
+        console.log(`Unhandled WebSocket path: ${pathname}, closing connection`);
         socket.destroy();
       }
     });
@@ -403,6 +411,185 @@ export class WebSocketManager {
     });
   }
   
+  
+  private setupCallSignalingHandlers() {
+    // Call signaling WebSocket server for handling audio call connections
+    this.wss.callSignaling.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+      console.log('[CALL-SIGNAL] Client connected to Call Signaling server');
+      let userId: number | null = null;
+      
+      // Track last message time for basic rate limiting
+      let lastMessageTimestamp = Date.now();
+      
+      ws.on('message', (message: Buffer | string) => {
+        try {
+          const now = Date.now();
+          if (now - lastMessageTimestamp < 100) { // Rate limit to 10 messages/second
+            console.warn('[CALL-SIGNAL] Rate limit triggered, ignoring message');
+            return;
+          }
+          lastMessageTimestamp = now;
+          
+          const data = JSON.parse(message.toString());
+          console.log(`[CALL-SIGNAL] Received message:`, data);
+          
+          // Handle user registration
+          if (data.type === 'register' && data.userId) {
+            const validatedUserId = ensureNumber(data.userId);
+            
+            if (!validatedUserId) {
+              this.sendToClient(ws, {
+                type: 'error',
+                error: 'invalid_user_id',
+                message: 'User ID must be a number'
+              });
+              return;
+            }
+            
+            // Handle duplicate connections
+            const existingConnection = this.connections.callSignaling.get(validatedUserId);
+            if (existingConnection) {
+              console.warn(`[CALL-SIGNAL] Duplicate registration for user ${validatedUserId}. Overwriting old connection.`);
+              existingConnection.close();
+              this.connections.callSignaling.delete(validatedUserId);
+            }
+            
+            userId = validatedUserId;
+            this.connections.callSignaling.set(validatedUserId, ws);
+            
+            console.log(`[CALL-SIGNAL] User ${userId} registered with Call Signaling server`);
+            
+            // Send registration confirmation
+            this.sendToClient(ws, {
+              type: 'registered',
+              userId: validatedUserId
+            });
+          }
+          
+          // Handle call request
+          else if (data.type === 'call:request' && data.callData) {
+            if (!userId) {
+              console.warn('[CALL-SIGNAL] Unregistered user trying to initiate call');
+              this.sendToClient(ws, {
+                type: 'error',
+                error: 'unauthorized',
+                message: 'You must register before initiating a call'
+              });
+              return;
+            }
+            
+            const receiverId = ensureNumber(data.callData.receiverId);
+            const receiverWs = this.connections.callSignaling.get(receiverId);
+            
+            if (receiverWs && receiverWs.readyState === WebSocket.OPEN) {
+              console.log(`[CALL-SIGNAL] Forwarding call request from user ${userId} to user ${receiverId}`);
+              
+              // Set the initiator ID in the call data
+              const callData = {
+                ...data.callData,
+                initiatorId: userId,
+                otherUserId: userId,
+                otherUserName: data.callData.otherUserName
+              };
+              
+              // Forward the call request to the receiver
+              this.sendToClient(receiverWs, {
+                type: 'call:request',
+                callData
+              });
+            } else {
+              console.warn(`[CALL-SIGNAL] Call recipient ${receiverId} not available`);
+              
+              // Notify the caller that the recipient is not available
+              this.sendToClient(ws, {
+                type: 'error',
+                error: 'recipient_unavailable',
+                message: `The user you're trying to call is not online.`
+              });
+            }
+          }
+          
+          // Handle call accept/reject/end/missed messages
+          else if (
+            (data.type === 'call:accept' || 
+             data.type === 'call:reject' || 
+             data.type === 'call:end' || 
+             data.type === 'call:missed') && 
+            data.callData
+          ) {
+            if (!userId) {
+              console.warn(`[CALL-SIGNAL] Unregistered user trying to send ${data.type}`);
+              this.sendToClient(ws, {
+                type: 'error',
+                error: 'unauthorized',
+                message: `You must register before sending ${data.type}`
+              });
+              return;
+            }
+            
+            // Find target user ID based on the call data
+            const targetUserId = data.callData.initiatorId === userId 
+              ? ensureNumber(data.callData.receiverId) 
+              : ensureNumber(data.callData.initiatorId);
+            
+            // Find the WebSocket connection for the target user
+            const targetWs = this.connections.callSignaling.get(targetUserId);
+            
+            if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+              console.log(`[CALL-SIGNAL] Forwarding ${data.type} from user ${userId} to user ${targetUserId}`);
+              
+              // Forward the message to the target user
+              this.sendToClient(targetWs, {
+                type: data.type,
+                callData: data.callData
+              });
+            } else {
+              console.warn(`[CALL-SIGNAL] Target user ${targetUserId} not available for ${data.type}`);
+              
+              // If the target is no longer available, send an appropriate message back
+              if (data.type === 'call:accept') {
+                this.sendToClient(ws, {
+                  type: 'error',
+                  error: 'caller_unavailable',
+                  message: 'The caller is no longer available.'
+                });
+              }
+            }
+          }
+          
+          else {
+            console.warn('[CALL-SIGNAL] Unknown message type received:', data.type);
+          }
+        } catch (error) {
+          console.error('[CALL-SIGNAL] Error parsing message:', error);
+          this.sendToClient(ws, {
+            type: 'error',
+            error: 'invalid_message',
+            message: 'Message could not be parsed or was invalid.'
+          });
+        }
+      });
+      
+      // Handle disconnection
+      ws.on('close', () => {
+        if (userId) {
+          console.log(`[CALL-SIGNAL] User ${userId} disconnected from Call Signaling server`);
+          this.connections.callSignaling.delete(ensureNumber(userId));
+          
+          // If the user is in a call, notify the other party
+          // This would require tracking active calls, which is not implemented here
+        }
+      });
+      
+      // Handle errors
+      ws.on('error', (error) => {
+        console.error('[CALL-SIGNAL] WebSocket error:', error);
+        if (userId) {
+          this.connections.callSignaling.delete(ensureNumber(userId));
+        }
+      });
+    });
+  }
   
   private setupBasicWSHandlers() {
     // Basic WebSocket server (fallback for status)

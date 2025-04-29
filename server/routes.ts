@@ -8,7 +8,7 @@ import { setupSocketServer } from "./socket";
 import { setupWebRTCSignaling } from "./webrtc-signaling";
 import { setupBasicWebSocketServer } from "./basic-ws";
 import { WebSocketManager } from "./websocket-manager";
-import { setupCallSignalingServer } from "./call-signaling";
+// No longer using separate call-signaling.ts - integrated into WebSocketManager
 import { db } from "./db";
 import { matches } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
@@ -45,8 +45,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('Using unified WebSocket manager for all platforms');
   const wsManager = new WebSocketManager(httpServer);
   
-  // Set up call signaling server
-  const callSignalingWss = setupCallSignalingServer(httpServer);
+  // Call signaling is now handled by WebSocketManager
   
   // No longer using separate WebSocket servers to avoid conflicts
 
